@@ -1,0 +1,46 @@
+package process
+
+import (
+	"sort"
+
+	"github.com/System-Pulse/server-pulse/utils"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/shirou/gopsutil/v4/process"
+)
+
+func UpdateProcesses() tea.Cmd {
+	return func() tea.Msg {
+		processes, err := process.Processes()
+		if err != nil {
+			return utils.ErrMsg(err)
+		}
+
+		var processList []ProcessInfo
+		for _, p := range processes {
+			name, _ := p.Name()
+			user, _ := p.Username()
+			cpu, _ := p.CPUPercent()
+			mem, _ := p.MemoryPercent()
+
+			processList = append(processList, ProcessInfo{
+				PID:     p.Pid,
+				User:    user,
+				CPU:     cpu,
+				Mem:     float64(mem),
+				Command: name,
+			})
+		}
+
+		// Trier par utilisation CPU
+		sort.Slice(processList, func(i, j int) bool {
+			return processList[i].CPU > processList[j].CPU
+		})
+
+		// Garder seulement les 50 premiers
+		if len(processList) > 50 {
+			processList = processList[:50]
+		}
+
+		return ProcessMsg(processList)
+	}
+}
