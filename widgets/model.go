@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 
 	info "github.com/System-Pulse/server-pulse/system/informations"
@@ -13,7 +14,7 @@ import (
 	resource "github.com/System-Pulse/server-pulse/system/resource"
 )
 
-const (  
+const (
 	progressBarWidth = 40
 )
 
@@ -28,28 +29,33 @@ type model struct {
 	err       error
 
 	// État UI
-	loading     bool
-	selectedTab int
-	tabs        Menu
-	width       int
-	height      int
-	minWidth    int
-	minHeight   int
-	ready       bool
-	spinner      spinner.Model
-	viewport     viewport.Model
-	cpuProgress  progress.Model
-	memProgress  progress.Model
-	swapProgress progress.Model
-	processTable table.Model
-	diskProgress map[string]progress.Model
-	progressBars map[string]progress.Model
+	loading         bool
+	selectedTab     int
+	selectedMonitor int
+	isMonitorActive bool        
+	activeView      int             
+	searchInput     textinput.Model 
+	searchMode      bool            
+	tabs            Menu
+	width           int
+	height          int
+	minWidth        int
+	minHeight       int
+	ready           bool
+	spinner         spinner.Model
+	viewport        viewport.Model
+	cpuProgress     progress.Model
+	memProgress     progress.Model
+	swapProgress    progress.Model
+	processTable    table.Model
+	diskProgress    map[string]progress.Model
+	progressBars    map[string]progress.Model
 
 	lastUpdate       time.Time
 	enableAnimations bool
 }
 
-type Menu struct{
+type Menu struct {
 	DashBoard []string
-	Monitor []string
+	Monitor   []string
 }

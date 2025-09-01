@@ -15,6 +15,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -22,7 +23,6 @@ import (
 
 // Initialisation du modèle
 func InitialModel() model {
-	// Configuration de la table des processus
 	columns := []table.Column{
 		{Title: "PID", Width: 8},
 		{Title: "User", Width: 12},
@@ -38,20 +38,30 @@ func InitialModel() model {
 	s.Header = s.Header.BorderStyle(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("240")).BorderBottom(true).Bold(false)
 	s.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57")).Bold(false)
 	t.SetStyles(s)
+
+	searchInput := textinput.New()
+	searchInput.Placeholder = "Rechercher un processus..."
+	searchInput.Prompt = "/"
+	searchInput.CharLimit = 50
+	searchInput.Width = 30
+
 	progOpts := []progress.Option{
 		progress.WithWidth(progressBarWidth),
 		progress.WithDefaultGradient(),
 	}
-	dashboard := []string{"Dashboard", "Processes", "Network"}
-	monitor := []string{"System", "Application"}
+	dashboard := []string{"Monitor", "Diagnostic", "Network", "Reporting"}
+	monitor := []string{"System", "Process", "Application"}
 	menu := Menu{
 		DashBoard: dashboard,
-		Monitor: monitor,
+		Monitor:   monitor,
 	}
 	return model{
 		tabs:         menu,
 		selectedTab:  0,
+		activeView:   -1,
 		processTable: t,
+		searchInput:  searchInput,
+		searchMode:   false,      
 		cpuProgress:  progress.New(progOpts...),
 		memProgress:  progress.New(progOpts...),
 		swapProgress: progress.New(progOpts...),
@@ -80,7 +90,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		headerHeight := lipgloss.Height(m.renderTabs()) + 2
+		headerHeight := lipgloss.Height(m.renderHome()) + 2
 		footerHeight := lipgloss.Height(m.renderFooter())
 		verticalMargin := headerHeight + footerHeight
 		m.viewport.Width = msg.Width
@@ -101,29 +111,100 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case tea.KeyMsg:
-		if m.selectedTab != 1 {
+		if m.searchMode {
 			switch msg.String() {
-			case "up", "u":
+			case "esc", "enter":
+				m.searchMode = false
+				m.processTable.Focus()
+				return m, m.updateProcessTable()
+			default:
+				m.searchInput, cmd = m.searchInput.Update(msg)
+				cmds = append(cmds, cmd)
+				return m, tea.Batch(cmds...)
+			}
+		}
+
+		// Scrolling/navigation
+		if m.isMonitorActive && m.selectedMonitor == 1 {
+			switch msg.String() {
+			case "up", "k":
+				m.processTable.MoveUp(1)
+			case "down", "j":
+				m.processTable.MoveDown(1)
+			case "pageup":
+				m.processTable.MoveUp(10)
+			case "pagedown":
+				m.processTable.MoveDown(10)
+			case "home":
+				m.processTable.GotoTop()
+			case "end":
+				m.processTable.GotoBottom()
+			case "/":
+				m.searchMode = true
+				m.searchInput.Focus()
+				return m, nil
+			}
+		} else if m.activeView != -1 {
+			switch msg.String() {
+			case "up", "k":
 				m.viewport.ScrollUp(1)
 			case "down", "j":
 				m.viewport.ScrollDown(1)
 			}
 		}
+		
 		switch msg.String() {
 		case "q", "ctrl+c":
 			return m, tea.Quit
+		case "enter":
+			if m.activeView == -1 {
+				m.activeView = m.selectedTab
+				if m.activeView == 0 { // Monitor
+					m.isMonitorActive = true
+				}
+			} else if m.isMonitorActive {
+				// NOTHING
+			}
+		case "b", "esc":
+			if m.searchMode {
+				m.searchMode = false
+				m.processTable.Focus()
+			} else if m.isMonitorActive {
+				m.isMonitorActive = false
+				m.activeView = -1
+			} else if m.activeView != -1 {
+				m.activeView = -1
+			}
 		case "tab", "right", "l":
-			m.selectedTab = (m.selectedTab + 1) % len(m.tabs.DashBoard)
+			if m.activeView == -1 {
+				m.selectedTab = (m.selectedTab + 1) % len(m.tabs.DashBoard)
+			} else if m.isMonitorActive {
+				m.selectedMonitor = (m.selectedMonitor + 1) % len(m.tabs.Monitor)
+			}
 		case "shift+tab", "left", "h":
-			m.selectedTab = (m.selectedTab - 1 + len(m.tabs.DashBoard)) % len(m.tabs.DashBoard)
+			if m.activeView == -1 {
+				m.selectedTab = (m.selectedTab - 1 + len(m.tabs.DashBoard)) % len(m.tabs.DashBoard)
+			} else if m.isMonitorActive {
+				m.selectedMonitor = (m.selectedMonitor - 1 + len(m.tabs.Monitor)) % len(m.tabs.Monitor)
+			}
 		case "1":
-			m.selectedTab = 0
+			if m.activeView == -1 {
+				m.selectedTab = 0
+			}
 		case "2":
-			m.selectedTab = 1
+			if m.activeView == -1 {
+				m.selectedTab = 1
+			}
 		case "3":
-			m.selectedTab = 2
+			if m.activeView == -1 {
+				m.selectedTab = 2
+			}
+		case "4":
+			if m.activeView == -1 {
+				m.selectedTab = 3
+			}
 		case "k":
-			if m.selectedTab == 1 && len(m.processTable.SelectedRow()) > 0 {
+			if m.isMonitorActive && m.selectedMonitor == 1 && len(m.processTable.SelectedRow()) > 0 {
 				selectedPID := m.processTable.SelectedRow()[0]
 				pid, _ := strconv.Atoi(selectedPID)
 				process, _ := os.FindProcess(pid)
@@ -133,15 +214,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, proc.UpdateProcesses()
 			}
 		case "s":
-			sort.Slice(m.processes, func(i, j int) bool {
-				return m.processes[i].CPU > m.processes[j].CPU
-			})
-			return m, m.updateProcessTable()
+			if m.isMonitorActive && m.selectedMonitor == 1 {
+				sort.Slice(m.processes, func(i, j int) bool {
+					return m.processes[i].CPU > m.processes[j].CPU
+				})
+				return m, m.updateProcessTable()
+			}
 		case "m":
-			sort.Slice(m.processes, func(i, j int) bool {
-				return m.processes[i].Mem > m.processes[j].Mem
-			})
-			return m, m.updateProcessTable()
+			if m.isMonitorActive && m.selectedMonitor == 1 {
+				sort.Slice(m.processes, func(i, j int) bool {
+					return m.processes[i].Mem > m.processes[j].Mem
+				})
+				return m, m.updateProcessTable()
+			}
 		}
 
 	case info.SystemMsg:
@@ -212,20 +297,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	if m.selectedTab == 1 {
-		m.processTable, cmd = m.processTable.Update(msg)
-	} else {
-		var content string
-		switch m.selectedTab {
-		case 0:
-			content = m.renderDashboard()
-		case 2:
-			content = m.renderNetwork()
+	if m.isMonitorActive && m.selectedMonitor == 1 {
+		if !m.searchMode {
+			m.processTable, cmd = m.processTable.Update(msg)
+			cmds = append(cmds, cmd)
 		}
-		m.viewport.SetContent(content)
+	} else if m.activeView != -1 {
 		m.viewport, cmd = m.viewport.Update(msg)
+		cmds = append(cmds, cmd)
 	}
-	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
 }
@@ -239,62 +319,148 @@ func (m model) View() string {
 	}
 
 	var currentView string
-	switch m.selectedTab {
-	case 0:
-		currentView = m.renderDashboard()
-	case 1:
-		currentView = m.renderProcesses()
-	case 2:
-		currentView = m.renderNetwork()
+	
+	if m.activeView != -1 {
+		switch m.activeView {
+		case 0: // Monitor
+			if m.isMonitorActive {
+				currentView = m.renderMonitor()
+			} else {
+				currentView = m.renderSystem()
+			}
+		case 1: // Diagnostic
+			currentView = m.renderDignostics()
+		case 2: // Network
+			currentView = m.renderNetwork()
+		case 3: // Reporting
+			currentView = m.renderReporting()
+		}
+	} else {
+		currentView = m.renderSystem()
 	}
 
-	if m.selectedTab != 1 {
-		m.viewport.SetContent(currentView)
-	}
-
+	home := m.renderHome()
 	tabs := m.renderTabs()
 	footer := m.renderFooter()
 
 	var mainContent string
-	if m.selectedTab == 1 {
-		mainContent = m.processTable.View()
+	if m.isMonitorActive && m.selectedMonitor == 1 {
+		if m.searchMode {
+			searchBar := lipgloss.NewStyle().
+				BorderStyle(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("57")).
+				Padding(0, 1).
+				MarginBottom(1).
+				Render(m.searchInput.View())
+			mainContent = lipgloss.JoinVertical(lipgloss.Left, searchBar, m.processTable.View())
+		} else {
+			mainContent = m.processTable.View()
+		}
 	} else {
+		if m.activeView != -1 {
+			m.viewport.SetContent(currentView)
+		}
 		mainContent = m.viewport.View()
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left,
+		home,
 		tabs,
 		mainContent,
 		footer,
 	)
 }
 
-func (m model) renderTabs() string {
-	var tabs []string
+func (m model) renderHome() string {
+	var menu []string
+	header := []string{}
+	headerStyle := lipgloss.NewStyle().
+		MarginLeft(5).
+		Padding(0, 1).
+		Foreground(lipgloss.Color("255")).
+		Background(successColor).
+		Bold(true)
+	header = append(header, headerStyle.Render("Server-Pulse"))
+
 	for i, t := range m.tabs.DashBoard {
-		style := lipgloss.NewStyle().Padding(0, 1)
+		style := lipgloss.NewStyle()
 		if i == m.selectedTab {
-			style = style.
-				Foreground(lipgloss.Color("229")).
-				Background(lipgloss.Color("57")).
-				Bold(true)
+			if m.activeView == i {
+				style = cardButtonStyle.
+					Foreground(lipgloss.Color("229")).
+					Background(successColor)
+			} else {
+				style = cardButtonStyle.
+					Foreground(lipgloss.Color("229"))
+			}
 		} else {
-			style = style.
-				Foreground(lipgloss.Color("240")).
-				Background(lipgloss.Color("236"))
+			style = cardButtonStyleDesactive.
+				Foreground(lipgloss.Color("240"))
 		}
-		tabs = append(tabs, style.Render(t))
+		menu = append(menu, style.Render(t))
 	}
-	return lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
+
+	doc := strings.Builder{}
+	systemInfo := fmt.Sprintf("Host: %s\nOS: %s\nKernel: %s\nUptime: %s", m.system.Hostname, m.system.OS, m.system.Kernel, utils.FormatUptime(m.system.Uptime))
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("System Info:"))
+	doc.WriteString("\n")
+	doc.WriteString(metricLabelStyle.Render(systemInfo))
+	doc.WriteString("\n")
+	header = append(header, cardStyle.MarginBottom(0).Render(doc.String()))
+
+	header = append(header, lipgloss.JoinHorizontal(lipgloss.Top, menu...))
+	return lipgloss.JoinVertical(lipgloss.Top, header...)
 }
 
-func (m model) renderDashboard() string {
+func (m model) renderTabs() string {
+	if m.isMonitorActive {
+		var tabs []string
+		for i, t := range m.tabs.Monitor {
+			style := lipgloss.NewStyle().Padding(0, 1)
+			if i == m.selectedMonitor {
+				style = style.
+					Foreground(lipgloss.Color("229")).
+					Background(lipgloss.Color("57")).
+					Bold(true)
+			} else {
+				style = style.
+					Foreground(lipgloss.Color("240")).
+					Background(lipgloss.Color("236"))
+			}
+			tabs = append(tabs, style.Render(t))
+		}
+		return lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
+	}
+	return ""
+}
+
+func (m model) renderMonitor() string {
+	var currentView string
+	switch m.selectedMonitor {
+	case 0:
+		currentView = m.renderSystem()
+	case 1:
+		currentView = m.renderProcesses()
+	case 2:
+		currentView = m.renderApplications()
+	}
+	return currentView
+}
+
+func (m model) renderApplications() string {
+	return "APPLICATION"
+}
+
+func (m model) renderDignostics() string {
+	return "DIGNOSTICS"
+}
+
+func (m model) renderReporting() string {
+	return "REPORTING VIEW"
+}
+
+func (m model) renderSystem() string {
 	doc := strings.Builder{}
-	systemInfo := fmt.Sprintf("Host: %s | OS: %s | Kernel: %s | Uptime: %s", m.system.Hostname, m.system.OS, m.system.Kernel, utils.FormatUptime(m.system.Uptime))
-	doc.WriteString(lipgloss.NewStyle().Bold(true).Render("System Info"))
-	doc.WriteString("\n")
-	doc.WriteString(systemInfo)
-	doc.WriteString("\n\n")
 	cpuInfo := fmt.Sprintf("CPU: %s %.1f%% | Load: %.2f, %.2f, %.2f", m.cpuProgress.View(), m.cpu.Usage, m.cpu.LoadAvg1, m.cpu.LoadAvg5, m.cpu.LoadAvg15)
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Render("CPU"))
 	doc.WriteString("\n")
@@ -328,9 +494,18 @@ func (m model) renderProcesses() string {
 
 func (m model) renderProcessTable() string {
 	content := strings.Builder{}
-
-	content.WriteString(metricLabelStyle.Render("⚡ Active Processes"))
-	content.WriteString("\n\n")
+	
+	if m.searchMode {
+		searchBar := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("57")).
+			Padding(0, 1).
+			MarginBottom(1).
+			Render(m.searchInput.View())
+		content.WriteString(searchBar)
+		content.WriteString("\n")
+	}
+	
 	content.WriteString(m.processTable.View())
 
 	return cardStyle.Render(content.String())
@@ -381,22 +556,40 @@ func (m model) renderNetwork() string {
 
 func (m model) renderFooter() string {
 	footer := "\n"
-	switch m.selectedTab {
-	case 0:
-		footer += "[q] Quit • [tab/←→] Switch • [1-3] Direct tab • [r] Refresh"
-	case 1:
-		footer += "[q] Quit • [↑↓] Navigate • [k] Kill • [s] Sort CPU • [m] Sort Mem"
-	case 2:
-		footer += "[q] Quit • [tab/←→] Switch • [r] Refresh"
-	default:
-		footer += "[q] Quit • [tab/←→] Switch"
+
+	if m.activeView == -1 {
+		footer += "[Enter] Select view • [q] Quit • [Tab/←→] Navigate • [1-4] Quick select"
+	} else if m.isMonitorActive {
+		footer += "[b] Back • [Tab/←→] Switch • / Search • [q] Quit"
+		if m.selectedMonitor == 1 {
+			footer += " • [↑↓] Navigate • [k] Kill • [s] Sort CPU • [m] Sort Mem"
+		}
+	} else {
+		switch m.activeView {
+		case 0: // Monitor
+			footer += "[b] Back • [Enter] Select sub-menu • [q] Quit"
+		case 1: // Diagnostic
+			footer += "[b] Back • [q] Quit"
+		case 2: // Network
+			footer += "[b] Back • [q] Quit"
+		case 3: // Reporting
+			footer += "[b] Back • [q] Quit"
+		}
 	}
 	return footer
 }
 
 func (m *model) updateProcessTable() tea.Cmd {
 	var rows []table.Row
+	searchTerm := strings.ToLower(m.searchInput.Value())
+	
 	for _, p := range m.processes {
+		if searchTerm != "" && !strings.Contains(strings.ToLower(p.Command), searchTerm) &&
+		   !strings.Contains(strings.ToLower(p.User), searchTerm) &&
+		   !strings.Contains(fmt.Sprintf("%d", p.PID), searchTerm) {
+			continue
+		}
+		
 		rows = append(rows, table.Row{
 			fmt.Sprintf("%d", p.PID),
 			p.User,
