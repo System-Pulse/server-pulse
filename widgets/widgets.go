@@ -52,9 +52,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.searchMode {
 			switch msg.String() {
 			case "esc", "enter":
+				var tcmd tea.Cmd
 				m.searchMode = false
 				m.processTable.Focus()
-				return m, m.updateProcessTable()
+				m.container.Focus()
+				if m.selectedMonitor == 1 {
+					tcmd = m.updateProcessTable()
+				} else {
+					tcmd = m.app.UpdateApp()
+				}
+				return m, tcmd
 			default:
 				m.searchInput, cmd = m.searchInput.Update(msg)
 				cmds = append(cmds, cmd)
@@ -63,20 +70,44 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		// Scrolling/navigation
-		if m.isMonitorActive && m.selectedMonitor == 1 {
+		if m.isMonitorActive && (m.selectedMonitor == 1 || m.selectedMonitor == 2) {
 			switch msg.String() {
 			case "up", "k":
-				m.processTable.MoveUp(1)
+				if m.selectedMonitor == 1 {
+					m.processTable.MoveUp(1)
+				} else {
+					m.container.MoveUp(1)
+				}
 			case "down", "j":
-				m.processTable.MoveDown(1)
+				if m.selectedMonitor == 1 {
+					m.processTable.MoveDown(1)
+				} else {
+					m.container.MoveDown(1)
+				}
 			case "pageup":
-				m.processTable.MoveUp(10)
+				if m.selectedMonitor == 1 {
+					m.processTable.MoveUp(10)
+				} else {
+					m.container.MoveUp(10)
+				}
 			case "pagedown":
-				m.processTable.MoveDown(10)
+				if m.selectedMonitor == 1 {
+					m.processTable.MoveDown(10)
+				} else {
+					m.container.MoveDown(10)
+				}
 			case "home":
-				m.processTable.GotoTop()
+				if m.selectedMonitor == 1 {
+					m.processTable.GotoTop()
+				} else {
+					m.container.GotoTop()
+				}
 			case "end":
-				m.processTable.GotoBottom()
+				if m.selectedMonitor == 1 {
+					m.processTable.GotoBottom()
+				} else {
+					m.container.GotoBottom()
+				}
 			case "/":
 				m.searchMode = true
 				m.searchInput.Focus()
@@ -278,19 +309,28 @@ func (m *model) updateProcessTable() tea.Cmd {
 }
 
 func (m *model) updateContainerTable(containers []app.Container) tea.Cmd {
-    var rows []table.Row
-    
-    for _, c := range containers {
-        rows = append(rows, table.Row{
-            c.ID,
-            utils.Ellipsis(c.Image, 8),
-            utils.Ellipsis(c.Name, 12),
-            c.Status,
-            c.Project,
-        })
-    }
-    m.container.SetRows(rows)
-    return nil
+	var rows []table.Row
+	searchTerm := strings.ToLower(m.searchInput.Value())
+
+	for _, c := range containers {
+		if searchTerm != "" && !strings.Contains(strings.ToLower(c.Image), searchTerm) &&
+			!strings.Contains(strings.ToLower(c.Name), searchTerm) &&
+			!strings.Contains(strings.ToLower(c.ID), searchTerm) &&
+			!strings.Contains(strings.ToLower(c.Status), searchTerm) &&
+			!strings.Contains(strings.ToLower(c.Project), searchTerm) {
+			continue
+		}
+
+		rows = append(rows, table.Row{
+			c.ID,
+			utils.Ellipsis(c.Image, 8),
+			utils.Ellipsis(c.Name, 12),
+			c.Status,
+			c.Project,
+		})
+	}
+	m.container.SetRows(rows)
+	return nil
 }
 
 func tick() tea.Cmd {
