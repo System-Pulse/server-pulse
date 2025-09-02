@@ -74,13 +74,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "up", "k":
 				if m.selectedMonitor == 1 {
-					m.processTable.MoveUp(1)
+					m.processTable.MoveUp(0)
 				} else {
 					m.container.MoveUp(1)
 				}
 			case "down", "j":
 				if m.selectedMonitor == 1 {
-					m.processTable.MoveDown(1)
+					m.processTable.MoveDown(0)
 				} else {
 					m.container.MoveDown(1)
 				}

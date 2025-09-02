@@ -91,7 +91,7 @@ func InitialModel() model {
 		viewport:     viewport.New(100, 20),
 		app:          apk,
 	}
-	
+
 	m.updateContainerTable(containers)
 
 	return m
