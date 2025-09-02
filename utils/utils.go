@@ -161,12 +161,6 @@ func CheckDockerPermissions() (bool, string) {
 
 		return false, "The user is not in the 'docker' group. To add them, run 'sudo usermod -aG docker <your_username>' and then log out and log back in."
 
-	case "darwin": // macOS (Docker Desktop)
-		return true, "Assuming the user has Docker permissions (Docker Desktop manages this)."
-
-	case "windows": // Windows (Docker Desktop)
-		return true, "Assuming the user has Docker permissions (Docker Desktop manages this)."
-
 	default:
 		return false, fmt.Sprintf("Unsupported operating system: %s", runtime.GOOS)
 	}
