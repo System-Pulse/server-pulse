@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/System-Pulse/server-pulse/utils"
-	
+
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
@@ -78,14 +78,15 @@ func UpdateDiskInfo() tea.Cmd {
 			if err != nil {
 				continue
 			}
-
-			disks = append(disks, DiskInfo{
-				Mountpoint: p.Mountpoint,
-				Total:      usage.Total,
-				Used:       usage.Used,
-				Free:       usage.Free,
-				Usage:      usage.UsedPercent,
-			})
+			if p.Mountpoint == "/" || p.Mountpoint == "/home" || p.Mountpoint == "/efi" {
+				disks = append(disks, DiskInfo{
+					Mountpoint: p.Mountpoint,
+					Total:      usage.Total,
+					Used:       usage.Used,
+					Free:       usage.Free,
+					Usage:      usage.UsedPercent,
+				})
+			}
 		}
 
 		return DiskMsg(disks)
