@@ -1,39 +1,37 @@
-name: "CodeQL"
-
+name: CodeQL
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   pull_request:
-    branches:
-      - main
-  # schedule:
-  #   - cron: '0 17 * * 5'
+    branches: [ main ]
 
 jobs:
-  analyze:
-    name: Analyze
-    runs-on: self-hosted
-
-    permissions:
-      # required for all workflows
-      security-events: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'go']
+  test:
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      # Initializes the CodeQL tools for scanning.
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: ${{ matrix.language }}
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.24.6'
 
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
+    - name: Download dependencies
+      run: go mod download
+
+    - name: Check formatting
+      run: |
+        if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then
+          echo "Code not formatted properly:"
+          gofmt -l .
+          exit 1
+        fi
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Build
+      run: go build -v ./...
