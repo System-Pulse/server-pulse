@@ -4,6 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
+	"os/user"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -11,7 +14,6 @@ import (
 
 type ErrMsg error
 type TickMsg time.Time
-
 
 // Nouvelle fonction pour formater les pourcentages avec couleurs
 func FormatPercentage(percent float64) string {
@@ -36,7 +38,7 @@ func FormatCompactUptime(seconds uint64) string {
 	days := seconds / (60 * 60 * 24)
 	hours := (seconds % (60 * 60 * 24)) / (60 * 60)
 	minutes := (seconds % (60 * 60)) / 60
-	
+
 	if days > 0 {
 		return fmt.Sprintf("%dd%dh", days, hours)
 	} else if hours > 0 {
@@ -77,7 +79,7 @@ func FormatUptime(seconds uint64) string {
 	days := seconds / (60 * 60 * 24)
 	hours := (seconds % (60 * 60 * 24)) / (60 * 60)
 	minutes := (seconds % (60 * 60)) / 60
-	
+
 	if days > 0 {
 		return fmt.Sprintf("%d days, %d hours", days, hours)
 	} else if hours > 0 {
@@ -125,4 +127,47 @@ func LoadAvg() ([3]float64, error) {
 	}
 
 	return loadAvg, nil
+}
+
+func CheckDockerPermissions() (bool, string) {
+	// Step 1: Check if the 'docker' command exists in the user's PATH (cross-platform)
+	_, err := exec.LookPath("docker")
+	if err != nil {
+		return false, "The 'docker' command was not found. Please ensure Docker is installed."
+	}
+
+	// Step 2: Platform-specific permission checks
+	switch runtime.GOOS {
+	case "linux": // Linux
+		currentUser, err := user.Current()
+		if err != nil {
+			return false, fmt.Sprintf("Error getting the current user: %v", err)
+		}
+
+		groups, err := currentUser.GroupIds()
+		if err != nil {
+			return false, fmt.Sprintf("Error getting user's groups: %v", err)
+		}
+
+		for _, groupID := range groups {
+			group, err := user.LookupGroupId(groupID)
+			if err != nil {
+				continue
+			}
+			if group.Name == "docker" {
+				return true, "The user has permissions to run Docker."
+			}
+		}
+
+		return false, "The user is not in the 'docker' group. To add them, run 'sudo usermod -aG docker <your_username>' and then log out and log back in."
+
+	case "darwin": // macOS (Docker Desktop)
+		return true, "Assuming the user has Docker permissions (Docker Desktop manages this)."
+
+	case "windows": // Windows (Docker Desktop)
+		return true, "Assuming the user has Docker permissions (Docker Desktop manages this)."
+
+	default:
+		return false, fmt.Sprintf("Unsupported operating system: %s", runtime.GOOS)
+	}
 }

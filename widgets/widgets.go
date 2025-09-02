@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/System-Pulse/server-pulse/system/app"
 	info "github.com/System-Pulse/server-pulse/system/informations"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	"github.com/System-Pulse/server-pulse/system/resource"
@@ -196,6 +197,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case proc.ProcessMsg:
 		m.processes = []proc.ProcessInfo(msg)
 		return m, m.updateProcessTable()
+
+	case app.ContainerMsg:
+		containers := []app.Container(msg)
+		return m, m.updateContainerTable(containers)
+
 	case utils.ErrMsg:
 		m.err = msg
 	case utils.TickMsg:
@@ -207,6 +213,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			resource.UpdateDiskInfo(),
 			resource.UpdateNetworkInfo(),
 			proc.UpdateProcesses(),
+			m.app.UpdateApp(),
 		)
 	case progress.FrameMsg:
 		var progCmd tea.Cmd
@@ -268,6 +275,22 @@ func (m *model) updateProcessTable() tea.Cmd {
 	}
 	m.processTable.SetRows(rows)
 	return nil
+}
+
+func (m *model) updateContainerTable(containers []app.Container) tea.Cmd {
+    var rows []table.Row
+    
+    for _, c := range containers {
+        rows = append(rows, table.Row{
+            c.ID,
+            utils.Ellipsis(c.Image, 8),
+            utils.Ellipsis(c.Name, 12),
+            c.Status,
+            c.Project,
+        })
+    }
+    m.container.SetRows(rows)
+    return nil
 }
 
 func tick() tea.Cmd {

@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 
+	"github.com/System-Pulse/server-pulse/system/app"
 	info "github.com/System-Pulse/server-pulse/system/informations"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	resource "github.com/System-Pulse/server-pulse/system/resource"
@@ -26,16 +27,17 @@ type model struct {
 	disks     []resource.DiskInfo
 	network   resource.NetworkInfo
 	processes []proc.ProcessInfo
+	app       *app.DockerManager
 	err       error
 
 	// État UI
 	loading         bool
 	selectedTab     int
 	selectedMonitor int
-	isMonitorActive bool        
-	activeView      int             
-	searchInput     textinput.Model 
-	searchMode      bool            
+	isMonitorActive bool
+	activeView      int
+	searchInput     textinput.Model
+	searchMode      bool
 	tabs            Menu
 	width           int
 	height          int
@@ -48,6 +50,7 @@ type model struct {
 	memProgress     progress.Model
 	swapProgress    progress.Model
 	processTable    table.Model
+	container       table.Model
 	diskProgress    map[string]progress.Model
 	progressBars    map[string]progress.Model
 

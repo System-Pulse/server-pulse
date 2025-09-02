@@ -85,7 +85,26 @@ func (m model) renderMonitor() string {
 }
 
 func (m model) renderApplications() string {
-	return "APPLICATION"
+	return m.renderContainersTable()
+}
+//container
+func (m model) renderContainersTable() string {
+	content := strings.Builder{}
+
+	if m.searchMode {
+		searchBar := lipgloss.NewStyle().
+			BorderStyle(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("57")).
+			Padding(0, 1).
+			MarginBottom(1).
+			Render(m.searchInput.View())
+		content.WriteString(searchBar)
+		content.WriteString("\n")
+	}
+
+	content.WriteString(m.container.View())
+
+	return cardStyle.Render(content.String())
 }
 
 func (m model) renderDignostics() string {
