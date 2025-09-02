@@ -1,6 +1,5 @@
 package resource
 
-
 type Core struct {
 	Usage float64
 }
@@ -44,4 +43,3 @@ type CpuMsg CPUInfo
 type MemoryMsg MemoryInfo
 type DiskMsg []DiskInfo
 type NetworkMsg NetworkInfo
-

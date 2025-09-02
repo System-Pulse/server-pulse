@@ -17,7 +17,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer panicExit()
-	
+
 	lipgloss.SetHasDarkBackground(true)
 
 	m := app.InitialModel()

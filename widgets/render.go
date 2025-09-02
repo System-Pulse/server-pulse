@@ -87,7 +87,8 @@ func (m model) renderMonitor() string {
 func (m model) renderApplications() string {
 	return m.renderContainersTable()
 }
-//container
+
+// container
 func (m model) renderContainersTable() string {
 	content := strings.Builder{}
 
