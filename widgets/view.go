@@ -14,6 +14,11 @@ func (m model) View() string {
 		return fmt.Sprintf("Erreur: %v\n", m.err)
 	}
 
+	// Si la vue unique du conteneur est active, l'afficher en plein écran
+	if m.containerSingleView.Visible {
+		return m.renderContainerSingleView()
+	}
+
 	var currentView string
 
 	if m.activeView != -1 {
@@ -59,10 +64,23 @@ func (m model) View() string {
 		mainContent = m.viewport.View()
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left,
+	mainView := lipgloss.JoinVertical(lipgloss.Left,
 		home,
 		tabs,
 		mainContent,
 		footer,
 	)
+
+	// Superposer le menu si visible
+	if m.containerMenu.Visible {
+		menu := m.renderContainerMenu()
+		// Utiliser Place pour superposer le menu au centre
+		return lipgloss.Place(m.width, m.height,
+			lipgloss.Center, lipgloss.Center,
+			lipgloss.JoinVertical(lipgloss.Left, mainView, menu),
+			lipgloss.WithWhitespaceChars(""),
+			lipgloss.WithWhitespaceForeground(lipgloss.Color("0")))
+	}
+
+	return mainView
 }

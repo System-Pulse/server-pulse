@@ -13,6 +13,7 @@ import (
 )
 
 type ErrMsg error
+type InfoMsg string
 type TickMsg time.Time
 
 // Nouvelle fonction pour formater les pourcentages avec couleurs

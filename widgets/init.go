@@ -90,6 +90,16 @@ func InitialModel() model {
 		diskProgress: make(map[string]progress.Model),
 		viewport:     viewport.New(100, 20),
 		app:          apk,
+		containerSingleView: ContainerSingleView{
+			Visible:    false,
+			Tabs:       []string{"INFO", "CPU", "MEM", "NET", "DISK", "ENV"},
+			CPUData:    make([]float64, 50),
+			MemoryData: make([]float64, 50),
+			NetworkRX:  make([]float64, 50),
+			NetworkTX:  make([]float64, 50),
+			DiskData:   make([]float64, 50),
+			EnvVars:    make(map[string]string),
+		},
 	}
 
 	m.updateContainerTable(containers)

@@ -42,4 +42,24 @@ var (
 	metricValueStyle = lipgloss.NewStyle().
 				Foreground(accentColor).
 				Bold(true)
+	// ------------------------------------ //
+	menuOverlayStyle = lipgloss.NewStyle().
+				Background(lipgloss.Color("#000000")). // Fond noir opaque
+				Padding(1, 2)
+
+	menuStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(accentColor).
+			// Background("#000000").
+			Padding(1, 0)
+
+	menuItemStyle = lipgloss.NewStyle().
+			Padding(0, 2).
+			Foreground(lipgloss.Color("255"))
+
+	selectedMenuItemStyle = lipgloss.NewStyle().
+				Padding(0, 2).
+				// Background(accentColor).
+				Foreground(lipgloss.Color("black")).
+				Bold(true)
 )

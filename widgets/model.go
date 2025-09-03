@@ -1,10 +1,10 @@
 package widgets
 
 import (
-	"time"
+	// "time"
 
 	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/spinner"
+	// "github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -31,34 +31,92 @@ type model struct {
 	err       error
 
 	// État UI
-	loading         bool
-	selectedTab     int
-	selectedMonitor int
-	isMonitorActive bool
-	activeView      int
-	searchInput     textinput.Model
-	searchMode      bool
-	tabs            Menu
-	width           int
-	height          int
-	minWidth        int
-	minHeight       int
-	ready           bool
-	spinner         spinner.Model
-	viewport        viewport.Model
-	cpuProgress     progress.Model
-	memProgress     progress.Model
-	swapProgress    progress.Model
-	processTable    table.Model
-	container       table.Model
-	diskProgress    map[string]progress.Model
-	progressBars    map[string]progress.Model
+	// loading             bool
+	selectedTab         int
+	selectedMonitor     int
+	isMonitorActive     bool
+	activeView          int
+	searchInput         textinput.Model
+	searchMode          bool
+	tabs                Menu
+	width               int
+	height              int
+	// minWidth            int
+	// minHeight           int
+	ready               bool
+	// spinner             spinner.Model
+	viewport            viewport.Model
+	cpuProgress         progress.Model
+	memProgress         progress.Model
+	swapProgress        progress.Model
+	processTable        table.Model
+	container           table.Model
+	diskProgress        map[string]progress.Model
+	// progressBars        map[string]progress.Model
+	containerMenu       ContainerMenuState
+	containerSingleView ContainerSingleView
 
-	lastUpdate       time.Time
-	enableAnimations bool
+	// lastUpdate       time.Time
+	// enableAnimations bool
 }
 
 type Menu struct {
 	DashBoard []string
 	Monitor   []string
+}
+
+type ContainerMenuState struct {
+	Visible   bool
+	Container app.Container
+	Options   []string
+	Selected  int
+	X, Y      int
+}
+
+type ContainerActionMsg struct {
+	Action    string
+	Container app.Container
+}
+
+type LogsMsg struct {
+	Logs      string
+	Container app.Container
+}
+
+type OpenSingleViewMsg struct {
+	Container app.Container
+	Stats     ContainerStats
+	EnvVars   map[string]string
+}
+
+type ContainerSingleView struct {
+	Visible    bool
+	Container  app.Container
+	ActiveTab  int
+	Tabs       []string
+	CPUData    []float64
+	MemoryData []float64
+	NetworkRX  []float64
+	NetworkTX  []float64
+	DiskData   []float64
+	EnvVars    map[string]string
+	Stats      ContainerStats
+}
+
+type ContainerStats struct {
+	ID        string
+	Name      string
+	Image     string
+	Ports     string
+	IPs       []string
+	State     string
+	Created   string
+	Uptime    string
+	Health    string
+	CPUUsage  float64
+	MemUsage  float64
+	MemLimit  uint64
+	NetRX     uint64
+	NetTX     uint64
+	DiskUsage uint64
 }
