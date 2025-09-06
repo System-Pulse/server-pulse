@@ -32,11 +32,18 @@ type DiskInfo struct {
 	Usage      float64
 }
 
+type NetworkInterface struct {
+	Name    string
+	RxBytes uint64
+	TxBytes uint64
+}
+
 type NetworkInfo struct {
 	Connected  bool
 	PrivateIPs []string
 	PublicIPv4 string
 	PublicIPv6 string
+	Interfaces []NetworkInterface
 }
 
 type CpuMsg CPUInfo

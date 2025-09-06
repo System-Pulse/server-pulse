@@ -45,7 +45,13 @@ func (m model) View() string {
 	footer := m.renderFooter()
 
 	var mainContent string
-	if m.isMonitorActive && m.selectedMonitor == 1 {
+
+	// Vérifier d'abord si le menu contextuel est visible (priorité)
+	if m.containerMenuState == ContainerMenuVisible {
+		mainContent = m.renderContainerMenu()
+	} else if m.containerViewState == ContainerViewSingle {
+		mainContent = m.renderContainerSingleView()
+	} else if m.isMonitorActive && m.selectedMonitor == 1 {
 		if m.searchMode {
 			searchBar := lipgloss.NewStyle().
 				BorderStyle(lipgloss.RoundedBorder()).
@@ -56,6 +62,14 @@ func (m model) View() string {
 			mainContent = lipgloss.JoinVertical(lipgloss.Left, searchBar, m.processTable.View())
 		} else {
 			mainContent = m.processTable.View()
+		}
+	} else if m.isMonitorActive && m.selectedMonitor == 2 {
+		// Vue des conteneurs avec menu contextuel si nécessaire
+		if m.containerMenuState == ContainerMenuVisible {
+			// Afficher uniquement le menu contextuel (remplace le contenu)
+			mainContent = m.renderContainerMenu()
+		} else {
+			mainContent = m.renderContainersTable()
 		}
 	} else {
 		if m.activeView != -1 {

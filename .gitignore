@@ -31,5 +31,10 @@ go.work.sum
 # .idea/
 # .vscode/
 test*
+<<<<<<< Updated upstream
 server-pulse
 docs/
+=======
+docs/
+server-*
+>>>>>>> Stashed changes

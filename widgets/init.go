@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/System-Pulse/server-pulse/system/app"
 	info "github.com/System-Pulse/server-pulse/system/informations"
@@ -76,30 +77,59 @@ func InitialModel() model {
 		DashBoard: dashboard,
 		Monitor:   monitor,
 	}
+
+	// Menu contextuel des conteneurs
+	containerMenuItems := []ContainerMenuItem{
+		{Key: "o", Label: "Open single view", Description: "Ouvrir une vue détaillée", Action: "open_single"},
+		{Key: "l", Label: "View container logs", Description: "Afficher les logs", Action: "logs"},
+		{Key: "r", Label: "Restart container", Description: "Redémarrer le conteneur", Action: "restart"},
+		{Key: "d", Label: "Delete container", Description: "Supprimer le conteneur", Action: "delete"},
+		{Key: "s", Label: "Stop/Start container", Description: "Arrêter/Démarrer", Action: "toggle_start"},
+		{Key: "p", Label: "Pause/Unpause container", Description: "Pauser/Reprendre", Action: "toggle_pause"},
+		{Key: "e", Label: "Exec shell", Description: "Ouvrir un shell", Action: "exec"},
+	}
+
+	containerTabs := []string{"General", "CPU", "MEM", "NET", "DISK", "ENV"}
 	m := model{
-		tabs:         menu,
-		selectedTab:  0,
-		activeView:   -1,
-		processTable: t,
-		container:    ct,
-		searchInput:  searchInput,
-		searchMode:   false,
-		cpuProgress:  progress.New(progOpts...),
-		memProgress:  progress.New(progOpts...),
-		swapProgress: progress.New(progOpts...),
-		diskProgress: make(map[string]progress.Model),
-		viewport:     viewport.New(100, 20),
-		app:          apk,
-		containerSingleView: ContainerSingleView{
-			Visible:    false,
-			Tabs:       []string{"INFO", "CPU", "MEM", "NET", "DISK", "ENV"},
-			CPUData:    make([]float64, 50),
-			MemoryData: make([]float64, 50),
-			NetworkRX:  make([]float64, 50),
-			NetworkTX:  make([]float64, 50),
-			DiskData:   make([]float64, 50),
-			EnvVars:    make(map[string]string),
+		tabs:               menu,
+		selectedTab:        0,
+		activeView:         -1,
+		processTable:       t,
+		container:          ct,
+		searchInput:        searchInput,
+		searchMode:         false,
+		cpuProgress:        progress.New(progOpts...),
+		memProgress:        progress.New(progOpts...),
+		swapProgress:       progress.New(progOpts...),
+		diskProgress:       make(map[string]progress.Model),
+		viewport:           viewport.New(100, 20),
+		app:                apk,
+		containerMenuState: ContainerMenuHidden,
+		selectedContainer:  nil,
+		containerMenuItems: containerMenuItems,
+		selectedMenuItem:   0,
+		containerViewState: ContainerViewNone,
+		containerTab:       ContainerTabGeneral,
+		containerTabs:      containerTabs,
+		// -------------------------------- //
+		cpuHistory: DataHistory{
+			MaxPoints: 60, // 60 points = 2 minutes à 2s d'intervalle
+			Points:    make([]DataPoint, 0),
 		},
+		memoryHistory: DataHistory{
+			MaxPoints: 60,
+			Points:    make([]DataPoint, 0),
+		},
+		networkRxHistory: DataHistory{
+			MaxPoints: 60,
+			Points:    make([]DataPoint, 0),
+		},
+		networkTxHistory: DataHistory{
+			MaxPoints: 60,
+			Points:    make([]DataPoint, 0),
+		},
+		lastChartUpdate: time.Now(),
+		// -------------------------------- //
 	}
 
 	m.updateContainerTable(containers)

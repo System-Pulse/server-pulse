@@ -11,6 +11,7 @@ import (
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/mem"
+	network "github.com/shirou/gopsutil/v4/net"
 )
 
 func UpdateCPUInfo() tea.Cmd {
@@ -120,6 +121,18 @@ func UpdateNetworkInfo() tea.Cmd {
 		// IP publique (simulée)
 		publicIPv4 := "N/A"
 		publicIPv6 := "N/A"
+
+		var networkInterfaces []NetworkInterface
+		netIO, err := network.IOCounters(true) // true pour obtenir par interface
+		if err == nil {
+			for _, io := range netIO {
+				networkInterfaces = append(networkInterfaces, NetworkInterface{
+					Name:    io.Name,
+					RxBytes: io.BytesRecv,
+					TxBytes: io.BytesSent,
+				})
+			}
+		}
 
 		return NetworkMsg{
 			Connected:  connected,

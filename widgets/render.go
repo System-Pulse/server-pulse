@@ -214,12 +214,21 @@ func (m model) renderNetwork() string {
 func (m model) renderFooter() string {
 	footer := "\n"
 
-	if m.activeView == -1 {
+	// Vue détaillée du conteneur
+	if m.containerViewState == ContainerViewSingle {
+		footer += "[b] Back to containers • [Tab/←→] Switch tabs • [1-6] Quick tab • [q] Quit"
+		// Menu contextuel du conteneur
+	} else if m.containerMenuState == ContainerMenuVisible {
+		footer += "[↑↓] Navigate • [Enter] Select action • [ESC/b] Close menu • [o/l/r/d/s/p/e] Direct action"
+	} else if m.activeView == -1 {
 		footer += "[Enter] Select view • [q] Quit • [Tab/←→] Navigate • [1-4] Quick select"
 	} else if m.isMonitorActive {
-		footer += "[b] Back • [Tab/←→] Switch • / Search • [q] Quit"
-		if m.selectedMonitor == 1 {
+		footer += "[b] Back • [Tab/←→] Switch • [/] Search • [q] Quit"
+		switch m.selectedMonitor {
+		case 1:
 			footer += " • [↑↓] Navigate • [k] Kill • [s] Sort CPU • [m] Sort Mem"
+		case 2:
+			footer += " • [↑↓] Navigate • [Enter] Container menu"
 		}
 	} else {
 		switch m.activeView {
@@ -236,90 +245,56 @@ func (m model) renderFooter() string {
 	return footer
 }
 
+// Rendu du menu contextuel des conteneurs
 func (m model) renderContainerMenu() string {
-	if !m.containerMenu.Visible {
-		return ""
-	}
-
-	menuItems := []string{
-		"[o] Open single view",
-		"[l] View container logs",
-		"[r] Restart container",
-		"[d] Delete container",
-	}
-
-	// Ajouter les options conditionnelles selon l'état
-	if strings.Contains(strings.ToLower(m.containerMenu.Container.Status), "running") {
-		menuItems = append(menuItems, "[s] Stop container")
-		menuItems = append(menuItems, "[p] Pause container")
-	} else if strings.Contains(strings.ToLower(m.containerMenu.Container.Status), "stopped") {
-		menuItems = append(menuItems, "[s] Start container")
-	} else if strings.Contains(strings.ToLower(m.containerMenu.Container.Status), "paused") {
-		menuItems = append(menuItems, "[u] Unpause container")
-	}
-
-	menuItems = append(menuItems, "[e] Exec shell")
-	menuItems = append(menuItems, "[esc] Close menu")
-
-	var renderedItems []string
-	for i, item := range menuItems {
-		if i == m.containerMenu.Selected {
-			renderedItems = append(renderedItems, selectedMenuItemStyle.Render("➤ "+item))
-		} else {
-			renderedItems = append(renderedItems, menuItemStyle.Render("  "+item))
-		}
-	}
-
-	// Ajouter un titre au menu
-	title := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("229")).
-		// Background(accentColor).
-		Padding(0, 2).
-		Render(fmt.Sprintf(" Container: %s ", m.containerMenu.Container.Name))
-
-	menuContent := lipgloss.JoinVertical(lipgloss.Left,
-		title,
-		"",
-		strings.Join(renderedItems, "\n"),
-	)
-
-	return menuStyle.
-		Width(30). // Largeur fixe pour le menu
-		Render(menuContent)
-}
-
-func (m model) renderContainerSingleView() string {
-	if !m.containerSingleView.Visible {
+	if m.containerMenuState != ContainerMenuVisible || m.selectedContainer == nil {
 		return ""
 	}
 
 	doc := strings.Builder{}
 
-	// Header avec le nom du conteneur
-	header := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("229")).
-		Background(accentColor).
-		Padding(1, 2).
-		Width(m.width - 4).
-		Align(lipgloss.Center).
-		Render(fmt.Sprintf("Container: %s", m.containerSingleView.Container.Name))
+	// Titre simple
+	doc.WriteString("CONTAINER MENU\n")
+	doc.WriteString(fmt.Sprintf("Container: %s\n", m.selectedContainer.Name))
+	doc.WriteString(fmt.Sprintf("Status: %s\n", m.selectedContainer.Status))
+	doc.WriteString("\n")
 
-	doc.WriteString(header)
-	doc.WriteString("\n\n")
+	// Options du menu
+	for i, item := range m.containerMenuItems {
+		prefix := "  "
+		if i == m.selectedMenuItem {
+			prefix = "> "
+		}
+		doc.WriteString(fmt.Sprintf("%s[%s] %s\n", prefix, item.Key, item.Label))
+	}
 
-	// Onglets
+	doc.WriteString("\n")
+	doc.WriteString("Navigation: ↑↓ Navigate • Enter Select • ESC Close\n")
+
+	// Style simple avec bordure
+	menuStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("57")).
+		Padding(1).
+		Background(lipgloss.Color("235"))
+
+	return menuStyle.Render(doc.String())
+}
+
+// Rendu de la vue détaillée du conteneur
+func (m model) renderContainerSingleView() string {
+	if m.containerViewState != ContainerViewSingle || m.selectedContainer == nil {
+		return ""
+	}
+
+	// En-tête avec les onglets
 	var tabs []string
-	for i, tab := range m.containerSingleView.Tabs {
-		style := lipgloss.NewStyle().
-			Padding(0, 2).
-			MarginRight(1)
-
-		if i == m.containerSingleView.ActiveTab {
+	for i, tab := range m.containerTabs {
+		style := lipgloss.NewStyle().Padding(0, 2)
+		if ContainerTab(i) == m.containerTab {
 			style = style.
 				Foreground(lipgloss.Color("229")).
-				Background(accentColor).
+				Background(lipgloss.Color("57")).
 				Bold(true)
 		} else {
 			style = style.
@@ -329,285 +304,298 @@ func (m model) renderContainerSingleView() string {
 		tabs = append(tabs, style.Render(tab))
 	}
 
-	tabsLine := lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
-	doc.WriteString(tabsLine)
-	doc.WriteString("\n\n")
+	tabsHeader := lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
 
-	// Contenu selon l'onglet actif
+	// Contenu selon l'onglet sélectionné
 	var content string
-	switch m.containerSingleView.ActiveTab {
-	case 0: // INFO
-		content = m.renderContainerInfo()
-	case 1: // CPU
+	switch m.containerTab {
+	case ContainerTabGeneral:
+		content = m.renderContainerGeneral()
+	case ContainerTabCPU:
 		content = m.renderContainerCPU()
-	case 2: // MEM
+	case ContainerTabMemory:
 		content = m.renderContainerMemory()
-	case 3: // NET
+	case ContainerTabNetwork:
 		content = m.renderContainerNetwork()
-	case 4: // DISK
+	case ContainerTabDisk:
 		content = m.renderContainerDisk()
-	case 5: // ENV
+	case ContainerTabEnv:
 		content = m.renderContainerEnv()
+	default:
+		content = m.renderContainerGeneral()
 	}
 
-	contentBox := cardStyle.
-		Width(m.width - 6).
-		Height(m.height - 12).
-		Render(content)
-
-	doc.WriteString(contentBox)
-
-	// Footer avec informations contextuelles
-	currentTab := m.containerSingleView.Tabs[m.containerSingleView.ActiveTab]
-	containerState := m.containerSingleView.Stats.State
-
-	footerText := fmt.Sprintf("[Tab/←→] Switch tab • [1-6] Direct access • [Esc/b] Back • [q] Quit | Tab: %s | State: %s",
-		currentTab, containerState)
-
-	footer := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Background(lipgloss.Color("236")).
-		Padding(0, 1).
-		Width(m.width - 4).
-		MarginTop(1).
-		Render(footerText)
-
-	doc.WriteString("\n")
-	doc.WriteString(footer)
-
-	return doc.String()
+	return lipgloss.JoinVertical(lipgloss.Left, tabsHeader, content)
 }
 
-func (m model) renderContainerInfo() string {
+// Rendu des informations générales du conteneur
+func (m model) renderContainerGeneral() string {
 	doc := strings.Builder{}
 
-	stats := m.containerSingleView.Stats
+	containerName := "N/A"
+	if m.containerDetails != nil {
+		containerName = m.containerDetails.Name
+	} else if m.selectedContainer != nil {
+		containerName = m.selectedContainer.Name
+	}
 
-	// Informations générales
-	doc.WriteString(metricLabelStyle.Render("📋 General Information"))
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render(fmt.Sprintf("Container: %s", containerName)))
 	doc.WriteString("\n\n")
 
-	info := [][]string{
-		{"ID:", stats.ID},
-		{"Name:", stats.Name},
-		{"Image:", stats.Image},
-		{"Ports:", stats.Ports},
-		{"IPs:", strings.Join(stats.IPs, ", ")},
-		{"State:", stats.State},
-		{"Created:", stats.Created},
-		{"Uptime:", stats.Uptime},
-		{"Health:", stats.Health},
-	}
+	if m.containerDetails != nil {
+		// Informations de base avec les détails complets
+		info := fmt.Sprintf("ID: %s\nName: %s\nImage: %s\nStatus: %s\nProject: %s\nCreated: %s\nUptime: %s\nHealth: %s\nIP Address: %s\nGateway: %s",
+			m.containerDetails.ID,
+			m.containerDetails.Name,
+			m.containerDetails.Image,
+			m.containerDetails.Status,
+			m.containerDetails.Project,
+			m.containerDetails.CreatedAt,
+			m.containerDetails.Uptime,
+			m.containerDetails.HealthCheck,
+			m.containerDetails.IPAddress,
+			m.containerDetails.Gateway,
+		)
+		doc.WriteString(metricLabelStyle.Render(info))
 
-	for _, row := range info {
-		if row[1] != "" {
-			line := fmt.Sprintf("%-12s %s",
-				metricLabelStyle.Render(row[0]),
-				metricValueStyle.Render(row[1]))
-			doc.WriteString(line)
+		// Ports
+		if len(m.containerDetails.Ports) > 0 {
+			doc.WriteString("\n\n")
+			doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Ports:"))
 			doc.WriteString("\n")
+			for _, port := range m.containerDetails.Ports {
+				portInfo := fmt.Sprintf("  %d:%d/%s", port.PublicPort, port.PrivatePort, port.Type)
+				doc.WriteString(metricValueStyle.Render(portInfo))
+				doc.WriteString("\n")
+			}
 		}
+	} else {
+		// Informations de base minimales
+		info := "Loading container details..."
+		doc.WriteString(metricLabelStyle.Render(info))
 	}
 
-	return doc.String()
+	return cardStyle.Render(doc.String())
 }
 
+// Rendu de l'utilisation CPU du conteneur
 func (m model) renderContainerCPU() string {
 	doc := strings.Builder{}
 
-	doc.WriteString(metricLabelStyle.Render("📊 CPU Usage"))
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("CPU Usage"))
 	doc.WriteString("\n\n")
+	/*
+		if m.containerDetails != nil {
+			doc.WriteString(metricLabelStyle.Render("CPU Usage: "))
+			doc.WriteString(metricValueStyle.Render(fmt.Sprintf("%.2f%%", m.containerDetails.Stats.CPUPercent)))
+			doc.WriteString("\n\n")
 
-	// Graphique ASCII simple pour l'utilisation CPU
-	cpuPercent := m.containerSingleView.Stats.CPUUsage
-	doc.WriteString(fmt.Sprintf("Current: %.2f%%\n\n", cpuPercent))
+			// Graphique simple de l'utilisation CPU
+			cpuBar := ""
+			cpuBlocks := int(m.containerDetails.Stats.CPUPercent / 5) // 20 blocs max (100/5)
+			for i := range 20 {
+				if i < cpuBlocks {
+					cpuBar += "█"
+				} else {
+					cpuBar += "░"
+				}
+			}
+			doc.WriteString(fmt.Sprintf("CPU [%s] %.1f%%\n", cpuBar, m.containerDetails.Stats.CPUPercent))
+		} else {
+			doc.WriteString(metricLabelStyle.Render("Loading CPU metrics..."))
+		}*/
 
-	// Graphique en barres horizontal avec couleurs
-	barWidth := 50
-	filled := int(cpuPercent / 100 * float64(barWidth))
+	if m.containerDetails != nil {
+		// Barre de progression
+		cpuBar := ""
+		cpuBlocks := int(m.containerDetails.Stats.CPUPercent / 5)
+		for i := 0; i < 20; i++ {
+			if i < cpuBlocks {
+				cpuBar += "█"
+			} else {
+				cpuBar += "░"
+			}
+		}
+		doc.WriteString(fmt.Sprintf("CPU Usage: [%s] %.1f%%\n\n", cpuBar, m.containerDetails.Stats.CPUPercent))
 
-	// Choisir la couleur selon le niveau d'utilisation
-	var barColor lipgloss.Color
-	switch {
-	case cpuPercent < 25:
-		barColor = successColor
-	case cpuPercent < 50:
-		barColor = lipgloss.Color("#fbbf24") // jaune
-	case cpuPercent < 75:
-		barColor = lipgloss.Color("#f97316") // orange
-	default:
-		barColor = errorColor
+		// Graphique en temps réel
+		chart := m.renderCPUChart(50, 12)
+		doc.WriteString(chart)
+	} else {
+		doc.WriteString(metricLabelStyle.Render("Loading CPU metrics..."))
 	}
 
-	filledBar := lipgloss.NewStyle().Foreground(barColor).Render(strings.Repeat("█", filled))
-	emptyBar := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Repeat("░", barWidth-filled))
-
-	doc.WriteString(fmt.Sprintf("[%s%s] %.1f%%\n\n", filledBar, emptyBar, cpuPercent))
-
-	// Historique simple (simulation avec les données stockées)
-	doc.WriteString("Recent History:\n")
-	for i, val := range m.containerSingleView.CPUData[len(m.containerSingleView.CPUData)-10:] {
-		doc.WriteString(fmt.Sprintf("-%ds: %.1f%%\n", (10-i)*2, val))
-	}
-
-	return doc.String()
+	return cardStyle.Render(doc.String())
 }
 
+// Rendu de l'utilisation mémoire du conteneur
 func (m model) renderContainerMemory() string {
 	doc := strings.Builder{}
 
-	doc.WriteString(metricLabelStyle.Render("🧠 Memory Usage"))
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Memory Usage"))
 	doc.WriteString("\n\n")
 
-	memPercent := m.containerSingleView.Stats.MemUsage
-	memLimit := m.containerSingleView.Stats.MemLimit
-	memUsed := uint64(float64(memLimit) * memPercent / 100)
+	/*if m.containerDetails != nil {
+		doc.WriteString(metricLabelStyle.Render("Memory Usage: "))
+		doc.WriteString(metricValueStyle.Render(fmt.Sprintf("%s / %s (%.1f%%)",
+			utils.FormatBytes(m.containerDetails.Stats.MemoryUsage),
+			utils.FormatBytes(m.containerDetails.Stats.MemoryLimit),
+			m.containerDetails.Stats.MemoryPercent)))
+		doc.WriteString("\n\n")
 
-	doc.WriteString(fmt.Sprintf("Used: %s / %s (%.1f%%)\n\n",
-		utils.FormatBytes(memUsed),
-		utils.FormatBytes(memLimit),
-		memPercent))
+		// Graphique simple de l'utilisation mémoire
+		memBar := ""
+		memBlocks := int(m.containerDetails.Stats.MemoryPercent / 5) // 20 blocs max
+		for i := range 20 {
+			if i < memBlocks {
+				memBar += "█"
+			} else {
+				memBar += "░"
+			}
+		}
+		doc.WriteString(fmt.Sprintf("MEM [%s] %.1f%%\n", memBar, m.containerDetails.Stats.MemoryPercent))
+	} else {
+		doc.WriteString(metricLabelStyle.Render("Loading memory metrics..."))
+	}*/
 
-	// Graphique en barres avec couleurs
-	barWidth := 50
-	filled := int(memPercent / 100 * float64(barWidth))
+	if m.containerDetails != nil {
+		// Barre de progression
+		memBar := ""
+		memBlocks := int(m.containerDetails.Stats.MemoryPercent / 5)
+		for i := 0; i < 20; i++ {
+			if i < memBlocks {
+				memBar += "█"
+			} else {
+				memBar += "░"
+			}
+		}
+		doc.WriteString(fmt.Sprintf("Memory: [%s] %.1f%%\n", memBar, m.containerDetails.Stats.MemoryPercent))
+		doc.WriteString(fmt.Sprintf("Usage: %s / %s\n\n",
+			utils.FormatBytes(m.containerDetails.Stats.MemoryUsage),
+			utils.FormatBytes(m.containerDetails.Stats.MemoryLimit)))
 
-	// Choisir la couleur selon le niveau d'utilisation mémoire
-	var barColor lipgloss.Color
-	switch {
-	case memPercent < 30:
-		barColor = successColor
-	case memPercent < 60:
-		barColor = lipgloss.Color("#fbbf24") // jaune
-	case memPercent < 80:
-		barColor = lipgloss.Color("#f97316") // orange
-	default:
-		barColor = errorColor
+		// Graphique en temps réel
+		chart := m.renderMemoryChart(50, 12)
+		doc.WriteString(chart)
+	} else {
+		doc.WriteString(metricLabelStyle.Render("Loading memory metrics..."))
 	}
 
-	filledBar := lipgloss.NewStyle().Foreground(barColor).Render(strings.Repeat("█", filled))
-	emptyBar := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Repeat("░", barWidth-filled))
-
-	doc.WriteString(fmt.Sprintf("[%s%s] %.1f%%\n\n", filledBar, emptyBar, memPercent))
-
-	// Historique
-	doc.WriteString("Recent History:\n")
-	for i, val := range m.containerSingleView.MemoryData[len(m.containerSingleView.MemoryData)-10:] {
-		doc.WriteString(fmt.Sprintf("-%ds: %.1f%%\n", (10-i)*2, val))
-	}
-
-	return doc.String()
+	return cardStyle.Render(doc.String())
 }
 
+// Rendu de l'utilisation réseau du conteneur
 func (m model) renderContainerNetwork() string {
 	doc := strings.Builder{}
 
-	doc.WriteString(metricLabelStyle.Render("🌐 Network Usage"))
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Network Usage"))
 	doc.WriteString("\n\n")
 
-	netRX := m.containerSingleView.Stats.NetRX
-	netTX := m.containerSingleView.Stats.NetTX
+	/*if m.containerDetails != nil {
+		doc.WriteString(metricLabelStyle.Render("RX Bytes: "))
+		doc.WriteString(metricValueStyle.Render(utils.FormatBytes(m.containerDetails.Stats.NetworkRx)))
+		doc.WriteString("\n")
+		doc.WriteString(metricLabelStyle.Render("TX Bytes: "))
+		doc.WriteString(metricValueStyle.Render(utils.FormatBytes(m.containerDetails.Stats.NetworkTx)))
+		doc.WriteString("\n\n")
 
-	doc.WriteString(fmt.Sprintf("RX: %s\n", utils.FormatBytes(netRX)))
-	doc.WriteString(fmt.Sprintf("TX: %s\n\n", utils.FormatBytes(netTX)))
+		// Graphiques en barres simples pour RX/TX
+		maxBytes := max(m.containerDetails.Stats.NetworkTx, m.containerDetails.Stats.NetworkRx)
 
-	// Graphique RX
-	doc.WriteString("RX Traffic:\n")
-	maxRX := float64(1024 * 1024) // 1MB max pour l'échelle
-	if float64(netRX) > maxRX {
-		maxRX = float64(netRX)
+		if maxBytes > 0 {
+			rxBlocks := int((float64(m.containerDetails.Stats.NetworkRx) / float64(maxBytes)) * 20)
+			txBlocks := int((float64(m.containerDetails.Stats.NetworkTx) / float64(maxBytes)) * 20)
+
+			rxBar := strings.Repeat("█", rxBlocks) + strings.Repeat("░", 20-rxBlocks)
+			txBar := strings.Repeat("█", txBlocks) + strings.Repeat("░", 20-txBlocks)
+
+			doc.WriteString(fmt.Sprintf("RX [%s]\n", rxBar))
+			doc.WriteString(fmt.Sprintf("TX [%s]\n", txBar))
+		}
+	} else {
+		doc.WriteString(metricLabelStyle.Render("Loading network metrics..."))
+	}*/
+	if m.containerDetails != nil {
+		doc.WriteString(fmt.Sprintf("RX: %s/s | TX: %s/s\n\n",
+			utils.FormatBytes(m.containerDetails.Stats.NetworkRx),
+			utils.FormatBytes(m.containerDetails.Stats.NetworkTx)))
+
+		// Graphiques réseau
+		doc.WriteString("RX Traffic:\n")
+		rxChart := m.renderNetworkRXChart(50, 8)
+		doc.WriteString(rxChart)
+		doc.WriteString("\n\nTX Traffic:\n")
+		txChart := m.renderNetworkTXChart(50, 8)
+		doc.WriteString(txChart)
+	} else {
+		doc.WriteString(metricLabelStyle.Render("Loading network metrics..."))
 	}
-	rxPercent := float64(netRX) / maxRX * 100
 
-	barWidth := 30
-	filled := int(rxPercent / 100 * float64(barWidth))
-	filledBar := lipgloss.NewStyle().Foreground(accentColor).Render(strings.Repeat("█", filled))
-	emptyBar := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Repeat("░", barWidth-filled))
-	doc.WriteString(fmt.Sprintf("[%s%s] %s\n\n", filledBar, emptyBar, utils.FormatBytes(netRX)))
-
-	// Graphique TX
-	doc.WriteString("TX Traffic:\n")
-	maxTX := float64(1024 * 1024) // 1MB max pour l'échelle
-	if float64(netTX) > maxTX {
-		maxTX = float64(netTX)
-	}
-	txPercent := float64(netTX) / maxTX * 100
-
-	filled = int(txPercent / 100 * float64(barWidth))
-	filledBar = lipgloss.NewStyle().Foreground(lipgloss.Color("#8b5cf6")).Render(strings.Repeat("█", filled)) // violet pour TX
-	emptyBar = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Repeat("░", barWidth-filled))
-	doc.WriteString(fmt.Sprintf("[%s%s] %s\n", filledBar, emptyBar, utils.FormatBytes(netTX)))
-
-	return doc.String()
+	return cardStyle.Render(doc.String())
 }
 
+// Rendu de l'utilisation disque du conteneur
 func (m model) renderContainerDisk() string {
 	doc := strings.Builder{}
 
-	doc.WriteString(metricLabelStyle.Render("💽 Disk Usage"))
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Disk Usage"))
 	doc.WriteString("\n\n")
 
-	diskUsage := m.containerSingleView.Stats.DiskUsage
-	doc.WriteString(fmt.Sprintf("Disk Usage: %s\n\n", utils.FormatBytes(diskUsage)))
+	if m.containerDetails != nil {
+		doc.WriteString(metricLabelStyle.Render("Disk Read: "))
+		doc.WriteString(metricValueStyle.Render(utils.FormatBytes(m.containerDetails.Stats.BlockRead)))
+		doc.WriteString("\n")
+		doc.WriteString(metricLabelStyle.Render("Disk Write: "))
+		doc.WriteString(metricValueStyle.Render(utils.FormatBytes(m.containerDetails.Stats.BlockWrite)))
+		doc.WriteString("\n\n")
 
-	// Graphique simple
-	maxDisk := float64(1024 * 1024 * 1024) // 1GB max pour l'échelle
-	if float64(diskUsage) > maxDisk {
-		maxDisk = float64(diskUsage)
+		// Graphiques en barres simples pour Read/Write
+		maxBytes := max(m.containerDetails.Stats.BlockWrite, m.containerDetails.Stats.BlockRead)
+
+		if maxBytes > 0 {
+			readBlocks := int((float64(m.containerDetails.Stats.BlockRead) / float64(maxBytes)) * 20)
+			writeBlocks := int((float64(m.containerDetails.Stats.BlockWrite) / float64(maxBytes)) * 20)
+
+			readBar := strings.Repeat("█", readBlocks) + strings.Repeat("░", 20-readBlocks)
+			writeBar := strings.Repeat("█", writeBlocks) + strings.Repeat("░", 20-writeBlocks)
+
+			doc.WriteString(fmt.Sprintf("READ  [%s]\n", readBar))
+			doc.WriteString(fmt.Sprintf("WRITE [%s]\n", writeBar))
+		}
+	} else {
+		doc.WriteString(metricLabelStyle.Render("Loading disk metrics..."))
 	}
 
-	diskPercent := float64(diskUsage) / maxDisk * 100
-	barWidth := 40
-	filled := int(diskPercent / 100 * float64(barWidth))
-
-	filledBar := lipgloss.NewStyle().Foreground(lipgloss.Color("#14b8a6")).Render(strings.Repeat("█", filled)) // teal pour disque
-	emptyBar := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(strings.Repeat("░", barWidth-filled))
-	doc.WriteString(fmt.Sprintf("[%s%s] %s\n", filledBar, emptyBar, utils.FormatBytes(diskUsage)))
-
-	return doc.String()
+	return cardStyle.Render(doc.String())
 }
 
+// Rendu des variables d'environnement du conteneur
 func (m model) renderContainerEnv() string {
 	doc := strings.Builder{}
 
-	doc.WriteString(metricLabelStyle.Render("🔧 Environment Variables"))
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Environment Variables"))
 	doc.WriteString("\n\n")
 
-	if len(m.containerSingleView.EnvVars) == 0 {
-		doc.WriteString("No environment variables found.")
-		return doc.String()
-	}
-
-	// Trier les clés pour un affichage cohérent
-	var keys []string
-	for key := range m.containerSingleView.EnvVars {
-		keys = append(keys, key)
-	}
-
-	// Trier les clés par ordre alphabétique
-	for i := 0; i < len(keys)-1; i++ {
-		for j := i + 1; j < len(keys); j++ {
-			if keys[i] > keys[j] {
-				keys[i], keys[j] = keys[j], keys[i]
+	if m.containerDetails != nil && len(m.containerDetails.Environment) > 0 {
+		for _, env := range m.containerDetails.Environment {
+			parts := strings.SplitN(env, "=", 2)
+			if len(parts) == 2 {
+				key := parts[0]
+				value := parts[1]
+				// Limiter la longueur de la valeur pour l'affichage
+				if len(value) > 50 {
+					value = value[:47] + "..."
+				}
+				doc.WriteString(fmt.Sprintf("%s: %s\n",
+					metricLabelStyle.Render(key),
+					metricValueStyle.Render(value)))
 			}
 		}
+	} else if m.containerDetails != nil {
+		doc.WriteString(metricLabelStyle.Render("No environment variables found"))
+	} else {
+		doc.WriteString(metricLabelStyle.Render("Loading environment variables..."))
 	}
 
-	// Afficher les variables
-	for _, key := range keys {
-		value := m.containerSingleView.EnvVars[key]
-
-		// Limiter la longueur de la valeur pour l'affichage
-		if len(value) > 60 {
-			value = value[:57] + "..."
-		}
-
-		line := fmt.Sprintf("%-20s = %s",
-			metricLabelStyle.Render(key+":"),
-			metricValueStyle.Render(value))
-		doc.WriteString(line)
-		doc.WriteString("\n")
-	}
-
-	return doc.String()
+	return cardStyle.Render(doc.String())
 }
