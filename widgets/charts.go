@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	
+
 	"github.com/charmbracelet/lipgloss"
 )
-
 
 func (m model) renderCPUChart(width, height int) string {
 	return m.renderLineChart(m.cpuHistory, "CPU Usage Over Time (%)", width, height, 0, 100)
@@ -31,21 +30,21 @@ func (m model) renderLineChart(history DataHistory, title string, width, height 
 	if len(history.Points) < 2 {
 		return m.renderEmptyChart(title, width, height)
 	}
-	
+
 	// Préparer les données pour le rendu
 	points := make([]float64, len(history.Points))
 	for i, point := range history.Points {
 		points[i] = point.Value
 	}
-	
+
 	// Créer le graphique
 	var builder strings.Builder
-	
+
 	// Titre
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("229"))
 	builder.WriteString(titleStyle.Render(title))
 	builder.WriteString("\n")
-	
+
 	// Axe Y et données
 	chartHeight := height - 3 // Réserver de l'espace pour le titre et l'axe X
 	for y := chartHeight - 1; y >= 0; y-- {
@@ -53,12 +52,12 @@ func (m model) renderLineChart(history DataHistory, title string, width, height 
 		yValue := minValue + (maxValue-minValue)*float64(y)/float64(chartHeight-1)
 		yLabel := fmt.Sprintf("%4.0f ┤", yValue)
 		builder.WriteString(yLabel)
-		
+
 		// Points du graphique
 		for x := 0; x < len(points) && x < width-len(yLabel)-1; x++ {
 			normalizedValue := (points[x] - minValue) / (maxValue - minValue)
 			chartY := int(normalizedValue * float64(chartHeight-1))
-			
+
 			if chartY == y {
 				builder.WriteString("●") // Point actuel
 			} else if y < chartY && y > 0 {
@@ -68,7 +67,7 @@ func (m model) renderLineChart(history DataHistory, title string, width, height 
 					prevNormalized = (points[x-1] - minValue) / (maxValue - minValue)
 				}
 				prevChartY := int(prevNormalized * float64(chartHeight-1))
-				
+
 				if (y >= prevChartY && y <= chartY) || (y >= chartY && y <= prevChartY) {
 					builder.WriteString("╲")
 				} else {
@@ -80,22 +79,22 @@ func (m model) renderLineChart(history DataHistory, title string, width, height 
 		}
 		builder.WriteString("\n")
 	}
-	
+
 	// Axe X
 	builder.WriteString("    0 ┼")
 	for i := 0; i < width-7; i++ {
 		builder.WriteString("─")
 	}
 	builder.WriteString("\n")
-	
+
 	// Étiquettes de temps
 	if len(history.Points) > 1 {
 		startTime := history.Points[0].Timestamp.Format("15:04")
 		endTime := history.Points[len(history.Points)-1].Timestamp.Format("15:04")
-		builder.WriteString(fmt.Sprintf("      %s%s%s", startTime, 
+		builder.WriteString(fmt.Sprintf("      %s%s%s", startTime,
 			strings.Repeat(" ", width-14), endTime))
 	}
-	
+
 	return builder.String()
 }
 
@@ -104,12 +103,12 @@ func (m model) renderEmptyChart(title string, width, height int) string {
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("229"))
 	builder.WriteString(titleStyle.Render(title))
 	builder.WriteString("\n")
-	
+
 	for y := 0; y < height-2; y++ {
 		builder.WriteString(strings.Repeat(" ", width))
 		builder.WriteString("\n")
 	}
-	
+
 	builder.WriteString("Collecting data...")
 	return builder.String()
 }
