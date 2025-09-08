@@ -29,7 +29,7 @@ type PortInfo struct {
 	PublicPort  uint16
 	PrivatePort uint16
 	Type        string
-	HostIP          string
+	HostIP      string
 }
 
 type ContainerStats struct {

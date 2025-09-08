@@ -177,7 +177,7 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 		for _, binding := range bindings {
 			publicPort, _ := strconv.ParseUint(binding.HostPort, 10, 16)
 			privatePort, _ := strconv.ParseUint(port.Port(), 10, 16)
-			
+
 			ports = append(ports, PortInfo{
 				PublicPort:  uint16(publicPort),
 				PrivatePort: uint16(privatePort),
@@ -223,7 +223,6 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 
 	return details, nil
 }
-
 
 // Fonction utilitaire pour formater la durée
 func formatDuration(d time.Duration) string {

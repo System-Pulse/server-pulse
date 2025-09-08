@@ -26,8 +26,8 @@ jobs:
       run: |
         if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then
           echo "Code not formatted properly:"
-          echo "Formatting the code with gofmt"
-          gofmt -w .
+          gofmt -l .
+          exit 1
         fi
 
     - name: Run go vet

@@ -50,8 +50,8 @@ var (
 	menuStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(accentColor).
-			// Background("#000000").
-			Padding(1, 0)
+		// Background("#000000").
+		Padding(1, 0)
 
 	menuItemStyle = lipgloss.NewStyle().
 			Padding(0, 2).
@@ -59,7 +59,7 @@ var (
 
 	selectedMenuItemStyle = lipgloss.NewStyle().
 				Padding(0, 2).
-				// Background(accentColor).
-				Foreground(lipgloss.Color("black")).
-				Bold(true)
+		// Background(accentColor).
+		Foreground(lipgloss.Color("black")).
+		Bold(true)
 )
