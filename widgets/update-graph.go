@@ -35,7 +35,7 @@ type ChartConfig struct {
 	ShowLabels bool
 }
 
-func (m *model) updateCharts() {
+func (m *Model) updateCharts() {
 	now := time.Now()
 
 	// Mettre à jour l'historique CPU

@@ -15,6 +15,10 @@ import (
 	resource "github.com/System-Pulse/server-pulse/system/resource"
 )
 
+type ShellExecRequest struct {
+	ContainerID string
+}
+
 const (
 	progressBarWidth = 40
 )
@@ -31,6 +35,8 @@ type ContainerViewState int
 const (
 	ContainerViewNone ContainerViewState = iota
 	ContainerViewSingle
+	ContainerViewLogs
+	ContainerViewConfirmation
 )
 
 type ContainerTab int
@@ -51,7 +57,7 @@ type ContainerMenuItem struct {
 	Action      string
 }
 
-type model struct {
+type Model struct {
 	// Données
 	system    info.SystemInfo
 	cpu       resource.CPUInfo
@@ -112,9 +118,51 @@ type model struct {
 	// Dernière mise à jour des graphiques
 	lastChartUpdate time.Time
 	// -------------------
+
+	// État des logs de conteneur
+	containerLogs        string
+	containerLogsLoading bool
+
+	// Messages d'opération
+	lastOperationMsg    string
+	operationInProgress bool
+
+	// État de confirmation
+	confirmationVisible bool
+	confirmationMessage string
+	confirmationAction  string
+	confirmationData    any
+	
+	// Configuration du scrolling
+	scrollSensitivity int
+	lastScrollTime    time.Time
+	mouseEnabled      bool
+
+	// Shell execution tracking
+	pendingShellExec *ShellExecRequest
+	shouldQuit       bool
 }
 
 type Menu struct {
 	DashBoard []string
 	Monitor   []string
+}
+
+type ClearOperationMsg struct{}
+
+// Methods to support main application loop
+func (m Model) GetPendingShellExec() *ShellExecRequest {
+	return m.pendingShellExec
+}
+
+func (m Model) ShouldQuit() bool {
+	return m.shouldQuit
+}
+
+func (m *Model) ClearPendingShellExec() {
+	m.pendingShellExec = nil
+}
+
+func (m Model) GetApp() *app.DockerManager {
+    return m.app
 }

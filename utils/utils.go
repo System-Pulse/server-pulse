@@ -166,3 +166,54 @@ func CheckDockerPermissions() (bool, string) {
 		return false, fmt.Sprintf("Unsupported operating system: %s", runtime.GOOS)
 	}
 }
+
+// FormatOperationMessage formate les messages d'opération pour l'affichage
+func FormatOperationMessage(operation string, success bool, err error) string {
+	operationLabels := map[string]string{
+		"restart":      "Container restarted",
+		"start":        "Container started",
+		"stop":         "Container stopped",
+		"pause":        "Container paused",
+		"unpause":      "Container resumed",
+		"delete":       "Container deleted",
+		"toggle_start": "Container state changed",
+		"toggle_pause": "Container pause state changed",
+		"exec":         "Shell opened",
+		"logs":         "Logs loaded",
+	}
+
+	label, exists := operationLabels[operation]
+	if !exists {
+		label = fmt.Sprintf("Operation '%s'", operation)
+	}
+
+	if success {
+		return fmt.Sprintf("✅ %s successfully", label)
+	} else {
+		if err != nil {
+			return fmt.Sprintf("❌ %s failed: %v", label, err)
+		}
+		return fmt.Sprintf("❌ %s failed", label)
+	}
+}
+
+// GetOperationIcon retourne une icône pour le type d'opération
+func GetOperationIcon(operation string) string {
+	icons := map[string]string{
+		"restart":      "🔄",
+		"start":        "▶️",
+		"stop":         "⏹️",
+		"pause":        "⏸️",
+		"unpause":      "▶️",
+		"delete":       "🗑️",
+		"toggle_start": "🔄",
+		"toggle_pause": "⏯️",
+		"exec":         "💻",
+		"logs":         "📄",
+	}
+
+	if icon, exists := icons[operation]; exists {
+		return icon
+	}
+	return "⚙️"
+}

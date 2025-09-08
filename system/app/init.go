@@ -50,20 +50,34 @@ func (dm *DockerManager) RefreshContainers() ([]Container, error) {
 		status := strings.Split(cont.Status, " ")[0]
 		state := cont.State
 
+		// Récupérer les ports exposés
+		var portsInfo []string
+		for _, p := range cont.Ports {
+			if p.PublicPort > 0 {
+				portsInfo = append(portsInfo, fmt.Sprintf("%d:%d/%s", p.PublicPort, p.PrivatePort, p.Type))
+			} else {
+				portsInfo = append(portsInfo, fmt.Sprintf("%d/%s", p.PrivatePort, p.Type))
+			}
+		}
+		portsStr := strings.Join(portsInfo, ", ")
+		if portsStr == "" {
+			portsStr = "N/A"
+		}
+
 		// Santé du conteneur
 		health := "N/A"
-		if cont.Labels["com.docker.compose.service"] != "" {
-			// Pour les conteneurs Docker Compose, on peut essayer de déterminer la santé
-			switch state {
-			case "running":
-				health = "healthy"
-			case "exited":
-				health = "unhealthy"
-			case "paused":
-				health = "paused"
-			default:
-				health = state
-			}
+		if strings.Contains(cont.Status, "healthy") {
+			health = "healthy"
+		} else if strings.Contains(cont.Status, "unhealthy") {
+			health = "unhealthy"
+		} else if strings.Contains(cont.Status, "starting") {
+			health = "starting"
+		} else if state == "running" {
+			health = "running"
+		} else if state == "exited" {
+			health = "exited"
+		} else if state == "paused" {
+			health = "paused"
 		}
 
 		c := Container{
@@ -76,6 +90,7 @@ func (dm *DockerManager) RefreshContainers() ([]Container, error) {
 			Image:     cont.Image,
 			Command:   cont.Command,
 			Ports:     cont.Ports,
+			PortsStr:  portsStr,
 			Health:    health,
 		}
 		result = append(result, c)
@@ -155,12 +170,12 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 
 	// Récupérer l'IP et la gateway
 	ipAddress := "N/A"
-	gateway := "N/A"
+	// gateway := "N/A"
 	if containerJSON.NetworkSettings != nil && len(containerJSON.NetworkSettings.Networks) > 0 {
 		for netName, network := range containerJSON.NetworkSettings.Networks {
 			if ipAddress == "N/A" || netName == "bridge" {
 				ipAddress = network.IPAddress
-				gateway = network.Gateway
+				// gateway = network.Gateway
 			}
 		}
 	}
@@ -184,6 +199,20 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 				Type:        port.Proto(),
 				HostIP:      binding.HostIP,
 			})
+		}
+	}
+
+	// Récupérer les informations réseau détaillées
+	var ipAddresses []string
+	var gateways []string
+	if containerJSON.NetworkSettings != nil && len(containerJSON.NetworkSettings.Networks) > 0 {
+		for netName, network := range containerJSON.NetworkSettings.Networks {
+			if network.IPAddress != "" {
+				ipAddresses = append(ipAddresses, fmt.Sprintf("%s: %s", netName, network.IPAddress))
+			}
+			if network.Gateway != "" {
+				gateways = append(gateways, fmt.Sprintf("%s: %s", netName, network.Gateway))
+			}
 		}
 	}
 
@@ -213,12 +242,15 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 			BlockRead:     blockRead,
 			BlockWrite:    blockWrite,
 		},
-		Environment: containerJSON.Config.Env,
-		IPAddress:   ipAddress,
-		Gateway:     gateway,
-		HealthCheck: healthCheck,
-		Uptime:      uptime,
-		Ports:       ports,
+		Environment:     containerJSON.Config.Env,
+		IPAddress:       strings.Join(ipAddresses, ", "),
+		Gateway:         strings.Join(gateways, ", "),
+		HealthCheck:     healthCheck,
+		Uptime:          uptime,
+		Ports:           ports,
+		NetworkSettings: containerJSON.NetworkSettings,
+		HostConfig:      containerJSON.HostConfig,
+		State:           &containerJSON.State,
 	}
 
 	return details, nil

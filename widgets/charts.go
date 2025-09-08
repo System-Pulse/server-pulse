@@ -8,25 +8,29 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func (m model) renderCPUChart(width, height int) string {
+func (m Model) renderCPUChart(width, height int) string {
 	return m.renderLineChart(m.cpuHistory, "CPU Usage Over Time (%)", width, height, 0, 100)
 }
 
-func (m model) renderMemoryChart(width, height int) string {
+func (m Model) renderMemoryChart(width, height int) string {
 	return m.renderLineChart(m.memoryHistory, "Memory Usage Over Time (%)", width, height, 0, 100)
 }
 
-func (m model) renderNetworkRXChart(width, height int) string {
+func (m Model) renderNetworkRXChart(width, height int) string {
 	maxValue := m.getMaxValue(m.networkRxHistory.Points) * 1.2
 	return m.renderLineChart(m.networkRxHistory, "Network RX (MB/s)", width, height, 0, maxValue)
 }
 
-func (m model) renderNetworkTXChart(width, height int) string {
+func (m Model) renderNetworkTXChart(width, height int) string {
 	maxValue := m.getMaxValue(m.networkTxHistory.Points) * 1.2
 	return m.renderLineChart(m.networkTxHistory, "Network TX (MB/s)", width, height, 0, maxValue)
 }
 
-func (m model) renderLineChart(history DataHistory, title string, width, height int, minValue, maxValue float64) string {
+func (m Model) renderLineChart(history DataHistory, title string, width, height int, minValue, maxValue float64) string {
+	// Vérifications de sécurité
+	if width < 10 || height < 3 {
+		return title + "\n[Chart too small to display]"
+	}
 	if len(history.Points) < 2 {
 		return m.renderEmptyChart(title, width, height)
 	}
@@ -98,7 +102,7 @@ func (m model) renderLineChart(history DataHistory, title string, width, height 
 	return builder.String()
 }
 
-func (m model) renderEmptyChart(title string, width, height int) string {
+func (m Model) renderEmptyChart(title string, width, height int) string {
 	var builder strings.Builder
 	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("229"))
 	builder.WriteString(titleStyle.Render(title))
@@ -113,12 +117,12 @@ func (m model) renderEmptyChart(title string, width, height int) string {
 	return builder.String()
 }
 
-func (m model) getMaxValue(points []DataPoint) float64 {
+func (m Model) getMaxValue(points []DataPoint) float64 {
 	max := 0.0
 	for _, point := range points {
 		if point.Value > max {
 			max = point.Value
 		}
 	}
-	return math.Max(max, 1.0) // Éviter la division par zéro
+	return math.Max(max, 1.0)
 }

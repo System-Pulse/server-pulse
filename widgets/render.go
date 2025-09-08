@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func (m model) renderHome() string {
+func (m Model) renderHome() string {
 	var menu []string
 	header := []string{}
 	headerStyle := lipgloss.NewStyle().
@@ -17,7 +17,7 @@ func (m model) renderHome() string {
 		Foreground(lipgloss.Color("255")).
 		Background(successColor).
 		Bold(true)
-	header = append(header, headerStyle.Render("Server-Pulse"))
+	header = append(header, headerStyle.Render(asciiArt))
 
 	for i, t := range m.tabs.DashBoard {
 		style := lipgloss.NewStyle()
@@ -49,7 +49,7 @@ func (m model) renderHome() string {
 	return lipgloss.JoinVertical(lipgloss.Top, header...)
 }
 
-func (m model) renderTabs() string {
+func (m Model) renderTabs() string {
 	if m.isMonitorActive {
 		var tabs []string
 		for i, t := range m.tabs.Monitor {
@@ -71,7 +71,7 @@ func (m model) renderTabs() string {
 	return ""
 }
 
-func (m model) renderMonitor() string {
+func (m Model) renderMonitor() string {
 	var currentView string
 	switch m.selectedMonitor {
 	case 0:
@@ -84,20 +84,16 @@ func (m model) renderMonitor() string {
 	return currentView
 }
 
-func (m model) renderApplications() string {
+func (m Model) renderApplications() string {
 	return m.renderContainersTable()
 }
 
 // container
-func (m model) renderContainersTable() string {
+func (m Model) renderContainersTable() string {
 	content := strings.Builder{}
 
 	if m.searchMode {
-		searchBar := lipgloss.NewStyle().
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("57")).
-			Padding(0, 1).
-			MarginBottom(1).
+		searchBar := searchBarStyle.
 			Render(m.searchInput.View())
 		content.WriteString(searchBar)
 		content.WriteString("\n")
@@ -105,18 +101,18 @@ func (m model) renderContainersTable() string {
 
 	content.WriteString(m.container.View())
 
-	return cardStyle.Render(content.String())
+	return containerTableStyle.Render(content.String())
 }
 
-func (m model) renderDignostics() string {
+func (m Model) renderDignostics() string {
 	return "DIGNOSTICS"
 }
 
-func (m model) renderReporting() string {
+func (m Model) renderReporting() string {
 	return "REPORTING VIEW"
 }
 
-func (m model) renderSystem() string {
+func (m Model) renderSystem() string {
 	doc := strings.Builder{}
 	cpuInfo := fmt.Sprintf("CPU: %s %.1f%% | Load: %.2f, %.2f, %.2f", m.cpuProgress.View(), m.cpu.Usage, m.cpu.LoadAvg1, m.cpu.LoadAvg5, m.cpu.LoadAvg15)
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Render("CPU"))
@@ -145,19 +141,15 @@ func (m model) renderSystem() string {
 	return doc.String()
 }
 
-func (m model) renderProcesses() string {
+func (m Model) renderProcesses() string {
 	return m.renderProcessTable()
 }
 
-func (m model) renderProcessTable() string {
+func (m Model) renderProcessTable() string {
 	content := strings.Builder{}
 
 	if m.searchMode {
-		searchBar := lipgloss.NewStyle().
-			BorderStyle(lipgloss.RoundedBorder()).
-			BorderForeground(lipgloss.Color("57")).
-			Padding(0, 1).
-			MarginBottom(1).
+		searchBar := searchBarStyle.
 			Render(m.searchInput.View())
 		content.WriteString(searchBar)
 		content.WriteString("\n")
@@ -168,7 +160,7 @@ func (m model) renderProcessTable() string {
 	return cardStyle.Render(content.String())
 }
 
-func (m model) renderNetwork() string {
+func (m Model) renderNetwork() string {
 	content := strings.Builder{}
 
 	statusIcon := "🔴"
@@ -211,15 +203,47 @@ func (m model) renderNetwork() string {
 	return cardStyle.Render(content.String())
 }
 
-func (m model) renderFooter() string {
+func (m Model) renderFooter() string {
 	footer := "\n"
+
+	// Afficher le message de statut s'il y en a un
+	if m.operationInProgress {
+		statusStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("229")).
+			Background(lipgloss.Color("57")).
+			Padding(0, 1).
+			Bold(true)
+		footer += statusStyle.Render("⏳ Operation in progress...") + "\n"
+	} else if m.lastOperationMsg != "" {
+		var statusStyle lipgloss.Style
+		if strings.Contains(m.lastOperationMsg, "failed") || strings.Contains(m.lastOperationMsg, "Error") {
+			statusStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("255")).
+				Background(errorColor).
+				Padding(0, 1).
+				Bold(true)
+		} else {
+			statusStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("255")).
+				Background(successColor).
+				Padding(0, 1).
+				Bold(true)
+		}
+		footer += statusStyle.Render(m.lastOperationMsg) + "\n"
+	}
 
 	// Vue détaillée du conteneur
 	if m.containerViewState == ContainerViewSingle {
 		footer += "[b] Back to containers • [Tab/←→] Switch tabs • [1-6] Quick tab • [q] Quit"
+		// Vue des logs du conteneur
+	} else if m.containerViewState == ContainerViewLogs {
+		footer += "[r] Refresh logs • [b] Back to containers • [q] Quit"
+		// Boîte de confirmation
+	} else if m.confirmationVisible {
+		footer += "[y] Confirm • [n] Cancel • [ESC] Cancel"
 		// Menu contextuel du conteneur
 	} else if m.containerMenuState == ContainerMenuVisible {
-		footer += "[↑↓] Navigate • [Enter] Select action • [ESC/b] Close menu • [o/l/r/d/s/p/e] Direct action"
+		footer += "[↑↓] Navigate • [Enter] Select action • [ESC/b] Close menu • [o/l/r/d/x/s/p/e] Direct action"
 	} else if m.activeView == -1 {
 		footer += "[Enter] Select view • [q] Quit • [Tab/←→] Navigate • [1-4] Quick select"
 	} else if m.isMonitorActive {
@@ -246,7 +270,7 @@ func (m model) renderFooter() string {
 }
 
 // Rendu du menu contextuel des conteneurs
-func (m model) renderContainerMenu() string {
+func (m Model) renderContainerMenu() string {
 	if m.containerMenuState != ContainerMenuVisible || m.selectedContainer == nil {
 		return ""
 	}
@@ -271,18 +295,11 @@ func (m model) renderContainerMenu() string {
 	doc.WriteString("\n")
 	doc.WriteString("Navigation: ↑↓ Navigate • Enter Select • ESC Close\n")
 
-	// Style simple avec bordure
-	menuStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("57")).
-		Padding(1).
-		Background(lipgloss.Color("235"))
-
 	return menuStyle.Render(doc.String())
 }
 
 // Rendu de la vue détaillée du conteneur
-func (m model) renderContainerSingleView() string {
+func (m Model) renderContainerSingleView() string {
 	if m.containerViewState != ContainerViewSingle || m.selectedContainer == nil {
 		return ""
 	}
@@ -329,7 +346,7 @@ func (m model) renderContainerSingleView() string {
 }
 
 // Rendu des informations générales du conteneur
-func (m model) renderContainerGeneral() string {
+func (m Model) renderContainerGeneral() string {
 	doc := strings.Builder{}
 
 	containerName := "N/A"
@@ -343,31 +360,46 @@ func (m model) renderContainerGeneral() string {
 	doc.WriteString("\n\n")
 
 	if m.containerDetails != nil {
-		// Informations de base avec les détails complets
+		// Informations de base avec les détails complets (style ctop)
 		info := fmt.Sprintf("ID: %s\nName: %s\nImage: %s\nStatus: %s\nProject: %s\nCreated: %s\nUptime: %s\nHealth: %s\nIP Address: %s\nGateway: %s",
 			m.containerDetails.ID,
 			m.containerDetails.Name,
 			m.containerDetails.Image,
-			m.containerDetails.Status,
+			m.getStatusWithIcon(m.containerDetails.Status),
 			m.containerDetails.Project,
 			m.containerDetails.CreatedAt,
 			m.containerDetails.Uptime,
-			m.containerDetails.HealthCheck,
+			m.getHealthWithIcon(m.containerDetails.HealthCheck),
 			m.containerDetails.IPAddress,
 			m.containerDetails.Gateway,
 		)
 		doc.WriteString(metricLabelStyle.Render(info))
 
-		// Ports
+		// Ports détaillés
 		if len(m.containerDetails.Ports) > 0 {
 			doc.WriteString("\n\n")
 			doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Ports:"))
 			doc.WriteString("\n")
 			for _, port := range m.containerDetails.Ports {
-				portInfo := fmt.Sprintf("  %d:%d/%s", port.PublicPort, port.PrivatePort, port.Type)
+				portInfo := fmt.Sprintf("  %s:%d → %d/%s", port.HostIP, port.PublicPort, port.PrivatePort, port.Type)
 				doc.WriteString(metricValueStyle.Render(portInfo))
 				doc.WriteString("\n")
 			}
+		}
+
+		// Command and entrypoint (like ctop)
+		if m.containerDetails.Command != "" {
+			doc.WriteString("\n")
+			doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Command:"))
+			doc.WriteString("\n")
+			doc.WriteString(metricValueStyle.Render("  " + m.containerDetails.Command))
+		}
+
+		// Environment variables count
+		if len(m.containerDetails.Environment) > 0 {
+			doc.WriteString("\n\n")
+			doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Environment:"))
+			doc.WriteString(fmt.Sprintf("  %d variables", len(m.containerDetails.Environment)))
 		}
 	} else {
 		// Informations de base minimales
@@ -379,47 +411,37 @@ func (m model) renderContainerGeneral() string {
 }
 
 // Rendu de l'utilisation CPU du conteneur
-func (m model) renderContainerCPU() string {
+func (m Model) renderContainerCPU() string {
 	doc := strings.Builder{}
 
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("CPU Usage"))
 	doc.WriteString("\n\n")
-	/*
-		if m.containerDetails != nil {
-			doc.WriteString(metricLabelStyle.Render("CPU Usage: "))
-			doc.WriteString(metricValueStyle.Render(fmt.Sprintf("%.2f%%", m.containerDetails.Stats.CPUPercent)))
-			doc.WriteString("\n\n")
-
-			// Graphique simple de l'utilisation CPU
-			cpuBar := ""
-			cpuBlocks := int(m.containerDetails.Stats.CPUPercent / 5) // 20 blocs max (100/5)
-			for i := range 20 {
-				if i < cpuBlocks {
-					cpuBar += "█"
-				} else {
-					cpuBar += "░"
-				}
-			}
-			doc.WriteString(fmt.Sprintf("CPU [%s] %.1f%%\n", cpuBar, m.containerDetails.Stats.CPUPercent))
-		} else {
-			doc.WriteString(metricLabelStyle.Render("Loading CPU metrics..."))
-		}*/
 
 	if m.containerDetails != nil {
-		// Barre de progression
+		// Informations CPU détaillées (style ctop)
+		cpuPercent := m.containerDetails.Stats.CPUPercent
+		doc.WriteString(fmt.Sprintf("Usage: %.1f%%\n", cpuPercent))
+
+		// Barre de progression colorée
 		cpuBar := ""
-		cpuBlocks := int(m.containerDetails.Stats.CPUPercent / 5)
-		for i := 0; i < 20; i++ {
+		cpuBlocks := int(cpuPercent / 5)
+		barColor := m.getCPUColor(cpuPercent)
+
+		for i := range 20 {
 			if i < cpuBlocks {
 				cpuBar += "█"
 			} else {
 				cpuBar += "░"
 			}
 		}
-		doc.WriteString(fmt.Sprintf("CPU Usage: [%s] %.1f%%\n\n", cpuBar, m.containerDetails.Stats.CPUPercent))
+
+		coloredBar := lipgloss.NewStyle().Foreground(barColor).Render(cpuBar)
+		doc.WriteString(fmt.Sprintf("[%s]\n\n", coloredBar))
 
 		// Graphique en temps réel
-		chart := m.renderCPUChart(50, 12)
+		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Usage History:"))
+		doc.WriteString("\n")
+		chart := m.renderCPUChart(50, 10)
 		doc.WriteString(chart)
 	} else {
 		doc.WriteString(metricLabelStyle.Render("Loading CPU metrics..."))
@@ -429,23 +451,28 @@ func (m model) renderContainerCPU() string {
 }
 
 // Rendu de l'utilisation mémoire du conteneur
-func (m model) renderContainerMemory() string {
+func (m Model) renderContainerMemory() string {
 	doc := strings.Builder{}
 
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Memory Usage"))
 	doc.WriteString("\n\n")
 
-	/*if m.containerDetails != nil {
-		doc.WriteString(metricLabelStyle.Render("Memory Usage: "))
-		doc.WriteString(metricValueStyle.Render(fmt.Sprintf("%s / %s (%.1f%%)",
-			utils.FormatBytes(m.containerDetails.Stats.MemoryUsage),
-			utils.FormatBytes(m.containerDetails.Stats.MemoryLimit),
-			m.containerDetails.Stats.MemoryPercent)))
-		doc.WriteString("\n\n")
+	if m.containerDetails != nil {
+		// Informations mémoire détaillées (style ctop)
+		memPercent := m.containerDetails.Stats.MemoryPercent
+		memUsage := m.containerDetails.Stats.MemoryUsage
+		memLimit := m.containerDetails.Stats.MemoryLimit
 
-		// Graphique simple de l'utilisation mémoire
+		doc.WriteString(fmt.Sprintf("Usage: %.1f%%\n", memPercent))
+		doc.WriteString(fmt.Sprintf("Used: %s\n", utils.FormatBytes(memUsage)))
+		doc.WriteString(fmt.Sprintf("Limit: %s\n", utils.FormatBytes(memLimit)))
+		doc.WriteString(fmt.Sprintf("Available: %s\n\n", utils.FormatBytes(memLimit-memUsage)))
+
+		// Barre de progression colorée
 		memBar := ""
-		memBlocks := int(m.containerDetails.Stats.MemoryPercent / 5) // 20 blocs max
+		memBlocks := int(memPercent / 5)
+		barColor := m.getMemoryColor(memPercent)
+
 		for i := range 20 {
 			if i < memBlocks {
 				memBar += "█"
@@ -453,29 +480,14 @@ func (m model) renderContainerMemory() string {
 				memBar += "░"
 			}
 		}
-		doc.WriteString(fmt.Sprintf("MEM [%s] %.1f%%\n", memBar, m.containerDetails.Stats.MemoryPercent))
-	} else {
-		doc.WriteString(metricLabelStyle.Render("Loading memory metrics..."))
-	}*/
 
-	if m.containerDetails != nil {
-		// Barre de progression
-		memBar := ""
-		memBlocks := int(m.containerDetails.Stats.MemoryPercent / 5)
-		for i := 0; i < 20; i++ {
-			if i < memBlocks {
-				memBar += "█"
-			} else {
-				memBar += "░"
-			}
-		}
-		doc.WriteString(fmt.Sprintf("Memory: [%s] %.1f%%\n", memBar, m.containerDetails.Stats.MemoryPercent))
-		doc.WriteString(fmt.Sprintf("Usage: %s / %s\n\n",
-			utils.FormatBytes(m.containerDetails.Stats.MemoryUsage),
-			utils.FormatBytes(m.containerDetails.Stats.MemoryLimit)))
+		coloredBar := lipgloss.NewStyle().Foreground(barColor).Render(memBar)
+		doc.WriteString(fmt.Sprintf("[%s]\n\n", coloredBar))
 
 		// Graphique en temps réel
-		chart := m.renderMemoryChart(50, 12)
+		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Usage History:"))
+		doc.WriteString("\n")
+		chart := m.renderMemoryChart(50, 10)
 		doc.WriteString(chart)
 	} else {
 		doc.WriteString(metricLabelStyle.Render("Loading memory metrics..."))
@@ -485,48 +497,37 @@ func (m model) renderContainerMemory() string {
 }
 
 // Rendu de l'utilisation réseau du conteneur
-func (m model) renderContainerNetwork() string {
+func (m Model) renderContainerNetwork() string {
 	doc := strings.Builder{}
 
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Network Usage"))
 	doc.WriteString("\n\n")
 
-	/*if m.containerDetails != nil {
-		doc.WriteString(metricLabelStyle.Render("RX Bytes: "))
-		doc.WriteString(metricValueStyle.Render(utils.FormatBytes(m.containerDetails.Stats.NetworkRx)))
-		doc.WriteString("\n")
-		doc.WriteString(metricLabelStyle.Render("TX Bytes: "))
-		doc.WriteString(metricValueStyle.Render(utils.FormatBytes(m.containerDetails.Stats.NetworkTx)))
-		doc.WriteString("\n\n")
-
-		// Graphiques en barres simples pour RX/TX
-		maxBytes := max(m.containerDetails.Stats.NetworkTx, m.containerDetails.Stats.NetworkRx)
-
-		if maxBytes > 0 {
-			rxBlocks := int((float64(m.containerDetails.Stats.NetworkRx) / float64(maxBytes)) * 20)
-			txBlocks := int((float64(m.containerDetails.Stats.NetworkTx) / float64(maxBytes)) * 20)
-
-			rxBar := strings.Repeat("█", rxBlocks) + strings.Repeat("░", 20-rxBlocks)
-			txBar := strings.Repeat("█", txBlocks) + strings.Repeat("░", 20-txBlocks)
-
-			doc.WriteString(fmt.Sprintf("RX [%s]\n", rxBar))
-			doc.WriteString(fmt.Sprintf("TX [%s]\n", txBar))
-		}
-	} else {
-		doc.WriteString(metricLabelStyle.Render("Loading network metrics..."))
-	}*/
 	if m.containerDetails != nil {
-		doc.WriteString(fmt.Sprintf("RX: %s/s | TX: %s/s\n\n",
-			utils.FormatBytes(m.containerDetails.Stats.NetworkRx),
-			utils.FormatBytes(m.containerDetails.Stats.NetworkTx)))
+		// Statistiques réseau détaillées (style ctop)
+		rxBytes := m.containerDetails.Stats.NetworkRx
+		txBytes := m.containerDetails.Stats.NetworkTx
 
-		// Graphiques réseau
-		doc.WriteString("RX Traffic:\n")
-		rxChart := m.renderNetworkRXChart(50, 8)
+		doc.WriteString(fmt.Sprintf("RX: %s/s\n", utils.FormatBytes(rxBytes)))
+		doc.WriteString(fmt.Sprintf("TX: %s/s\n\n", utils.FormatBytes(txBytes)))
+
+		// Graphiques réseau avec échelle en MB/s
+		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Receive Traffic (MB/s):"))
+		doc.WriteString("\n")
+		rxChart := m.renderNetworkRXChart(50, 6)
 		doc.WriteString(rxChart)
-		doc.WriteString("\n\nTX Traffic:\n")
-		txChart := m.renderNetworkTXChart(50, 8)
+
+		doc.WriteString("\n" + lipgloss.NewStyle().Bold(true).Render("Transmit Traffic (MB/s):"))
+		doc.WriteString("\n")
+		txChart := m.renderNetworkTXChart(50, 6)
 		doc.WriteString(txChart)
+
+		// Informations réseau supplémentaires si disponibles
+		if m.containerDetails.IPAddress != "" {
+			doc.WriteString("\n\n" + lipgloss.NewStyle().Bold(true).Render("Network Interfaces:"))
+			doc.WriteString("\n")
+			doc.WriteString(metricValueStyle.Render("  " + m.containerDetails.IPAddress))
+		}
 	} else {
 		doc.WriteString(metricLabelStyle.Render("Loading network metrics..."))
 	}
@@ -535,33 +536,41 @@ func (m model) renderContainerNetwork() string {
 }
 
 // Rendu de l'utilisation disque du conteneur
-func (m model) renderContainerDisk() string {
+func (m Model) renderContainerDisk() string {
 	doc := strings.Builder{}
 
-	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Disk Usage"))
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Disk I/O"))
 	doc.WriteString("\n\n")
 
 	if m.containerDetails != nil {
-		doc.WriteString(metricLabelStyle.Render("Disk Read: "))
-		doc.WriteString(metricValueStyle.Render(utils.FormatBytes(m.containerDetails.Stats.BlockRead)))
-		doc.WriteString("\n")
-		doc.WriteString(metricLabelStyle.Render("Disk Write: "))
-		doc.WriteString(metricValueStyle.Render(utils.FormatBytes(m.containerDetails.Stats.BlockWrite)))
-		doc.WriteString("\n\n")
+		// Statistiques disque détaillées (style ctop)
+		readBytes := m.containerDetails.Stats.BlockRead
+		writeBytes := m.containerDetails.Stats.BlockWrite
 
-		// Graphiques en barres simples pour Read/Write
-		maxBytes := max(m.containerDetails.Stats.BlockWrite, m.containerDetails.Stats.BlockRead)
+		doc.WriteString(fmt.Sprintf("Read: %s\n", utils.FormatBytes(readBytes)))
+		doc.WriteString(fmt.Sprintf("Write: %s\n\n", utils.FormatBytes(writeBytes)))
 
-		if maxBytes > 0 {
-			readBlocks := int((float64(m.containerDetails.Stats.BlockRead) / float64(maxBytes)) * 20)
-			writeBlocks := int((float64(m.containerDetails.Stats.BlockWrite) / float64(maxBytes)) * 20)
+		// Graphiques en barres avec échelle relative
+		totalIO := readBytes + writeBytes
+		if totalIO > 0 {
+			readPercent := float64(readBytes) / float64(totalIO) * 100
+			writePercent := float64(writeBytes) / float64(totalIO) * 100
+
+			readBlocks := int((float64(readBytes) / float64(totalIO)) * 20)
+			writeBlocks := int((float64(writeBytes) / float64(totalIO)) * 20)
 
 			readBar := strings.Repeat("█", readBlocks) + strings.Repeat("░", 20-readBlocks)
 			writeBar := strings.Repeat("█", writeBlocks) + strings.Repeat("░", 20-writeBlocks)
 
-			doc.WriteString(fmt.Sprintf("READ  [%s]\n", readBar))
-			doc.WriteString(fmt.Sprintf("WRITE [%s]\n", writeBar))
+			doc.WriteString(fmt.Sprintf("READ  [%s] %.1f%%\n", readBar, readPercent))
+			doc.WriteString(fmt.Sprintf("WRITE [%s] %.1f%%\n", writeBar, writePercent))
 		}
+
+		// Graphiques d'historique
+		doc.WriteString("\n" + lipgloss.NewStyle().Bold(true).Render("I/O History:"))
+		doc.WriteString("\n")
+		// Note: Les graphiques d'historique disque seront ajoutés ultérieurement
+		doc.WriteString("Disk I/O history charts coming soon...")
 	} else {
 		doc.WriteString(metricLabelStyle.Render("Loading disk metrics..."))
 	}
@@ -570,7 +579,7 @@ func (m model) renderContainerDisk() string {
 }
 
 // Rendu des variables d'environnement du conteneur
-func (m model) renderContainerEnv() string {
+func (m Model) renderContainerEnv() string {
 	doc := strings.Builder{}
 
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Environment Variables"))
@@ -596,6 +605,127 @@ func (m model) renderContainerEnv() string {
 	} else {
 		doc.WriteString(metricLabelStyle.Render("Loading environment variables..."))
 	}
+
+	return cardStyle.Render(doc.String())
+}
+
+// Helper methods for ctop-like functionality
+
+// getStatusWithIcon returns status with appropriate icon like ctop
+func (m Model) getStatusWithIcon(status string) string {
+	switch status {
+	case "running":
+		return "▶ " + status
+	case "exited":
+		return "⏹ " + status
+	case "paused":
+		return "⏸ " + status
+	case "created":
+		return "◉ " + status
+	default:
+		return status
+	}
+}
+
+// getHealthWithIcon returns health status with appropriate icon like ctop
+func (m Model) getHealthWithIcon(health string) string {
+	switch health {
+	case "healthy":
+		return "☼ " + health
+	case "unhealthy":
+		return "⚠ " + health
+	case "starting":
+		return "◌ " + health
+	default:
+		return health
+	}
+}
+
+// getCPUColor returns color based on CPU usage percentage (like ctop)
+func (m Model) getCPUColor(percent float64) lipgloss.Color {
+	switch {
+	case percent < 50:
+		return lipgloss.Color("46") // Green
+	case percent < 80:
+		return lipgloss.Color("226") // Yellow
+	default:
+		return lipgloss.Color("196") // Red
+	}
+}
+
+// getMemoryColor returns color based on memory usage percentage (like ctop)
+func (m Model) getMemoryColor(percent float64) lipgloss.Color {
+	switch {
+	case percent < 60:
+		return lipgloss.Color("46") // Green
+	case percent < 85:
+		return lipgloss.Color("226") // Yellow
+	default:
+		return lipgloss.Color("196") // Red
+	}
+}
+
+// Rendu de la boîte de confirmation
+func (m Model) renderConfirmationDialog() string {
+	if !m.confirmationVisible {
+		return ""
+	}
+
+	doc := strings.Builder{}
+
+	// Titre de confirmation
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Foreground(errorColor).Render("⚠️  CONFIRMATION REQUIRED"))
+	doc.WriteString("\n\n")
+
+	// Message de confirmation
+	doc.WriteString(metricLabelStyle.Render(m.confirmationMessage))
+	doc.WriteString("\n\n")
+
+	// Options
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Are you sure?"))
+	doc.WriteString("\n")
+	doc.WriteString("Press 'y' to confirm or 'n' to cancel")
+
+	// Style de la boîte de dialogue
+	confirmationStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(errorColor).
+		Padding(2).
+		Background(lipgloss.Color("235")).
+		Foreground(lipgloss.Color("255"))
+
+	return confirmationStyle.Render(doc.String())
+}
+
+// Rendu de la vue des logs du conteneur
+func (m Model) renderContainerLogs() string {
+	if m.selectedContainer == nil {
+		return cardStyle.Render("No container selected")
+	}
+
+	doc := strings.Builder{}
+
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render(fmt.Sprintf("Logs: %s", m.selectedContainer.Name)))
+	doc.WriteString("\n\n")
+
+	if m.containerLogsLoading {
+		doc.WriteString(metricLabelStyle.Render("Loading logs..."))
+	} else if m.containerLogs != "" {
+		// Afficher les logs dans une zone scrollable
+		logStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("250")).
+			Background(lipgloss.Color("235")).
+			Padding(1).
+			Height(20).
+			Width(80)
+
+		doc.WriteString(logStyle.Render(m.containerLogs))
+	} else {
+		doc.WriteString(metricLabelStyle.Render("No logs available or logs are empty"))
+	}
+
+	doc.WriteString("\n\n")
+	doc.WriteString(metricLabelStyle.Render("Press 'r' to refresh logs, 'b' to go back"))
 
 	return cardStyle.Render(doc.String())
 }

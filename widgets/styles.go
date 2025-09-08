@@ -8,7 +8,7 @@ var (
 	successColor = lipgloss.Color("#10b981") // Emerald
 	errorColor   = lipgloss.Color("#ef4444") // Red
 
-	surfaceColor          = lipgloss.Color("#1e293b") // Slate-800
+	surfaceColor          = lipgloss.Color("235") // black
 	buttonCollor          = lipgloss.Color("57")
 	buttonCollorDesactive = lipgloss.Color("236")
 
@@ -43,19 +43,25 @@ var (
 				Foreground(accentColor).
 				Bold(true)
 	// ------------------------------------ //
-	menuOverlayStyle = lipgloss.NewStyle().
-				Background(lipgloss.Color("#000000")). // Fond noir opaque
-				Padding(1, 2)
 
 	menuStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(accentColor).
-		// Background("#000000").
-		Padding(1, 0)
+			BorderForeground(lipgloss.Color("57")).
+			Padding(1).
+			Background(lipgloss.Color("235"))
 
-	menuItemStyle = lipgloss.NewStyle().
-			Padding(0, 2).
-			Foreground(lipgloss.Color("255"))
+	containerTableStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(surfaceColor).
+				Background(lipgloss.Color("235")).
+				Padding(1, 2).
+				Margin(1, 0)
+	
+	searchBarStyle = lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("57")).
+		Padding(0, 1).
+		MarginBottom(1)
 
 	selectedMenuItemStyle = lipgloss.NewStyle().
 				Padding(0, 2).

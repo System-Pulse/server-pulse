@@ -17,11 +17,16 @@ import (
 )
 
 // Initialisation du modèle
-func InitialModel() model {
+func InitialModel() Model {
 	apk, err := app.NewDockerManager()
 	if err != nil {
 		panic(err)
 	}
+	return InitialModelWithManager(apk)
+}
+
+// InitialModelWithManager creates a model with an existing docker manager
+func InitialModelWithManager(apk *app.DockerManager) Model {
 
 	containers, err := apk.RefreshContainers()
 	if err != nil {
@@ -48,9 +53,10 @@ func InitialModel() model {
 	ctColumns := []table.Column{
 		{Title: "ID", Width: 12},
 		{Title: "Image", Width: 12},
-		{Title: "Name", Width: 12},
+		{Title: "Name", Width: 16},
 		{Title: "Status", Width: 12},
 		{Title: "Project", Width: 20},
+		{Title: "Ports", Width: 20},
 	}
 	ct := table.New(
 		table.WithColumns(ctColumns),
@@ -62,7 +68,7 @@ func InitialModel() model {
 	ct.SetStyles(cs)
 
 	searchInput := textinput.New()
-	searchInput.Placeholder = "Rechercher un processus..."
+	searchInput.Placeholder = "Search a process..."
 	searchInput.Prompt = "/"
 	searchInput.CharLimit = 50
 	searchInput.Width = 30
@@ -71,26 +77,8 @@ func InitialModel() model {
 		progress.WithWidth(progressBarWidth),
 		progress.WithDefaultGradient(),
 	}
-	dashboard := []string{"Monitor", "Diagnostic", "Network", "Reporting"}
-	monitor := []string{"System", "Process", "Application"}
-	menu := Menu{
-		DashBoard: dashboard,
-		Monitor:   monitor,
-	}
 
-	// Menu contextuel des conteneurs
-	containerMenuItems := []ContainerMenuItem{
-		{Key: "o", Label: "Open single view", Description: "Ouvrir une vue détaillée", Action: "open_single"},
-		{Key: "l", Label: "View container logs", Description: "Afficher les logs", Action: "logs"},
-		{Key: "r", Label: "Restart container", Description: "Redémarrer le conteneur", Action: "restart"},
-		{Key: "d", Label: "Delete container", Description: "Supprimer le conteneur", Action: "delete"},
-		{Key: "s", Label: "Stop/Start container", Description: "Arrêter/Démarrer", Action: "toggle_start"},
-		{Key: "p", Label: "Pause/Unpause container", Description: "Pauser/Reprendre", Action: "toggle_pause"},
-		{Key: "e", Label: "Exec shell", Description: "Ouvrir un shell", Action: "exec"},
-	}
-
-	containerTabs := []string{"General", "CPU", "MEM", "NET", "DISK", "ENV"}
-	m := model{
+	m := Model{
 		tabs:               menu,
 		selectedTab:        0,
 		activeView:         -1,
@@ -130,14 +118,19 @@ func InitialModel() model {
 		},
 		lastChartUpdate: time.Now(),
 		// -------------------------------- //
+		scrollSensitivity: 3,
+		mouseEnabled:      true,
+		minWidth:          40, // Ajouté
+		minHeight:         10, // Ajouté
 	}
-
+	m.processTable.Focus()
 	m.updateContainerTable(containers)
+	m.container.Focus()
 
 	return m
 }
 
-func (m model) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		tick(),
 		info.UpdateSystemInfo(),

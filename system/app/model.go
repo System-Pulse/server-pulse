@@ -45,13 +45,16 @@ type ContainerStats struct {
 
 type ContainerDetails struct {
 	Container
-	Stats       ContainerStats
-	Environment []string
-	IPAddress   string
-	Gateway     string
-	HealthCheck string
-	Uptime      string
-	Ports       []PortInfo // Ports détaillés
+	Stats           ContainerStats
+	Environment     []string
+	IPAddress       string
+	Gateway         string
+	HealthCheck     string
+	Uptime          string
+	Ports           []PortInfo // Ports détaillés
+	NetworkSettings any
+	HostConfig      any
+	State           any
 }
 
 type HealthInfo struct {
@@ -70,3 +73,33 @@ type MountInfo struct {
 
 type ContainerMsg []Container
 type ContainerDetailsMsg ContainerDetails
+
+// Messages pour les opérations sur les conteneurs
+type ContainerLogsMsg struct {
+	ContainerID string
+	Logs        string
+	Error       error
+}
+
+type ContainerOperationMsg struct {
+	ContainerID string
+	Operation   string // "restart", "start", "stop", "pause", "unpause", "delete"
+	Success     bool
+	Error       error
+}
+
+type ContainerStatusMsg struct {
+	ContainerID string
+	Status      string
+	IsRunning   bool
+	IsPaused    bool
+}
+
+type ContainerStatsChanMsg struct {
+	ContainerID string
+	StatsChan   chan ContainerStatsMsg
+}
+
+type ExecShellMsg struct {
+	ContainerID string
+}
