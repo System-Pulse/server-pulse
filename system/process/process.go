@@ -31,12 +31,10 @@ func UpdateProcesses() tea.Cmd {
 			})
 		}
 
-		// Trier par utilisation CPU
 		sort.Slice(processList, func(i, j int) bool {
 			return processList[i].CPU > processList[j].CPU
 		})
 
-		// Garder seulement les 50 premiers
 		if len(processList) > 50 {
 			processList = processList[:50]
 		}

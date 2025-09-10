@@ -15,7 +15,6 @@ func (dm *DockerManager) UpdateApp() tea.Cmd {
 	}
 }
 
-// RestartContainerCmd redémarre un conteneur
 func (dm *DockerManager) RestartContainerCmd(containerID string) tea.Cmd {
 	return func() tea.Msg {
 		err := dm.RestartContainer(containerID)
@@ -28,7 +27,6 @@ func (dm *DockerManager) RestartContainerCmd(containerID string) tea.Cmd {
 	}
 }
 
-// StartContainerCmd démarre un conteneur
 func (dm *DockerManager) StartContainerCmd(containerID string) tea.Cmd {
 	return func() tea.Msg {
 		err := dm.StartContainer(containerID)
@@ -41,7 +39,6 @@ func (dm *DockerManager) StartContainerCmd(containerID string) tea.Cmd {
 	}
 }
 
-// StopContainerCmd arrête un conteneur
 func (dm *DockerManager) StopContainerCmd(containerID string) tea.Cmd {
 	return func() tea.Msg {
 		err := dm.StopContainer(containerID)
@@ -54,7 +51,6 @@ func (dm *DockerManager) StopContainerCmd(containerID string) tea.Cmd {
 	}
 }
 
-// PauseContainerCmd met en pause un conteneur
 func (dm *DockerManager) PauseContainerCmd(containerID string) tea.Cmd {
 	return func() tea.Msg {
 		err := dm.PauseContainer(containerID)
@@ -67,7 +63,6 @@ func (dm *DockerManager) PauseContainerCmd(containerID string) tea.Cmd {
 	}
 }
 
-// UnpauseContainerCmd reprend un conteneur en pause
 func (dm *DockerManager) UnpauseContainerCmd(containerID string) tea.Cmd {
 	return func() tea.Msg {
 		err := dm.UnpauseContainer(containerID)
@@ -80,7 +75,6 @@ func (dm *DockerManager) UnpauseContainerCmd(containerID string) tea.Cmd {
 	}
 }
 
-// DeleteContainerCmd supprime un conteneur
 func (dm *DockerManager) DeleteContainerCmd(containerID string, force bool) tea.Cmd {
 	return func() tea.Msg {
 		err := dm.DeleteContainer(containerID, force)
@@ -93,7 +87,6 @@ func (dm *DockerManager) DeleteContainerCmd(containerID string, force bool) tea.
 	}
 }
 
-// ToggleContainerStateCmd démarre/arrête un conteneur
 func (dm *DockerManager) ToggleContainerStateCmd(containerID string) tea.Cmd {
 	return func() tea.Msg {
 		err := dm.ToggleContainerState(containerID)
@@ -106,7 +99,6 @@ func (dm *DockerManager) ToggleContainerStateCmd(containerID string) tea.Cmd {
 	}
 }
 
-// ToggleContainerPauseCmd met en pause/reprend un conteneur
 func (dm *DockerManager) ToggleContainerPauseCmd(containerID string) tea.Cmd {
 	return func() tea.Msg {
 		err := dm.ToggleContainerPause(containerID)
@@ -119,7 +111,6 @@ func (dm *DockerManager) ToggleContainerPauseCmd(containerID string) tea.Cmd {
 	}
 }
 
-// GetContainerLogsCmd récupère les logs d'un conteneur
 func (dm *DockerManager) GetContainerLogsCmd(containerID string, tail string) tea.Cmd {
 	return func() tea.Msg {
 		logs, err := dm.GetContainerLogs(containerID, tail)
@@ -131,7 +122,6 @@ func (dm *DockerManager) GetContainerLogsCmd(containerID string, tail string) te
 	}
 }
 
-// ExecShellCmd ouvre un shell dans le conteneur
 func (dm *DockerManager) ExecShellCmd(containerID string) tea.Cmd {
 	return func() tea.Msg {
 		return ExecShellMsg{
@@ -140,14 +130,3 @@ func (dm *DockerManager) ExecShellCmd(containerID string) tea.Cmd {
 	}
 }
 
-// ContainerStatsMsg contient les statistiques en temps réel d'un conteneur
-type ContainerStatsMsg struct {
-	ContainerID string
-	CPUPercent  float64
-	MemPercent  float64
-	MemUsage    uint64
-	MemLimit    uint64
-	NetRX       uint64
-	NetTX       uint64
-	DiskUsage   uint64
-}

@@ -9,6 +9,7 @@ import (
 
 	info "github.com/System-Pulse/server-pulse/system/informations"
 	proc "github.com/System-Pulse/server-pulse/system/process"
+	model "github.com/System-Pulse/server-pulse/widgets/model"
 
 	"github.com/System-Pulse/server-pulse/system/app"
 	"github.com/System-Pulse/server-pulse/system/resource"
@@ -18,7 +19,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Update refactorisé: point d'entrée
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var (
 		cmd  tea.Cmd
@@ -37,10 +37,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case app.ContainerMsg, app.ContainerDetailsMsg, app.ContainerLogsMsg, app.ContainerOperationMsg,
 		app.ExecShellMsg, app.ContainerStatsChanMsg:
 		return m.handleContainerRelatedMsgs(msg)
-	case ClearOperationMsg:
-		m.lastOperationMsg = ""
+	case model.ClearOperationMsg:
+		m.LastOperationMsg = ""
 	case utils.ErrMsg:
-		m.err = msg
+		m.Err = msg
 	case utils.TickMsg:
 		return m.handleTickMsg()
 	case progress.FrameMsg:
@@ -48,13 +48,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// fallback: update interactive components (processTable / viewport)
-	if m.isMonitorActive && m.selectedMonitor == 1 {
-		if !m.searchMode {
-			m.processTable, cmd = m.processTable.Update(msg)
+	if m.Ui.IsMonitorActive && m.Ui.SelectedMonitor == 1 {
+		if !m.Ui.SearchMode {
+			m.Monitor.ProcessTable, cmd = m.Monitor.ProcessTable.Update(msg)
 			cmds = append(cmds, cmd)
 		}
-	} else if m.activeView != -1 {
-		m.viewport, cmd = m.viewport.Update(msg)
+	} else if m.Ui.ActiveView != -1 {
+		m.Ui.Viewport, cmd = m.Ui.Viewport.Update(msg)
 		cmds = append(cmds, cmd)
 	}
 
@@ -64,40 +64,38 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // ------------------------- Handlers pour messages "système / ressources" -------------------------
 
 func (m Model) handleResourceAndProcessMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var (
-		cmds []tea.Cmd
-		// cmd  tea.Cmd
-	)
+	var	cmds []tea.Cmd
+	
 	switch msg := msg.(type) {
 	case info.SystemMsg:
-		m.system = info.SystemInfo(msg)
+		m.Monitor.System = info.SystemInfo(msg)
 	case resource.CpuMsg:
-		m.cpu = resource.CPUInfo(msg)
-		cmds = append(cmds, m.cpuProgress.SetPercent(m.cpu.Usage/100))
+		m.Monitor.Cpu = resource.CPUInfo(msg)
+		cmds = append(cmds, m.Monitor.CpuProgress.SetPercent(m.Monitor.Cpu.Usage/100))
 	case resource.MemoryMsg:
-		m.memory = resource.MemoryInfo(msg)
-		cmds = append(cmds, m.memProgress.SetPercent(m.memory.Usage/100))
-		cmds = append(cmds, m.swapProgress.SetPercent(m.memory.SwapUsage/100))
+		m.Monitor.Memory = resource.MemoryInfo(msg)
+		cmds = append(cmds, m.Monitor.MemProgress.SetPercent(m.Monitor.Memory.Usage/100))
+		cmds = append(cmds, m.Monitor.SwapProgress.SetPercent(m.Monitor.Memory.SwapUsage/100))
 	case resource.DiskMsg:
-		m.disks = []resource.DiskInfo(msg)
-		for _, disk := range m.disks {
-			if _, ok := m.diskProgress[disk.Mountpoint]; !ok && disk.Total > 0 {
+		m.Monitor.Disks = []resource.DiskInfo(msg)
+		for _, disk := range m.Monitor.Disks {
+			if _, ok := m.Monitor.DiskProgress[disk.Mountpoint]; !ok && disk.Total > 0 {
 				progOpts := []progress.Option{
-					progress.WithWidth(m.cpuProgress.Width),
+					progress.WithWidth(m.Monitor.CpuProgress.Width),
 					progress.WithDefaultGradient(),
 				}
-				m.diskProgress[disk.Mountpoint] = progress.New(progOpts...)
+				m.Monitor.DiskProgress[disk.Mountpoint] = progress.New(progOpts...)
 			}
 			if disk.Total > 0 {
-				prog := m.diskProgress[disk.Mountpoint]
+				prog := m.Monitor.DiskProgress[disk.Mountpoint]
 				cmds = append(cmds, prog.SetPercent(disk.Usage/100))
-				m.diskProgress[disk.Mountpoint] = prog
+				m.Monitor.DiskProgress[disk.Mountpoint] = prog
 			}
 		}
 	case resource.NetworkMsg:
-		m.network = resource.NetworkInfo(msg)
+		m.Network = resource.NetworkInfo(msg)
 	case proc.ProcessMsg:
-		m.processes = []proc.ProcessInfo(msg)
+		m.Monitor.Processes = []proc.ProcessInfo(msg)
 		return m, m.updateProcessTable()
 	}
 	return m, tea.Batch(cmds...)
@@ -112,28 +110,28 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.updateContainerTable(containers)
 	case app.ContainerDetailsMsg:
 		details := app.ContainerDetails(msg)
-		m.containerDetails = &details
+		m.Monitor.ContainerDetails = &details
 	case app.ContainerLogsMsg:
 		logsMsg := app.ContainerLogsMsg(msg)
-		m.containerLogsLoading = false
+		m.Monitor.ContainerLogsLoading = false
 		if logsMsg.Error != nil {
-			m.containerLogs = fmt.Sprintf("Error loading logs: %v", logsMsg.Error)
+			m.Monitor.ContainerLogs = fmt.Sprintf("Error loading logs: %v", logsMsg.Error)
 		} else {
-			m.containerLogs = logsMsg.Logs
+			m.Monitor.ContainerLogs = logsMsg.Logs
 		}
 	case app.ContainerOperationMsg:
 		opMsg := app.ContainerOperationMsg(msg)
-		m.operationInProgress = false
-		m.lastOperationMsg = utils.FormatOperationMessage(opMsg.Operation, opMsg.Success, opMsg.Error)
+		m.OperationInProgress = false
+		m.LastOperationMsg = utils.FormatOperationMessage(opMsg.Operation, opMsg.Success, opMsg.Error)
 
 		var refreshCmd tea.Cmd
 		if opMsg.Success {
-			refreshCmd = m.app.UpdateApp()
+			refreshCmd = m.Monitor.App.UpdateApp()
 		}
 		return m, tea.Batch(refreshCmd, clearOperationMessage())
 	case app.ExecShellMsg:
-		m.pendingShellExec = &ShellExecRequest{ContainerID: msg.ContainerID}
-		m.shouldQuit = false
+		m.Monitor.PendingShellExec = &model.ShellExecRequest{ContainerID: msg.ContainerID}
+		m.Monitor.ShouldQuit = false
 		return m, tea.Quit
 	case app.ContainerStatsChanMsg:
 		statsMsg := app.ContainerStatsChanMsg(msg)
@@ -146,14 +144,12 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 // ------------------------- Window size -------------------------
 
 func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
-	m.width = msg.Width
-	m.height = msg.Height
+	m.Ui.Width = msg.Width
+	m.Ui.Height = msg.Height
 
-	// Définir des tailles minimales
 	minWidth := 40
 	minHeight := 10
 
-	// Si le terminal est trop petit, ne pas configurer les composants
 	if msg.Width < minWidth || msg.Height < minHeight {
 		return m, nil
 	}
@@ -162,28 +158,24 @@ func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	footerHeight := lipgloss.Height(m.renderFooter())
 	verticalMargin := headerHeight + footerHeight
 
-	// S'assurer que la hauteur de la viewport est positive
-	viewportHeight := msg.Height - verticalMargin
-	if viewportHeight < 1 {
-		viewportHeight = 1
-	}
+	// viewportHeight := max(msg.Height - verticalMargin, 1)
 
-	m.viewport.Width = msg.Width
-	m.viewport.Height = msg.Height - verticalMargin
-	m.processTable.SetWidth(msg.Width)
-	m.processTable.SetHeight(m.viewport.Height - 1)
+	m.Ui.Viewport.Width = msg.Width
+	m.Ui.Viewport.Height = msg.Height - verticalMargin
+	m.Monitor.ProcessTable.SetWidth(msg.Width)
+	m.Monitor.ProcessTable.SetHeight(m.Ui.Viewport.Height - 1)
 
 	progWidth := min(max(msg.Width/3, 20), progressBarWidth)
-	m.cpuProgress.Width = progWidth
-	m.memProgress.Width = progWidth
-	m.swapProgress.Width = progWidth
-	for k, p := range m.diskProgress {
+	m.Monitor.CpuProgress.Width = progWidth
+	m.Monitor.MemProgress.Width = progWidth
+	m.Monitor.SwapProgress.Width = progWidth
+	for k, p := range m.Monitor.DiskProgress {
 		p.Width = progWidth
-		m.diskProgress[k] = p
+		m.Monitor.DiskProgress[k] = p
 	}
 
-	if !m.ready {
-		m.ready = true
+	if !m.Ui.Ready {
+		m.Ui.Ready = true
 	}
 	return m, nil
 }
@@ -191,114 +183,109 @@ func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 // ------------------------- Key handling (délégué) -------------------------
 
 func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// Si menu de conteneurs actif -> priorité au menu
-	if m.containerMenuState == ContainerMenuVisible {
+	if m.Monitor.ContainerMenuState == ContainerMenuVisible {
 		return m.handleContainerMenuKeys(msg)
 	}
 
-	// boîte de confirmation prioritaire
-	if m.confirmationVisible {
+	if m.ConfirmationVisible {
 		return m.handleConfirmationKeys(msg)
 	}
 
-	// mode recherche
-	if m.searchMode {
+	if m.Ui.SearchMode {
 		return m.handleSearchKeys(msg)
 	}
 
-	// scrolling/navigation des monitors
-	if m.isMonitorActive && (m.selectedMonitor == 1 || m.selectedMonitor == 2) {
+	if m.Ui.IsMonitorActive && (m.Ui.SelectedMonitor == 1 || m.Ui.SelectedMonitor == 2) {
 		if handled, mNew, cmd := m.handleMonitorNavigationKeys(msg); handled {
 			return mNew, cmd
 		}
-	} else if m.activeView != -1 {
+	} else if m.Ui.ActiveView != -1 {
 		switch msg.String() {
 		case "up", "k":
-			m.viewport.ScrollUp(1)
+			m.Ui.Viewport.ScrollUp(1)
 		case "down", "j":
-			m.viewport.ScrollDown(1)
+			m.Ui.Viewport.ScrollDown(1)
 		}
 	}
 
-	// Cas généraux (raccourcis, actions globales, etc.)
 	return m.handleGeneralKeys(msg)
 }
 
 func (m Model) handleContainerMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "k":
-		if m.selectedMenuItem > 0 {
-			m.selectedMenuItem--
+		if m.Monitor.SelectedMenuItem > 0 {
+			m.Monitor.SelectedMenuItem--
 		}
 		return m, nil
 	case "down", "j":
-		if m.selectedMenuItem < len(m.containerMenuItems)-1 {
-			m.selectedMenuItem++
+		if m.Monitor.SelectedMenuItem < len(m.Monitor.ContainerMenuItems)-1 {
+			m.Monitor.SelectedMenuItem++
 		}
 		return m, nil
 	case "enter":
 		return m.executeContainerMenuAction()
 	case "o":
-		m.containerViewState = ContainerViewSingle
-		m.containerMenuState = ContainerMenuHidden
-		m.containerTab = ContainerTabGeneral
-		return m, m.loadContainerDetails(m.selectedContainer.ID)
+		m.Monitor.ContainerViewState = ContainerViewSingle
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.ContainerTab = model.ContainerTabGeneral
+		return m, m.loadContainerDetails(m.Monitor.SelectedContainer.ID)
 	case "l":
-		m.containerViewState = ContainerViewLogs
-		m.containerMenuState = ContainerMenuHidden
-		m.containerLogsLoading = true
-		return m, m.app.GetContainerLogsCmd(m.selectedContainer.ID, "100")
+		m.Monitor.ContainerViewState = ContainerViewLogs
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.Monitor.ContainerLogsLoading = true
+		return m, m.Monitor.App.GetContainerLogsCmd(m.Monitor.SelectedContainer.ID, "100")
 	case "r":
-		m.containerMenuState = ContainerMenuHidden
-		m.confirmationVisible = true
-		m.confirmationMessage = fmt.Sprintf("Restart container '%s'?\nThis will stop and start the container.", m.selectedContainer.Name)
-		m.confirmationAction = "restart"
-		m.confirmationData = m.selectedContainer.ID
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.ConfirmationVisible = true
+		m.ConfirmationMessage = fmt.Sprintf("Restart container '%s'?\nThis will stop and start the container.", m.Monitor.SelectedContainer.Name)
+		m.ConfirmationAction = "restart"
+		m.ConfirmationData = m.Monitor.SelectedContainer.ID
 		return m, nil
 	case "d":
-		m.containerMenuState = ContainerMenuHidden
-		m.confirmationVisible = true
-		m.confirmationMessage = fmt.Sprintf("Delete container '%s'?\nThis action cannot be undone.", m.selectedContainer.Name)
-		m.confirmationAction = "delete"
-		m.confirmationData = m.selectedContainer.ID
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.ConfirmationVisible = true
+		m.ConfirmationMessage = fmt.Sprintf("Delete container '%s'?\nThis action cannot be undone.", m.Monitor.SelectedContainer.Name)
+		m.ConfirmationAction = "delete"
+		m.ConfirmationData = m.Monitor.SelectedContainer.ID
 		return m, nil
 	case "x":
-		m.containerMenuState = ContainerMenuHidden
-		m.confirmationVisible = true
-		m.confirmationMessage = fmt.Sprintf("Force remove container '%s'?\nThis action cannot be undone.", m.selectedContainer.Name)
-		m.confirmationAction = "remove"
-		m.confirmationData = m.selectedContainer.ID
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.ConfirmationVisible = true
+		m.ConfirmationMessage = fmt.Sprintf("Force remove container '%s'?\nThis action cannot be undone.", m.Monitor.SelectedContainer.Name)
+		m.ConfirmationAction = "remove"
+		m.ConfirmationData = m.Monitor.SelectedContainer.ID
 		return m, nil
 	case "s":
-		m.containerMenuState = ContainerMenuHidden
-		m.operationInProgress = true
-		return m, m.app.ToggleContainerStateCmd(m.selectedContainer.ID)
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.OperationInProgress = true
+		return m, m.Monitor.App.ToggleContainerStateCmd(m.Monitor.SelectedContainer.ID)
 	case "p":
-		m.containerMenuState = ContainerMenuHidden
-		m.operationInProgress = true
-		return m, m.app.ToggleContainerPauseCmd(m.selectedContainer.ID)
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.OperationInProgress = true
+		return m, m.Monitor.App.ToggleContainerPauseCmd(m.Monitor.SelectedContainer.ID)
 	case "e":
-		m.containerMenuState = ContainerMenuHidden
-		m.pendingShellExec = &ShellExecRequest{ContainerID: m.selectedContainer.ID}
-		m.shouldQuit = false
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.Monitor.PendingShellExec = &model.ShellExecRequest{ContainerID: m.Monitor.SelectedContainer.ID}
+		m.Monitor.ShouldQuit = false
 		return m, tea.Quit
 	case "t":
-		m.containerMenuState = ContainerMenuHidden
-		m.containerViewState = ContainerViewSingle
-		m.containerTab = ContainerTabCPU
-		return m, m.app.GetContainerStatsCmd(m.selectedContainer.ID)
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.Monitor.ContainerViewState = ContainerViewSingle
+		m.ContainerTab = model.ContainerTabCPU
+		return m, m.Monitor.App.GetContainerStatsCmd(m.Monitor.SelectedContainer.ID)
 	case "i":
-		m.containerMenuState = ContainerMenuHidden
-		m.containerViewState = ContainerViewSingle
-		m.containerTab = ContainerTabGeneral
-		return m, m.loadContainerDetails(m.selectedContainer.ID)
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.Monitor.ContainerViewState = ContainerViewSingle
+		m.ContainerTab = model.ContainerTabGeneral
+		return m, m.loadContainerDetails(m.Monitor.SelectedContainer.ID)
 	case "c":
-		m.containerMenuState = ContainerMenuHidden
-		m.lastOperationMsg = "Commit functionality not yet implemented"
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.LastOperationMsg = "Commit functionality not yet implemented"
 		return m, nil
 	case "esc", "b":
-		m.containerMenuState = ContainerMenuHidden
-		m.selectedContainer = nil
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.Monitor.SelectedContainer = nil
 		return m, nil
 	case "q":
 		return m, tea.Quit
@@ -307,68 +294,68 @@ func (m Model) handleContainerMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) executeContainerMenuAction() (tea.Model, tea.Cmd) {
-	if m.selectedMenuItem >= len(m.containerMenuItems) {
+	if m.Monitor.SelectedMenuItem >= len(m.Monitor.ContainerMenuItems) {
 		return m, nil
 	}
-	action := m.containerMenuItems[m.selectedMenuItem].Action
+	action := m.Monitor.ContainerMenuItems[m.Monitor.SelectedMenuItem].Action
 	switch action {
 	case "open_single":
-		m.containerViewState = ContainerViewSingle
-		m.containerMenuState = ContainerMenuHidden
-		m.containerTab = ContainerTabGeneral
-		return m, m.loadContainerDetails(m.selectedContainer.ID)
+		m.Monitor.ContainerViewState = ContainerViewSingle
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.ContainerTab = model.ContainerTabGeneral
+		return m, m.loadContainerDetails(m.Monitor.SelectedContainer.ID)
 	case "logs":
-		m.containerViewState = ContainerViewLogs
-		m.containerMenuState = ContainerMenuHidden
-		m.containerLogsLoading = true
-		return m, m.app.GetContainerLogsCmd(m.selectedContainer.ID, "100")
+		m.Monitor.ContainerViewState = ContainerViewLogs
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.Monitor.ContainerLogsLoading = true
+		return m, m.Monitor.App.GetContainerLogsCmd(m.Monitor.SelectedContainer.ID, "100")
 	case "restart":
-		m.containerMenuState = ContainerMenuHidden
-		m.confirmationVisible = true
-		m.confirmationMessage = fmt.Sprintf("Restart container '%s'?\nThis will stop and start the container.", m.selectedContainer.Name)
-		m.confirmationAction = "restart"
-		m.confirmationData = m.selectedContainer.ID
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.ConfirmationVisible = true
+		m.ConfirmationMessage = fmt.Sprintf("Restart container '%s'?\nThis will stop and start the container.", m.Monitor.SelectedContainer.Name)
+		m.ConfirmationAction = "restart"
+		m.ConfirmationData = m.Monitor.SelectedContainer.ID
 		return m, nil
 	case "delete":
-		m.containerMenuState = ContainerMenuHidden
-		m.confirmationVisible = true
-		m.confirmationMessage = fmt.Sprintf("Delete container '%s'?\nThis action cannot be undone.", m.selectedContainer.Name)
-		m.confirmationAction = "delete"
-		m.confirmationData = m.selectedContainer.ID
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.ConfirmationVisible = true
+		m.ConfirmationMessage = fmt.Sprintf("Delete container '%s'?\nThis action cannot be undone.", m.Monitor.SelectedContainer.Name)
+		m.ConfirmationAction = "delete"
+		m.ConfirmationData = m.Monitor.SelectedContainer.ID
 		return m, nil
 	case "remove":
-		m.containerMenuState = ContainerMenuHidden
-		m.confirmationVisible = true
-		m.confirmationMessage = fmt.Sprintf("Force remove container '%s'?\nThis action cannot be undone.", m.selectedContainer.Name)
-		m.confirmationAction = "remove"
-		m.confirmationData = m.selectedContainer.ID
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.ConfirmationVisible = true
+		m.ConfirmationMessage = fmt.Sprintf("Force remove container '%s'?\nThis action cannot be undone.", m.Monitor.SelectedContainer.Name)
+		m.ConfirmationAction = "remove"
+		m.ConfirmationData = m.Monitor.SelectedContainer.ID
 		return m, nil
 	case "toggle_start":
-		m.containerMenuState = ContainerMenuHidden
-		m.operationInProgress = true
-		return m, m.app.ToggleContainerStateCmd(m.selectedContainer.ID)
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.OperationInProgress = true
+		return m, m.Monitor.App.ToggleContainerStateCmd(m.Monitor.SelectedContainer.ID)
 	case "toggle_pause":
-		m.containerMenuState = ContainerMenuHidden
-		m.operationInProgress = true
-		return m, m.app.ToggleContainerPauseCmd(m.selectedContainer.ID)
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.OperationInProgress = true
+		return m, m.Monitor.App.ToggleContainerPauseCmd(m.Monitor.SelectedContainer.ID)
 	case "exec":
-		m.containerMenuState = ContainerMenuHidden
-		m.pendingShellExec = &ShellExecRequest{ContainerID: m.selectedContainer.ID}
-		m.shouldQuit = false
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.Monitor.PendingShellExec = &model.ShellExecRequest{ContainerID: m.Monitor.SelectedContainer.ID}
+		m.Monitor.ShouldQuit = false
 		return m, tea.Quit
 	case "stats":
-		m.containerMenuState = ContainerMenuHidden
-		m.containerViewState = ContainerViewSingle
-		m.containerTab = ContainerTabCPU
-		return m, m.app.GetContainerStatsCmd(m.selectedContainer.ID)
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.Monitor.ContainerViewState = ContainerViewSingle
+		m.ContainerTab = model.ContainerTabCPU
+		return m, m.Monitor.App.GetContainerStatsCmd(m.Monitor.SelectedContainer.ID)
 	case "inspect":
-		m.containerMenuState = ContainerMenuHidden
-		m.containerViewState = ContainerViewSingle
-		m.containerTab = ContainerTabGeneral
-		return m, m.loadContainerDetails(m.selectedContainer.ID)
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.Monitor.ContainerViewState = ContainerViewSingle
+		m.ContainerTab = model.ContainerTabGeneral
+		return m, m.loadContainerDetails(m.Monitor.SelectedContainer.ID)
 	case "commit":
-		m.containerMenuState = ContainerMenuHidden
-		m.lastOperationMsg = "Commit functionality not yet implemented"
+		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.LastOperationMsg = "Commit functionality not yet implemented"
 		return m, nil
 	}
 	return m, nil
@@ -379,36 +366,36 @@ func (m Model) executeContainerMenuAction() (tea.Model, tea.Cmd) {
 func (m Model) handleConfirmationKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "y", "Y":
-		m.confirmationVisible = false
-		switch m.confirmationAction {
+		m.ConfirmationVisible = false
+		switch m.ConfirmationAction {
 		case "delete":
-			if containerID, ok := m.confirmationData.(string); ok {
-				m.operationInProgress = true
-				m.confirmationAction = ""
-				m.confirmationData = nil
-				return m, m.app.DeleteContainerCmd(containerID, false)
+			if containerID, ok := m.ConfirmationData.(string); ok {
+				m.OperationInProgress = true
+				m.ConfirmationAction = ""
+				m.ConfirmationData = nil
+				return m, m.Monitor.App.DeleteContainerCmd(containerID, false)
 			}
 		case "remove":
-			if containerID, ok := m.confirmationData.(string); ok {
-				m.operationInProgress = true
-				m.confirmationAction = ""
-				m.confirmationData = nil
-				return m, m.app.DeleteContainerCmd(containerID, true)
+			if containerID, ok := m.ConfirmationData.(string); ok {
+				m.OperationInProgress = true
+				m.ConfirmationAction = ""
+				m.ConfirmationData = nil
+				return m, m.Monitor.App.DeleteContainerCmd(containerID, true)
 			}
 		case "restart":
-			if containerID, ok := m.confirmationData.(string); ok {
-				m.operationInProgress = true
-				m.confirmationAction = ""
-				m.confirmationData = nil
-				return m, m.app.RestartContainerCmd(containerID)
+			if containerID, ok := m.ConfirmationData.(string); ok {
+				m.OperationInProgress = true
+				m.ConfirmationAction = ""
+				m.ConfirmationData = nil
+				return m, m.Monitor.App.RestartContainerCmd(containerID)
 			}
 		}
 		return m, nil
 	case "n", "N", "esc":
-		m.confirmationVisible = false
-		m.confirmationMessage = ""
-		m.confirmationAction = ""
-		m.confirmationData = nil
+		m.ConfirmationVisible = false
+		m.ConfirmationMessage = ""
+		m.ConfirmationAction = ""
+		m.ConfirmationData = nil
 		return m, nil
 	case "q":
 		return m, tea.Quit
@@ -422,18 +409,18 @@ func (m Model) handleSearchKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc", "enter":
 		var tcmd tea.Cmd
-		m.searchMode = false
-		m.processTable.Focus()
-		m.container.Focus()
-		if m.selectedMonitor == 1 {
+		m.Ui.SearchMode = false
+		m.Monitor.ProcessTable.Focus()
+		m.Monitor.Container.Focus()
+		if m.Ui.SelectedMonitor == 1 {
 			tcmd = m.updateProcessTable()
 		} else {
-			tcmd = m.app.UpdateApp()
+			tcmd = m.Monitor.App.UpdateApp()
 		}
 		return m, tcmd
 	default:
 		var cmd tea.Cmd
-		m.searchInput, cmd = m.searchInput.Update(msg)
+		m.Ui.SearchInput, cmd = m.Ui.SearchInput.Update(msg)
 		return m, cmd
 	}
 }
@@ -443,50 +430,50 @@ func (m Model) handleSearchKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleMonitorNavigationKeys(msg tea.KeyMsg) (bool, tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "k":
-		if m.selectedMonitor == 1 {
-			m.processTable.MoveUp(1)
+		if m.Ui.SelectedMonitor == 1 {
+			m.Monitor.ProcessTable.MoveUp(1)
 		} else {
-			m.container.MoveUp(1)
+			m.Monitor.Container.MoveUp(1)
 		}
 		return true, m, nil
 	case "down", "j":
-		if m.selectedMonitor == 1 {
-			m.processTable.MoveDown(1)
+		if m.Ui.SelectedMonitor == 1 {
+			m.Monitor.ProcessTable.MoveDown(1)
 		} else {
-			m.container.MoveDown(1)
+			m.Monitor.Container.MoveDown(1)
 		}
 		return true, m, nil
 	case "pageup":
-		if m.selectedMonitor == 1 {
-			m.processTable.MoveUp(10)
+		if m.Ui.SelectedMonitor == 1 {
+			m.Monitor.ProcessTable.MoveUp(10)
 		} else {
-			m.container.MoveUp(10)
+			m.Monitor.Container.MoveUp(10)
 		}
 		return true, m, nil
 	case "pagedown":
-		if m.selectedMonitor == 1 {
-			m.processTable.MoveDown(10)
+		if m.Ui.SelectedMonitor == 1 {
+			m.Monitor.ProcessTable.MoveDown(10)
 		} else {
-			m.container.MoveDown(10)
+			m.Monitor.Container.MoveDown(10)
 		}
 		return true, m, nil
 	case "home":
-		if m.selectedMonitor == 1 {
-			m.processTable.GotoTop()
+		if m.Ui.SelectedMonitor == 1 {
+			m.Monitor.ProcessTable.GotoTop()
 		} else {
-			m.container.GotoTop()
+			m.Monitor.Container.GotoTop()
 		}
 		return true, m, nil
 	case "end":
-		if m.selectedMonitor == 1 {
-			m.processTable.GotoBottom()
+		if m.Ui.SelectedMonitor == 1 {
+			m.Monitor.ProcessTable.GotoBottom()
 		} else {
-			m.container.GotoBottom()
+			m.Monitor.Container.GotoBottom()
 		}
 		return true, m, nil
 	case "/":
-		m.searchMode = true
-		m.searchInput.Focus()
+		m.Ui.SearchMode = true
+		m.Ui.SearchInput.Focus()
 		return true, m, nil
 	}
 	return false, m, nil
@@ -497,100 +484,100 @@ func (m Model) handleMonitorNavigationKeys(msg tea.KeyMsg) (bool, tea.Model, tea
 func (m Model) handleGeneralKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q", "ctrl+c":
-		if m.pendingShellExec != nil {
+		if m.Monitor.PendingShellExec != nil {
 			return m, tea.Quit
 		}
-		m.shouldQuit = true
+		m.Monitor.ShouldQuit = true
 		return m, tea.Quit
 	case "enter":
-		if m.activeView == -1 {
-			m.activeView = m.selectedTab
-			if m.activeView == 0 {
-				m.isMonitorActive = true
+		if m.Ui.ActiveView == -1 {
+			m.Ui.ActiveView = m.Ui.SelectedTab
+			if m.Ui.ActiveView == 0 {
+				m.Ui.IsMonitorActive = true
 			}
-		} else if m.isMonitorActive {
-			if m.selectedMonitor == 2 && len(m.container.SelectedRow()) > 0 {
-				selectedRow := m.container.SelectedRow()
+		} else if m.Ui.IsMonitorActive {
+			if m.Ui.SelectedMonitor == 2 && len(m.Monitor.Container.SelectedRow()) > 0 {
+				selectedRow := m.Monitor.Container.SelectedRow()
 				containerID := selectedRow[0]
-				containers, err := m.app.RefreshContainers()
+				containers, err := m.Monitor.App.RefreshContainers()
 				if err == nil {
 					for _, container := range containers {
 						if container.ID == containerID {
-							m.selectedContainer = &container
-							m.containerMenuState = ContainerMenuVisible
-							m.selectedMenuItem = 0
+							m.Monitor.SelectedContainer = &container
+							m.Monitor.ContainerMenuState = ContainerMenuVisible
+							m.Monitor.SelectedMenuItem = 0
 							break
 						}
 					}
 				} else {
-					m.selectedContainer = &app.Container{
+					m.Monitor.SelectedContainer = &app.Container{
 						ID:     containerID,
 						Name:   selectedRow[2],
 						Image:  selectedRow[1],
 						Status: selectedRow[3],
 					}
-					m.containerMenuState = ContainerMenuVisible
-					m.selectedMenuItem = 0
+					m.Monitor.ContainerMenuState = ContainerMenuVisible
+					m.Monitor.SelectedMenuItem = 0
 				}
 			}
 		}
 	case "b", "esc":
-		if m.searchMode {
-			m.searchMode = false
-			m.processTable.Focus()
-		} else if m.containerViewState == ContainerViewSingle {
-			m.containerViewState = ContainerViewNone
-			m.selectedContainer = nil
-		} else if m.containerViewState == ContainerViewLogs {
-			m.containerViewState = ContainerViewNone
-			m.selectedContainer = nil
-			m.containerLogs = ""
-		} else if m.confirmationVisible {
-			m.confirmationVisible = false
-			m.confirmationMessage = ""
-			m.confirmationAction = ""
-			m.confirmationData = nil
-		} else if m.containerMenuState == ContainerMenuVisible {
-			m.containerMenuState = ContainerMenuHidden
-			m.selectedContainer = nil
-		} else if m.isMonitorActive {
-			m.isMonitorActive = false
-			m.activeView = -1
-		} else if m.activeView != -1 {
-			m.activeView = -1
+		if m.Ui.SearchMode {
+			m.Ui.SearchMode = false
+			m.Monitor.ProcessTable.Focus()
+		} else if m.Monitor.ContainerViewState == ContainerViewSingle {
+			m.Monitor.ContainerViewState = ContainerViewNone
+			m.Monitor.SelectedContainer = nil
+		} else if m.Monitor.ContainerViewState == ContainerViewLogs {
+			m.Monitor.ContainerViewState = ContainerViewNone
+			m.Monitor.SelectedContainer = nil
+			m.Monitor.ContainerLogs = ""
+		} else if m.ConfirmationVisible {
+			m.ConfirmationVisible = false
+			m.ConfirmationMessage = ""
+			m.ConfirmationAction = ""
+			m.ConfirmationData = nil
+		} else if m.Monitor.ContainerMenuState == ContainerMenuVisible {
+			m.Monitor.ContainerMenuState = ContainerMenuHidden
+			m.Monitor.SelectedContainer = nil
+		} else if m.Ui.IsMonitorActive {
+			m.Ui.IsMonitorActive = false
+			m.Ui.ActiveView = -1
+		} else if m.Ui.ActiveView != -1 {
+			m.Ui.ActiveView = -1
 		}
 	case "tab", "right", "l":
-		if m.containerViewState != ContainerViewSingle {
-			if m.activeView == -1 {
-				m.selectedTab = (m.selectedTab + 1) % len(m.tabs.DashBoard)
-			} else if m.isMonitorActive {
-				m.selectedMonitor = (m.selectedMonitor + 1) % len(m.tabs.Monitor)
+		if m.Monitor.ContainerViewState != ContainerViewSingle {
+			if m.Ui.ActiveView == -1 {
+				m.Ui.SelectedTab = (m.Ui.SelectedTab + 1) % len(m.Ui.Tabs.DashBoard)
+			} else if m.Ui.IsMonitorActive {
+				m.Ui.SelectedMonitor = (m.Ui.SelectedMonitor + 1) % len(m.Ui.Tabs.Monitor)
 			}
 		}
 	case "shift+tab", "left", "h":
-		if m.containerViewState != ContainerViewSingle {
-			if m.activeView == -1 {
-				m.selectedTab = (m.selectedTab - 1 + len(m.tabs.DashBoard)) % len(m.tabs.DashBoard)
-			} else if m.isMonitorActive {
-				m.selectedMonitor = (m.selectedMonitor - 1 + len(m.tabs.Monitor)) % len(m.tabs.Monitor)
+		if m.Monitor.ContainerViewState != ContainerViewSingle {
+			if m.Ui.ActiveView == -1 {
+				m.Ui.SelectedTab = (m.Ui.SelectedTab - 1 + len(m.Ui.Tabs.DashBoard)) % len(m.Ui.Tabs.DashBoard)
+			} else if m.Ui.IsMonitorActive {
+				m.Ui.SelectedMonitor = (m.Ui.SelectedMonitor - 1 + len(m.Ui.Tabs.Monitor)) % len(m.Ui.Tabs.Monitor)
 			}
 		}
 	case "1", "2", "3", "4":
-		if m.containerViewState != ContainerViewSingle && m.activeView == -1 {
+		if m.Monitor.ContainerViewState != ContainerViewSingle && m.Ui.ActiveView == -1 {
 			switch msg.String() {
 			case "1":
-				m.selectedTab = 0
+				m.Ui.SelectedTab = 0
 			case "2":
-				m.selectedTab = 1
+				m.Ui.SelectedTab = 1
 			case "3":
-				m.selectedTab = 2
+				m.Ui.SelectedTab = 2
 			case "4":
-				m.selectedTab = 3
+				m.Ui.SelectedTab = 3
 			}
 		}
 	case "k":
-		if m.isMonitorActive && m.selectedMonitor == 1 && len(m.processTable.SelectedRow()) > 0 {
-			selectedPID := m.processTable.SelectedRow()[0]
+		if m.Ui.IsMonitorActive && m.Ui.SelectedMonitor == 1 && len(m.Monitor.ProcessTable.SelectedRow()) > 0 {
+			selectedPID := m.Monitor.ProcessTable.SelectedRow()[0]
 			pid, _ := strconv.Atoi(selectedPID)
 			process, _ := os.FindProcess(pid)
 			if process != nil {
@@ -599,60 +586,59 @@ func (m Model) handleGeneralKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, proc.UpdateProcesses()
 		}
 	case "s":
-		if m.isMonitorActive && m.selectedMonitor == 1 {
-			sort.Slice(m.processes, func(i, j int) bool {
-				return m.processes[i].CPU > m.processes[j].CPU
+		if m.Ui.IsMonitorActive && m.Ui.SelectedMonitor == 1 {
+			sort.Slice(m.Monitor.Processes, func(i, j int) bool {
+				return m.Monitor.Processes[i].CPU > m.Monitor.Processes[j].CPU
 			})
 			return m, m.updateProcessTable()
 		}
 	case "m":
-		if m.isMonitorActive && m.selectedMonitor == 1 {
-			sort.Slice(m.processes, func(i, j int) bool {
-				return m.processes[i].Mem > m.processes[j].Mem
+		if m.Ui.IsMonitorActive && m.Ui.SelectedMonitor == 1 {
+			sort.Slice(m.Monitor.Processes, func(i, j int) bool {
+				return m.Monitor.Processes[i].Mem > m.Monitor.Processes[j].Mem
 			})
 			return m, m.updateProcessTable()
 		}
 	case "r":
-		if m.containerViewState == ContainerViewLogs && m.selectedContainer != nil {
-			m.containerLogsLoading = true
-			return m, m.app.GetContainerLogsCmd(m.selectedContainer.ID, "100")
+		if m.Monitor.ContainerViewState == ContainerViewLogs && m.Monitor.SelectedContainer != nil {
+			m.Monitor.ContainerLogsLoading = true
+			return m, m.Monitor.App.GetContainerLogsCmd(m.Monitor.SelectedContainer.ID, "100")
 		}
 	}
 
-	if m.isMonitorActive {
+	if m.Ui.IsMonitorActive && m.Monitor.ContainerViewState != ContainerViewSingle {
 		switch msg.String() {
 		case "1":
-			m.selectedMonitor = 0
+			m.Ui.SelectedMonitor = 0
 		case "2":
-			m.selectedMonitor = 1
+			m.Ui.SelectedMonitor = 1
 		case "3":
-			m.selectedMonitor = 2
+			m.Ui.SelectedMonitor = 2
 		}
 	}
 
-	// Gestion des onglets dans la vue détaillée du conteneur
-	if m.containerViewState == ContainerViewSingle {
+	if m.Monitor.ContainerViewState == ContainerViewSingle {
 		switch msg.String() {
 		case "tab", "right", "l":
-			m.containerTab = ContainerTab((int(m.containerTab) + 1) % len(m.containerTabs))
+			m.ContainerTab = model.ContainerTab((int(m.ContainerTab) + 1) % len(m.Monitor.ContainerTabs))
 		case "shift+tab", "left", "h":
-			newTab := int(m.containerTab) - 1
+			newTab := int(m.ContainerTab) - 1
 			if newTab < 0 {
-				newTab = len(m.containerTabs) - 1
+				newTab = len(m.Monitor.ContainerTabs) - 1
 			}
-			m.containerTab = ContainerTab(newTab)
+			m.ContainerTab = model.ContainerTab(newTab)
 		case "1":
-			m.containerTab = ContainerTabGeneral
+			m.ContainerTab = model.ContainerTabGeneral
 		case "2":
-			m.containerTab = ContainerTabCPU
+			m.ContainerTab = model.ContainerTabCPU
 		case "3":
-			m.containerTab = ContainerTabMemory
+			m.ContainerTab = model.ContainerTabMemory
 		case "4":
-			m.containerTab = ContainerTabNetwork
+			m.ContainerTab = model.ContainerTabNetwork
 		case "5":
-			m.containerTab = ContainerTabDisk
+			m.ContainerTab = model.ContainerTabDisk
 		case "6":
-			m.containerTab = ContainerTabEnv
+			m.ContainerTab = model.ContainerTabEnv
 		}
 	}
 
@@ -670,9 +656,8 @@ func (m Model) handleTickMsg() (tea.Model, tea.Cmd) {
 		resource.UpdateDiskInfo(),
 		resource.UpdateNetworkInfo(),
 		proc.UpdateProcesses(),
-		m.app.UpdateApp(),
+		m.Monitor.App.UpdateApp(),
 	}
-	// Mettre à jour les graphiques
 	m.updateCharts()
 	return m, tea.Batch(cmds...)
 }
@@ -685,22 +670,22 @@ func (m Model) handleProgressFrame(msg progress.FrameMsg) (tea.Model, tea.Cmd) {
 		cmds    []tea.Cmd
 	)
 
-	updatedModel, progCmd := m.cpuProgress.Update(msg)
-	m.cpuProgress = updatedModel.(progress.Model)
+	updatedModel, progCmd := m.Monitor.CpuProgress.Update(msg)
+	m.Monitor.CpuProgress = updatedModel.(progress.Model)
 	cmds = append(cmds, progCmd)
 
-	updatedModel, progCmd = m.memProgress.Update(msg)
-	m.memProgress = updatedModel.(progress.Model)
+	updatedModel, progCmd = m.Monitor.MemProgress.Update(msg)
+	m.Monitor.MemProgress = updatedModel.(progress.Model)
 	cmds = append(cmds, progCmd)
 
-	updatedModel, progCmd = m.swapProgress.Update(msg)
-	m.swapProgress = updatedModel.(progress.Model)
+	updatedModel, progCmd = m.Monitor.SwapProgress.Update(msg)
+	m.Monitor.SwapProgress = updatedModel.(progress.Model)
 	cmds = append(cmds, progCmd)
 
-	for key, p := range m.diskProgress {
+	for key, p := range m.Monitor.DiskProgress {
 		updatedModel, progCmd := (p).Update(msg)
 		newModel := updatedModel.(progress.Model)
-		m.diskProgress[key] = newModel
+		m.Monitor.DiskProgress[key] = newModel
 		cmds = append(cmds, progCmd)
 	}
 	return m, tea.Batch(cmds...)
@@ -711,13 +696,11 @@ func (m Model) handleProgressFrame(msg progress.FrameMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	mouseEvent := tea.MouseEvent(msg)
 
-	// Éviter le scrolling trop rapide
-	if time.Since(m.lastScrollTime) < 20*time.Millisecond { // ~60fps
+	if time.Since(m.LastScrollTime) < 20*time.Millisecond { 
 		return m, nil
 	}
-	m.lastScrollTime = time.Now()
+	m.LastScrollTime = time.Now()
 
-	// Gestion du scrolling avec le trackpad
 	switch {
 	case mouseEvent.Button == tea.MouseButtonWheelUp && mouseEvent.Action == tea.MouseActionPress:
 		return m.handleScrollUp()
@@ -729,33 +712,29 @@ func (m Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleScrollUp() (tea.Model, tea.Cmd) {
-	if m.isMonitorActive {
-		// Scrolling dans les tables
-		switch m.selectedMonitor {
+	if m.Ui.IsMonitorActive {
+		switch m.Ui.SelectedMonitor {
 		case 1:
-			m.processTable.MoveUp(m.scrollSensitivity)
+			m.Monitor.ProcessTable.MoveUp(m.ScrollSensitivity)
 		case 2:
-			m.container.MoveUp(m.scrollSensitivity)
+			m.Monitor.Container.MoveUp(m.ScrollSensitivity)
 		}
 	} else {
-		// Scrolling dans la viewport
-		m.viewport.ScrollUp(m.scrollSensitivity)
+		m.Ui.Viewport.ScrollUp(m.ScrollSensitivity)
 	}
 	return m, nil
 }
 
 func (m Model) handleScrollDown() (tea.Model, tea.Cmd) {
-	if m.isMonitorActive {
-		// Scrolling dans les tables
-		switch m.selectedMonitor {
+	if m.Ui.IsMonitorActive {
+		switch m.Ui.SelectedMonitor {
 		case 1:
-			m.processTable.MoveDown(m.scrollSensitivity)
+			m.Monitor.ProcessTable.MoveDown(m.ScrollSensitivity)
 		case 2:
-			m.container.MoveDown(m.scrollSensitivity)
+			m.Monitor.Container.MoveDown(m.ScrollSensitivity)
 		}
 	} else {
-		// Scrolling dans la viewport
-		m.viewport.ScrollDown(m.scrollSensitivity)
+		m.Ui.Viewport.ScrollDown(m.ScrollSensitivity)
 	}
 	return m, nil
 }

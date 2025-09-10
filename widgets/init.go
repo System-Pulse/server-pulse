@@ -8,6 +8,7 @@ import (
 	info "github.com/System-Pulse/server-pulse/system/informations"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	resource "github.com/System-Pulse/server-pulse/system/resource"
+	model "github.com/System-Pulse/server-pulse/widgets/model"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -79,53 +80,65 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	}
 
 	m := Model{
-		tabs:               menu,
-		selectedTab:        0,
-		activeView:         -1,
-		processTable:       t,
-		container:          ct,
-		searchInput:        searchInput,
-		searchMode:         false,
-		cpuProgress:        progress.New(progOpts...),
-		memProgress:        progress.New(progOpts...),
-		swapProgress:       progress.New(progOpts...),
-		diskProgress:       make(map[string]progress.Model),
-		viewport:           viewport.New(100, 20),
-		app:                apk,
-		containerMenuState: ContainerMenuHidden,
-		selectedContainer:  nil,
-		containerMenuItems: containerMenuItems,
-		selectedMenuItem:   0,
-		containerViewState: ContainerViewNone,
-		containerTab:       ContainerTabGeneral,
-		containerTabs:      containerTabs,
-		// -------------------------------- //
-		cpuHistory: DataHistory{
-			MaxPoints: 60, // 60 points = 2 minutes à 2s d'intervalle
-			Points:    make([]DataPoint, 0),
+		Monitor: model.MonitorModel{
+			ProcessTable:       t,
+			Container:          ct,
+			CpuProgress:        progress.New(progOpts...),
+			MemProgress:        progress.New(progOpts...),
+			SwapProgress:       progress.New(progOpts...),
+			DiskProgress:       make(map[string]progress.Model),
+			App:                apk,
+			ContainerMenuState: ContainerMenuHidden,
+			SelectedContainer:  nil,
+			ContainerMenuItems: containerMenuItems,
+			ContainerViewState: ContainerViewNone,
+			ContainerTabs:      containerTabs,
+			CpuHistory: model.DataHistory{
+				MaxPoints: 60,
+				Points:    make([]model.DataPoint, 0),
+			},
+			MemoryHistory: model.DataHistory{
+				MaxPoints: 60,
+				Points:    make([]model.DataPoint, 0),
+			},
+			NetworkRxHistory: model.DataHistory{
+				MaxPoints: 60,
+				Points:    make([]model.DataPoint, 0),
+			},
+			NetworkTxHistory: model.DataHistory{
+				MaxPoints: 60,
+				Points:    make([]model.DataPoint, 0),
+			},
+			DiskReadHistory: model.DataHistory{
+				MaxPoints: 60,
+				Points:    make([]model.DataPoint, 0),
+			},
+			DiskWriteHistory: model.DataHistory{
+				MaxPoints: 60,
+				Points:    make([]model.DataPoint, 0),
+			},
 		},
-		memoryHistory: DataHistory{
-			MaxPoints: 60,
-			Points:    make([]DataPoint, 0),
+		Ui: model.UIModel{
+			Tabs:        menu,
+			SelectedTab: 0,
+			ActiveView:  -1,
+			SearchInput: searchInput,
+			SearchMode:  false,
+			Viewport:    viewport.New(100, 20),
+			MinWidth:    40,
+			MinHeight:   10,
 		},
-		networkRxHistory: DataHistory{
-			MaxPoints: 60,
-			Points:    make([]DataPoint, 0),
-		},
-		networkTxHistory: DataHistory{
-			MaxPoints: 60,
-			Points:    make([]DataPoint, 0),
-		},
-		lastChartUpdate: time.Now(),
-		// -------------------------------- //
-		scrollSensitivity: 3,
-		mouseEnabled:      true,
-		minWidth:          40, // Ajouté
-		minHeight:         10, // Ajouté
+		LastChartUpdate:   time.Now(),
+		ScrollSensitivity: 3,
+		MouseEnabled:      true,
+		EnableAnimations:  true,
+		ContainerTab:      model.ContainerTabGeneral,
+		ProgressBars:      make(map[string]progress.Model),
 	}
-	m.processTable.Focus()
+
+	m.Monitor.ProcessTable.Focus()
 	m.updateContainerTable(containers)
-	m.container.Focus()
+	m.Monitor.Container.Focus()
 
 	return m
 }
@@ -139,6 +152,6 @@ func (m Model) Init() tea.Cmd {
 		resource.UpdateDiskInfo(),
 		resource.UpdateNetworkInfo(),
 		proc.UpdateProcesses(),
-		m.app.UpdateApp(),
+		m.Monitor.App.UpdateApp(),
 	)
 }

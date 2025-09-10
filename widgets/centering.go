@@ -13,28 +13,28 @@ func (m Model) getMaxContentWidth() int {
 	maxWidth := 120
 
 	// Protection contre les largeurs négatives ou nulles
-	if m.width <= 0 {
+	if m.Ui.Width <= 0 {
 		return minWidth
 	}
 
 	// For narrow terminals, use most of the width
-	if m.width < minWidth {
+	if m.Ui.Width < minWidth {
 		return max(minWidth, 20) // Valeur minimale absolue
 	}
 
 	// For wide terminals, cap the content width for readability
-	if m.width > maxWidth {
+	if m.Ui.Width > maxWidth {
 		return maxWidth
 	}
 
 	// For medium terminals, use 90% of width
-	calculatedWidth := int(float64(m.width) * 0.9)
+	calculatedWidth := int(float64(m.Ui.Width) * 0.9)
 	return max(calculatedWidth, minWidth)
 }
 
 // centerLayout centers the entire layout horizontally within the terminal
 func (m Model) centerLayout(content string) string {
-	if m.width <= 0 {
+	if m.Ui.Width <= 0 {
 		return content
 	}
 
@@ -43,8 +43,8 @@ func (m Model) centerLayout(content string) string {
 
 	for _, line := range lines {
 		lineWidth := lipgloss.Width(line)
-		if lineWidth < m.width {
-			leftPadding := (m.width - lineWidth) / 2
+		if lineWidth < m.Ui.Width {
+			leftPadding := (m.Ui.Width - lineWidth) / 2
 			if leftPadding > 0 {
 				centeredLine := strings.Repeat(" ", leftPadding) + line
 				centeredLines = append(centeredLines, centeredLine)
@@ -113,10 +113,10 @@ func (m Model) getResponsiveWidth(contentType string) int {
 	switch contentType {
 	case "table":
 		// Tables need more space
-		return min(maxWidth, m.width-4)
+		return min(maxWidth, m.Ui.Width-4)
 	case "chart":
 		// Charts can be wider
-		return min(maxWidth-10, m.width-8)
+		return min(maxWidth-10, m.Ui.Width-8)
 	case "card":
 		// Cards should be more compact
 		return min(maxWidth-20, 60)

@@ -5,28 +5,29 @@ import (
 	"math"
 	"strings"
 
+	model "github.com/System-Pulse/server-pulse/widgets/model"
 	"github.com/charmbracelet/lipgloss"
 )
 
 func (m Model) renderCPUChart(width, height int) string {
-	return m.renderLineChart(m.cpuHistory, "CPU Usage Over Time (%)", width, height, 0, 100)
+	return m.renderLineChart(m.Monitor.CpuHistory, "CPU Usage Over Time (%)", width, height, 0, 100)
 }
 
 func (m Model) renderMemoryChart(width, height int) string {
-	return m.renderLineChart(m.memoryHistory, "Memory Usage Over Time (%)", width, height, 0, 100)
+	return m.renderLineChart(m.Monitor.MemoryHistory, "Memory Usage Over Time (%)", width, height, 0, 100)
 }
 
 func (m Model) renderNetworkRXChart(width, height int) string {
-	maxValue := m.getMaxValue(m.networkRxHistory.Points) * 1.2
-	return m.renderLineChart(m.networkRxHistory, "Network RX (MB/s)", width, height, 0, maxValue)
+	maxValue := m.getMaxValue(m.Monitor.NetworkRxHistory.Points) * 1.2
+	return m.renderLineChart(m.Monitor.NetworkRxHistory, "Network RX (MB/s)", width, height, 0, maxValue)
 }
 
 func (m Model) renderNetworkTXChart(width, height int) string {
-	maxValue := m.getMaxValue(m.networkTxHistory.Points) * 1.2
-	return m.renderLineChart(m.networkTxHistory, "Network TX (MB/s)", width, height, 0, maxValue)
+	maxValue := m.getMaxValue(m.Monitor.NetworkTxHistory.Points) * 1.2
+	return m.renderLineChart(m.Monitor.NetworkTxHistory, "Network TX (MB/s)", width, height, 0, maxValue)
 }
 
-func (m Model) renderLineChart(history DataHistory, title string, width, height int, minValue, maxValue float64) string {
+func (m Model) renderLineChart(history model.DataHistory, title string, width, height int, minValue, maxValue float64) string {
 	// Vérifications de sécurité
 	if width < 10 || height < 3 {
 		return title + "\n[Chart too small to display]"
@@ -117,7 +118,7 @@ func (m Model) renderEmptyChart(title string, width, height int) string {
 	return builder.String()
 }
 
-func (m Model) getMaxValue(points []DataPoint) float64 {
+func (m Model) getMaxValue(points []model.DataPoint) float64 {
 	max := 0.0
 	for _, point := range points {
 		if point.Value > max {

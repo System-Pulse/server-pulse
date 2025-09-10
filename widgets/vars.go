@@ -1,5 +1,13 @@
 package widgets
 
+import (
+	model "github.com/System-Pulse/server-pulse/widgets/model"
+)
+
+const (
+	progressBarWidth = 40
+)
+
 var (
 	asciiArt = `
  ▗▄▄▖▗▄▄▄▖▗▄▄▖ ▗▖  ▗▖▗▄▄▄▖▗▄▄▖     ▗▄▄▖ ▗▖ ▗▖▗▖    ▗▄▄▖▗▄▄▄▖
@@ -8,14 +16,13 @@ var (
 ▗▄▄▞▘▐▙▄▄▖▐▌ ▐▌ ▝▚▞▘ ▐▙▄▄▖▐▌ ▐▌    ▐▌   ▝▚▄▞▘▐▙▄▄▖▗▄▄▞▘▐▙▄▄▖
 		`
 	dashboard = []string{"Monitor", "Diagnostic", "Network", "Reporting"}
-	monitor   = []string{"System", "Process", "Application"}
-	menu      = Menu{
+	monitor   = []string{"System", "Process", "Containers"}
+	menu      = model.Menu{
 		DashBoard: dashboard,
 		Monitor:   monitor,
 	}
 
-	// Menu contextuel des conteneurs
-	containerMenuItems = []ContainerMenuItem{
+	containerMenuItems = []model.ContainerMenuItem{
 		{Key: "o", Label: "Open detailed view", Description: "View detailed container information", Action: "open_single"},
 		{Key: "l", Label: "View logs", Description: "Show container logs", Action: "logs"},
 		{Key: "r", Label: "Restart", Description: "Restart container", Action: "restart"},

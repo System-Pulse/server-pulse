@@ -96,10 +96,8 @@ func UpdateDiskInfo() tea.Cmd {
 
 func UpdateNetworkInfo() tea.Cmd {
 	return func() tea.Msg {
-		// Vérification de la connectivité (simplifiée)
 		connected := true
 
-		// Adresses IP privées
 		addrs, err := net.Interfaces()
 		if err != nil {
 			return utils.ErrMsg(err)
@@ -118,12 +116,11 @@ func UpdateNetworkInfo() tea.Cmd {
 			}
 		}
 
-		// IP publique (simulée)
 		publicIPv4 := "N/A"
 		publicIPv6 := "N/A"
 
 		var networkInterfaces []NetworkInterface
-		netIO, err := network.IOCounters(true) // true pour obtenir par interface
+		netIO, err := network.IOCounters(true) 
 		if err == nil {
 			for _, io := range netIO {
 				networkInterfaces = append(networkInterfaces, NetworkInterface{

@@ -3,26 +3,33 @@ package widgets
 import "github.com/charmbracelet/lipgloss"
 
 var (
-	// Couleurs principales
 	accentColor  = lipgloss.Color("#06b6d4") // Cyan
 	successColor = lipgloss.Color("#10b981") // Emerald
 	errorColor   = lipgloss.Color("#ef4444") // Red
 
 	surfaceColor          = lipgloss.Color("235") // black
-	buttonCollor          = lipgloss.Color("57")
+	purpleCollor          = lipgloss.Color("57") // purple
 	buttonCollorDesactive = lipgloss.Color("236")
-
+	clearWhite            = lipgloss.Color("229") // clear white
+	whiteColor            = lipgloss.Color("255") // white
 	cardStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(surfaceColor).
 			Background(surfaceColor).
 			Padding(1, 2).
 			Margin(1, 0)
+	
+	cardTableStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(surfaceColor).
+				Background(surfaceColor).
+				Padding(1, 2).
+				Margin(1, 0)
 
 	cardButtonStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(buttonCollor).
-			Background(buttonCollor).
+			BorderForeground(purpleCollor).
+			Background(purpleCollor).
 			Padding(1, 2).
 			Bold(true).
 			Margin(1, 0)
@@ -50,13 +57,6 @@ var (
 			Padding(1).
 			Background(lipgloss.Color("235"))
 
-	containerTableStyle = lipgloss.NewStyle().
-				Border(lipgloss.RoundedBorder()).
-				BorderForeground(surfaceColor).
-				Background(lipgloss.Color("235")).
-				Padding(1, 2).
-				Margin(1, 0)
-	
 	searchBarStyle = lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("57")).

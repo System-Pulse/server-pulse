@@ -2,7 +2,6 @@ package app
 
 import "time"
 
-// StatsJSON représente la structure des statistiques Docker
 type StatsJSON struct {
 	Read    time.Time `json:"read"`
 	PreRead time.Time `json:"preread"`

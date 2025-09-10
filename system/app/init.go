@@ -50,7 +50,6 @@ func (dm *DockerManager) RefreshContainers() ([]Container, error) {
 		status := strings.Split(cont.Status, " ")[0]
 		state := cont.State
 
-		// Récupérer les ports exposés
 		var portsInfo []string
 		for _, p := range cont.Ports {
 			if p.PublicPort > 0 {
@@ -64,7 +63,6 @@ func (dm *DockerManager) RefreshContainers() ([]Container, error) {
 			portsStr = "N/A"
 		}
 
-		// Santé du conteneur
 		health := "N/A"
 		if strings.Contains(cont.Status, "healthy") {
 			health = "healthy"
@@ -102,26 +100,22 @@ func (dm *DockerManager) RefreshContainers() ([]Container, error) {
 func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDetails, error) {
 	ctx := context.Background()
 
-	// Récupérer les informations de base du conteneur
 	containerJSON, err := dm.Cli.ContainerInspect(ctx, containerID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to inspect container: %w", err)
 	}
 
-	// Récupérer les statistiques du conteneur
 	statsResponse, err := dm.Cli.ContainerStats(ctx, containerID, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get container stats: %w", err)
 	}
 	defer statsResponse.Body.Close()
 
-	// Parser manuellement les statistiques
 	var stats StatsJSON
 	if err := json.NewDecoder(statsResponse.Body).Decode(&stats); err != nil {
 		return nil, fmt.Errorf("failed to decode stats: %w", err)
 	}
 
-	// Calculer les métriques CPU
 	var cpuPercent float64
 	if stats.PreCPUStats.CPUUsage.TotalUsage > 0 && stats.CPUStats.SystemUsage > stats.PreCPUStats.SystemUsage {
 		cpuDelta := float64(stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage)
@@ -131,7 +125,6 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 		}
 	}
 
-	// Métriques mémoire
 	memoryUsage := stats.MemoryStats.Usage
 	memoryLimit := stats.MemoryStats.Limit
 	memoryPercent := 0.0
@@ -139,7 +132,6 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 		memoryPercent = (float64(memoryUsage) / float64(memoryLimit)) * 100.0
 	}
 
-	// Métriques réseau
 	var networkRx, networkTx uint64
 	if stats.Networks != nil {
 		for _, network := range stats.Networks {
@@ -148,7 +140,6 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 		}
 	}
 
-	// Métriques disque
 	var blockRead, blockWrite uint64
 	for _, ioStat := range stats.BlkioStats.IoServiceBytesRecursive {
 		switch ioStat.Op {
@@ -159,7 +150,6 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 		}
 	}
 
-	// Calculer l'uptime
 	uptime := "N/A"
 	if containerJSON.State.StartedAt != "" {
 		startTime, err := time.Parse(time.RFC3339Nano, containerJSON.State.StartedAt)
@@ -168,7 +158,6 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 		}
 	}
 
-	// Récupérer l'IP et la gateway
 	ipAddress := "N/A"
 	// gateway := "N/A"
 	if containerJSON.NetworkSettings != nil && len(containerJSON.NetworkSettings.Networks) > 0 {
@@ -186,7 +175,6 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 		healthCheck = string(containerJSON.State.Health.Status)
 	}
 
-	// Récupérer les ports exposés
 	var ports []PortInfo
 	for port, bindings := range containerJSON.NetworkSettings.Ports {
 		for _, binding := range bindings {
@@ -202,7 +190,6 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 		}
 	}
 
-	// Récupérer les informations réseau détaillées
 	var ipAddresses []string
 	var gateways []string
 	if containerJSON.NetworkSettings != nil && len(containerJSON.NetworkSettings.Networks) > 0 {
@@ -216,7 +203,6 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 		}
 	}
 
-	// Formater la date de création
 	createdAt := containerJSON.Created
 	if parsedTime, err := time.Parse(time.RFC3339Nano, containerJSON.Created); err == nil {
 		createdAt = parsedTime.Format("2006-01-02 15:04:05")
@@ -256,7 +242,6 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 	return details, nil
 }
 
-// Fonction utilitaire pour formater la durée
 func formatDuration(d time.Duration) string {
 	days := d / (24 * time.Hour)
 	d -= days * 24 * time.Hour

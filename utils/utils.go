@@ -16,12 +16,10 @@ type ErrMsg error
 type InfoMsg string
 type TickMsg time.Time
 
-// Nouvelle fonction pour formater les pourcentages avec couleurs
 func FormatPercentage(percent float64) string {
 	return fmt.Sprintf("%.1f%%", percent)
 }
 
-// Fonction pour obtenir l'icône selon le niveau d'usage
 func GetUsageIcon(percent float64) string {
 	switch {
 	case percent < 25:
@@ -62,7 +60,6 @@ func FormatBytes(bytes uint64) string {
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
-// Version compacte du formatage des bytes
 func FormatCompactBytes(bytes uint64) string {
 	const unit = 1024
 	if bytes < unit {
@@ -167,7 +164,6 @@ func CheckDockerPermissions() (bool, string) {
 	}
 }
 
-// FormatOperationMessage formate les messages d'opération pour l'affichage
 func FormatOperationMessage(operation string, success bool, err error) string {
 	operationLabels := map[string]string{
 		"restart":      "Container restarted",
@@ -197,7 +193,6 @@ func FormatOperationMessage(operation string, success bool, err error) string {
 	}
 }
 
-// GetOperationIcon retourne une icône pour le type d'opération
 func GetOperationIcon(operation string) string {
 	icons := map[string]string{
 		"restart":      "🔄",

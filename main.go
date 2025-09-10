@@ -71,7 +71,6 @@ func runTUI() bool {
 				bufio.NewScanner(os.Stdin).Scan()
 			}
 
-			// Attendre avant de redémarrer l'interface TUI
 			time.Sleep(300 * time.Millisecond)
 
 			// Return false to restart TUI

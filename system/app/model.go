@@ -19,7 +19,7 @@ type Container struct {
 	Command   string
 	CreatedAt string
 	Status    string
-	State     string // État détaillé (created, running, paused, etc.)
+	State     string // (created, running, paused, etc.)
 	Health    string
 	Ports     []container.Port
 	PortsStr  string
@@ -51,7 +51,7 @@ type ContainerDetails struct {
 	Gateway         string
 	HealthCheck     string
 	Uptime          string
-	Ports           []PortInfo // Ports détaillés
+	Ports           []PortInfo 
 	NetworkSettings any
 	HostConfig      any
 	State           any
@@ -74,7 +74,6 @@ type MountInfo struct {
 type ContainerMsg []Container
 type ContainerDetailsMsg ContainerDetails
 
-// Messages pour les opérations sur les conteneurs
 type ContainerLogsMsg struct {
 	ContainerID string
 	Logs        string
@@ -102,4 +101,15 @@ type ContainerStatsChanMsg struct {
 
 type ExecShellMsg struct {
 	ContainerID string
+}
+
+type ContainerStatsMsg struct {
+	ContainerID string
+	CPUPercent  float64
+	MemPercent  float64
+	MemUsage    uint64
+	MemLimit    uint64
+	NetRX       uint64
+	NetTX       uint64
+	DiskUsage   uint64
 }
