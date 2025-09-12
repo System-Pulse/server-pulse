@@ -8,10 +8,10 @@ import (
 
 func (m Model) View() string {
 	if !m.Ui.Ready {
-		return "Initializing..."
+		return "Your window is too small!"
 	}
 	if m.Err != nil {
-		return fmt.Sprintf("Erreur: %v\n", m.Err)
+		return fmt.Sprintf("Error: %v\n", m.Err)
 	}
 
 	// Checking the minimum terminal size
@@ -36,7 +36,11 @@ func (m Model) View() string {
 		case 1: // Diagnostic
 			currentView = m.renderDignostics()
 		case 2: // Network
-			currentView = m.Interfaces()
+			if m.Ui.IsNetworkActive {
+				currentView = m.renderNetwork()
+			} else {
+				currentView = m.interfaces()
+			}
 		case 3: // Reporting
 			currentView = m.renderReporting()
 		}
@@ -45,7 +49,8 @@ func (m Model) View() string {
 	}
 
 	home := m.renderHome()
-	tabs := m.renderTabs()
+	monitorNav := m.renderNavMonitor()
+	networkNav := m.renderNavNetwork()
 	footer := m.renderFooter()
 
 	var mainContent string
@@ -79,7 +84,7 @@ func (m Model) View() string {
 				mainContent = m.renderContainerMenu()
 			} else {
 				p := "Search a process..."
-				mainContent = m.renderTable(m.Monitor.ProcessTable,p)
+				mainContent = m.renderTable(m.Monitor.ProcessTable, p)
 			}
 		}
 	} else {
@@ -99,7 +104,8 @@ func (m Model) View() string {
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		home,
-		tabs,
+		monitorNav,
+		networkNav,
 		mainContent,
 		footer,
 	)

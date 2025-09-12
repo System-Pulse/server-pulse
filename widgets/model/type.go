@@ -11,6 +11,13 @@ const (
 	ContainerTabNetwork
 	ContainerTabDisk
 	ContainerTabEnv
+	// "Interface", "Connectivity", "Configuration", "Protocol Analysis"
+	// ================================ //
+	NetworkTabInterface     ContainerTab = ContainerTabGeneral
+	NetworkTabConnectivity               = ContainerTabCPU
+	NetworkTabConfiguration              = ContainerTabMemory
+	NetworkTabProtocol                   = ContainerTabNetwork
+	// ================================ //
 )
 
 type ContainerMenuItem struct {

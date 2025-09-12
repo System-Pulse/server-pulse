@@ -11,6 +11,7 @@ type UIModel struct {
 	SelectedTab     int
 	SelectedMonitor int
 	IsMonitorActive bool
+	IsNetworkActive bool
 	ActiveView      int
 	SearchInput     textinput.Model
 	SearchMode      bool

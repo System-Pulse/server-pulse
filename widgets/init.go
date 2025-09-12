@@ -78,7 +78,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	}
 	networkTable := table.New(
 		table.WithColumns(networkColumns),
-		table.WithFocused(false),
+		table.WithFocused(true),
 	)
 	networkStyle := table.DefaultStyles()
 	networkStyle.Header = networkStyle.Header.
@@ -106,7 +106,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 		Network: model.NetworkModel{
 			NetworkTable: networkTable,
 			Nav: networkNav,
-			SelectedItem: model.ContainerTabGeneral,
+			SelectedItem: model.NetworkTabInterface,
 		},
 		Monitor: model.MonitorModel{
 			ProcessTable:       t,

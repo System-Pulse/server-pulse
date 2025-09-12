@@ -48,15 +48,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// fallback: update interactive components (processTable / viewport)
-	if m.Ui.IsMonitorActive && m.Ui.SelectedMonitor == 1 {
-		if !m.Ui.SearchMode {
-			m.Monitor.ProcessTable, cmd = m.Monitor.ProcessTable.Update(msg)
-			cmds = append(cmds, cmd)
-		}
-	} else if m.Ui.ActiveView != -1 {
-		m.Ui.Viewport, cmd = m.Ui.Viewport.Update(msg)
+	if m.Ui.IsMonitorActive && m.Ui.SelectedMonitor == 1 && !m.Ui.SearchMode {
+		m.Monitor.ProcessTable, cmd = m.Monitor.ProcessTable.Update(msg)
+		cmds = append(cmds, cmd)
+	} else if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
+		m.Network.NetworkTable, cmd = m.Network.NetworkTable.Update(msg)
+		cmds = append(cmds, cmd)
+	} else if m.Ui.IsMonitorActive && m.Ui.SelectedMonitor == 2 {
+		m.Monitor.Container, cmd = m.Monitor.Container.Update(msg)
 		cmds = append(cmds, cmd)
 	}
+	m.Ui.Viewport, cmd = m.Ui.Viewport.Update(msg)
+	cmds = append(cmds, cmd)
+	// else if m.Ui.ActiveView != -1 {
+	// 	m.Ui.Viewport, cmd = m.Ui.Viewport.Update(msg)
+	// 	cmds = append(cmds, cmd)
+	// }
 
 	return m, tea.Batch(cmds...)
 }
@@ -196,11 +203,26 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleSearchKeys(msg)
 	}
 
+	// Gestion spécifique pour l'onglet Network
+	if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
+		// D'abord, vérifier les touches de navigation réseau
+		handled, updatedModel, cmd := m.handleNetwork(msg)
+		if handled {
+			return updatedModel, cmd
+		}
+		// Ensuite, vérifier les touches de navigation du tableau
+		if handled, mNew, cmd := m.handleMonitorNavigationKeys(msg); handled {
+			return mNew, cmd
+		}
+		// Enfin, vérifier les touches générales
+		return m.handleGeneralKeys(msg)
+	}
+
 	if m.Ui.IsMonitorActive && (m.Ui.SelectedMonitor == 1 || m.Ui.SelectedMonitor == 2) {
 		if handled, mNew, cmd := m.handleMonitorNavigationKeys(msg); handled {
 			return mNew, cmd
 		}
-	} else if m.Ui.ActiveView != -1 {
+	} else if m.Ui.ActiveView != -1 && !m.Ui.IsNetworkActive {
 		switch msg.String() {
 		case "up", "k":
 			m.Ui.Viewport.ScrollUp(1)
@@ -210,6 +232,52 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m.handleGeneralKeys(msg)
+}
+
+func (m Model) handleNetwork(msg tea.KeyMsg) (bool, Model, tea.Cmd) {
+	switch msg.String() {
+	case "tab", "right", "l":
+		newTab := int(m.Network.SelectedItem) + 1
+		if newTab >= len(m.Network.Nav) {
+			newTab = 0
+		}
+		m.Network.SelectedItem = model.ContainerTab(newTab)
+		return true, m, nil
+	case "shift+tab", "left", "h":
+		newTab := int(m.Network.SelectedItem) - 1
+		if newTab < 0 {
+			newTab = len(m.Network.Nav) - 1
+		}
+		m.Network.SelectedItem = model.ContainerTab(newTab)
+		return true, m, nil
+	case "1", "2", "3", "4":
+		// Raccourcis numériques pour les onglets réseau
+		switch msg.String() {
+		case "1":
+			m.Network.SelectedItem = model.NetworkTabInterface
+		case "2":
+			m.Network.SelectedItem = model.NetworkTabConnectivity
+		case "3":
+			m.Network.SelectedItem = model.NetworkTabConfiguration
+		case "4":
+			m.Network.SelectedItem = model.NetworkTabProtocol
+		}
+		return true, m, nil
+	case "b", "esc":
+		// Retour en arrière
+		if m.Ui.IsNetworkActive {
+			m.Ui.IsNetworkActive = false
+			m.Ui.ActiveView = -1
+			return true, m, nil
+		}
+	case "q", "ctrl+c":
+		// Quitter
+		m.Monitor.ShouldQuit = true
+		return true, m, tea.Quit
+	}
+
+	// Si aucune touche spécifique n'est traitée
+	return false, m, nil
 }
 
 func (m Model) handleContainerMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -431,47 +499,71 @@ func (m Model) handleSearchKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleMonitorNavigationKeys(msg tea.KeyMsg) (bool, tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "up", "k":
-		if m.Ui.SelectedMonitor == 1 {
+		if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
+			m.Network.NetworkTable.MoveUp(1)
+			return true, m, nil
+		} else if m.Ui.SelectedMonitor == 1 {
 			m.Monitor.ProcessTable.MoveUp(1)
-		} else {
+			return true, m, nil
+		} else if m.Ui.SelectedMonitor == 2 {
 			m.Monitor.Container.MoveUp(1)
+			return true, m, nil
 		}
-		return true, m, nil
 	case "down", "j":
-		if m.Ui.SelectedMonitor == 1 {
+		if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
+			m.Network.NetworkTable.MoveDown(1)
+			return true, m, nil
+		} else if m.Ui.SelectedMonitor == 1 {
 			m.Monitor.ProcessTable.MoveDown(1)
-		} else {
+			return true, m, nil
+		} else if m.Ui.SelectedMonitor == 2 {
 			m.Monitor.Container.MoveDown(1)
+			return true, m, nil
 		}
-		return true, m, nil
 	case "pageup":
-		if m.Ui.SelectedMonitor == 1 {
+		if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
+			m.Network.NetworkTable.MoveUp(10)
+			return true, m, nil
+		} else if m.Ui.SelectedMonitor == 1 {
 			m.Monitor.ProcessTable.MoveUp(10)
-		} else {
+			return true, m, nil
+		} else if m.Ui.SelectedMonitor == 2 {
 			m.Monitor.Container.MoveUp(10)
+			return true, m, nil
 		}
-		return true, m, nil
 	case "pagedown":
-		if m.Ui.SelectedMonitor == 1 {
+		if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
+			m.Network.NetworkTable.MoveDown(10)
+			return true, m, nil
+		} else if m.Ui.SelectedMonitor == 1 {
 			m.Monitor.ProcessTable.MoveDown(10)
-		} else {
+			return true, m, nil
+		} else if m.Ui.SelectedMonitor == 2 {
 			m.Monitor.Container.MoveDown(10)
+			return true, m, nil
 		}
-		return true, m, nil
 	case "home":
-		if m.Ui.SelectedMonitor == 1 {
+		if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
+			m.Network.NetworkTable.GotoTop()
+			return true, m, nil
+		} else if m.Ui.SelectedMonitor == 1 {
 			m.Monitor.ProcessTable.GotoTop()
-		} else {
+			return true, m, nil
+		} else if m.Ui.SelectedMonitor == 2 {
 			m.Monitor.Container.GotoTop()
+			return true, m, nil
 		}
-		return true, m, nil
 	case "end":
-		if m.Ui.SelectedMonitor == 1 {
+		if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
+			m.Network.NetworkTable.GotoBottom()
+			return true, m, nil
+		} else if m.Ui.SelectedMonitor == 1 {
 			m.Monitor.ProcessTable.GotoBottom()
-		} else {
+			return true, m, nil
+		} else if m.Ui.SelectedMonitor == 2 {
 			m.Monitor.Container.GotoBottom()
+			return true, m, nil
 		}
-		return true, m, nil
 	case "/":
 		m.Ui.SearchMode = true
 		m.Ui.SearchInput.Focus()
@@ -493,8 +585,11 @@ func (m Model) handleGeneralKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		if m.Ui.ActiveView == -1 {
 			m.Ui.ActiveView = m.Ui.SelectedTab
-			if m.Ui.ActiveView == 0 {
+			switch m.Ui.ActiveView {
+			case 0:
 				m.Ui.IsMonitorActive = true
+			case 2:
+				m.Ui.IsNetworkActive = true
 			}
 		} else if m.Ui.IsMonitorActive {
 			if m.Ui.SelectedMonitor == 2 && len(m.Monitor.Container.SelectedRow()) > 0 {
@@ -545,6 +640,9 @@ func (m Model) handleGeneralKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Ui.IsMonitorActive = false
 			m.Ui.ActiveView = -1
 		} else if m.Ui.ActiveView != -1 {
+			m.Ui.ActiveView = -1
+		} else if m.Ui.IsNetworkActive {
+			m.Ui.IsNetworkActive = false
 			m.Ui.ActiveView = -1
 		}
 	case "tab", "right", "l":
@@ -607,7 +705,9 @@ func (m Model) handleGeneralKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	if m.Ui.IsMonitorActive && m.Monitor.ContainerViewState != ContainerViewSingle {
+	if m.Ui.IsMonitorActive &&
+		m.Monitor.ContainerViewState != ContainerViewSingle &&
+		!m.Ui.IsNetworkActive {
 		switch msg.String() {
 		case "1":
 			m.Ui.SelectedMonitor = 0
@@ -701,15 +801,17 @@ func (m Model) handleProgressFrame(msg progress.FrameMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	mouseEvent := tea.MouseEvent(msg)
 
-	if time.Since(m.LastScrollTime) < 20*time.Millisecond {
+	if time.Since(m.LastScrollTime) < 60*time.Millisecond {
 		return m, nil
 	}
 	m.LastScrollTime = time.Now()
 
 	switch {
-	case mouseEvent.Button == tea.MouseButtonWheelUp && mouseEvent.Action == tea.MouseActionPress:
+	case mouseEvent.Button == tea.MouseButtonWheelUp &&
+		mouseEvent.Action == tea.MouseActionPress:
 		return m.handleScrollUp()
-	case mouseEvent.Button == tea.MouseButtonWheelDown && mouseEvent.Action == tea.MouseActionPress:
+	case mouseEvent.Button == tea.MouseButtonWheelDown &&
+		mouseEvent.Action == tea.MouseActionPress:
 		return m.handleScrollDown()
 	}
 
@@ -725,10 +827,10 @@ func (m Model) handleScrollUp() (tea.Model, tea.Cmd) {
 			m.Monitor.Container.MoveUp(m.ScrollSensitivity)
 		}
 	} else if m.Ui.ActiveView == 2 {
-			m.Network.NetworkTable.MoveUp(m.ScrollSensitivity)
-		} else {
-			m.Ui.Viewport.ScrollUp(m.ScrollSensitivity)
-		}
+		m.Network.NetworkTable.MoveUp(m.ScrollSensitivity)
+	} else {
+		m.Ui.Viewport.ScrollUp(m.ScrollSensitivity)
+	}
 	return m, nil
 }
 
@@ -741,9 +843,9 @@ func (m Model) handleScrollDown() (tea.Model, tea.Cmd) {
 			m.Monitor.Container.MoveDown(m.ScrollSensitivity)
 		}
 	} else if m.Ui.ActiveView == 2 {
-			m.Network.NetworkTable.MoveDown(m.ScrollSensitivity)
-		} else {
-			m.Ui.Viewport.ScrollDown(m.ScrollSensitivity)
-		}
+		m.Network.NetworkTable.MoveDown(m.ScrollSensitivity)
+	} else {
+		m.Ui.Viewport.ScrollDown(m.ScrollSensitivity)
+	}
 	return m, nil
 }

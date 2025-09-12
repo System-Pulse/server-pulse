@@ -68,7 +68,7 @@ func (m Model) renderNav(header []string, state model.ContainerTab, styleColor l
 	return lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
 }
 
-func (m Model) renderTabs() string {
+func (m Model) renderNavMonitor() string {
 	if m.Ui.IsMonitorActive {
 		style := lipgloss.NewStyle().Padding(0, 2).
 			Foreground(clearWhite).
@@ -114,11 +114,11 @@ func (m Model) renderTable(table table.Model, placeholder string) string {
 }
 
 func (m Model) renderDignostics() string {
-	return "DIGNOSTICS"
+	return m.renderNotImplemented("DIGNOSTICS")
 }
 
 func (m Model) renderReporting() string {
-	return "REPORTING VIEW"
+	return m.renderNotImplemented("REPORTING VIEW")
 }
 
 func (m Model) renderSystem() string {
@@ -155,7 +155,7 @@ func (m Model) renderProcesses() string {
 	return m.renderTable(m.Monitor.ProcessTable, p)
 }
 
-func (m Model) Interfaces() string{
+func (m Model) interfaces() string {
 	content := strings.Builder{}
 
 	statusIcon := "🔴"
@@ -184,12 +184,55 @@ func (m Model) Interfaces() string{
 		Render(content.String())
 }
 
+// "Interface", "Connectivity", "Configuration", "Protocol Analysis"
+
+func (m Model) connectivity() string {
+	return "Connectivity"
+}
+
+func (m Model) configuration() string {
+	return "Configuration"
+}
+
+func (m Model) protocolAnalysis() string {
+	return "Protocol Analysis"
+}
+
+func (m Model) renderNavNetwork() string {
+	if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
+		style := lipgloss.NewStyle().Padding(0, 2).
+			Foreground(clearWhite).
+			Background(purpleCollor).
+			Bold(true)
+		return m.renderNav(m.Network.Nav, model.ContainerTab(m.Network.SelectedItem), style)
+	}
+	return ""
+}
+
 func (m Model) renderNetwork() string {
-	style := lipgloss.NewStyle().Padding(0, 2).
-		Foreground(clearWhite).
-		Background(purpleCollor).
-		Bold(true)
-	return m.renderNav(m.Network.Nav, model.ContainerTab(m.Network.SelectedItem), style)
+	currentView := ""
+	switch m.Network.SelectedItem {
+	case model.NetworkTabInterface:
+		currentView = m.interfaces()
+	case model.NetworkTabConnectivity:
+		currentView = m.renderNotImplemented("Connectivity Analysis")
+	case model.NetworkTabConfiguration:
+		currentView = m.renderNotImplemented("Network Configuration")
+	case model.NetworkTabProtocol:
+		currentView = m.renderNotImplemented("Protocol Analysis")
+	}
+	// case model.NetworkTabConnectivity:
+	// 	currentView = m.connectivity()
+	// case model.NetworkTabConfiguration:
+	// 	currentView = m.configuration()
+	// case model.NetworkTabProtocol:
+	// 	currentView = m.protocolAnalysis()
+	// }
+	return currentView
+}
+
+func (m Model) renderNotImplemented(feature string) string {
+	return cardStyle.Render(fmt.Sprintf("🚧 %s\n\nThis feature is not yet implemented.\n\nCheck back in future updates!", feature))
 }
 
 func (m Model) renderFooter() string {
@@ -238,6 +281,9 @@ func (m Model) renderFooter() string {
 		case 2:
 			footer += " • [↑↓] Navigate • [Enter] Container menu"
 		}
+	} else if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
+		// Ajouter les instructions spécifiques à la navigation réseau
+		footer += "[b] Back • [Tab/←→] Switch network tabs • [↑↓] Navigate table • [1-4] Quick tab • [q] Quit"
 	} else {
 		switch m.Ui.ActiveView {
 		case 0: // Monitor
@@ -245,7 +291,7 @@ func (m Model) renderFooter() string {
 		case 1: // Diagnostic
 			footer += "[b] Back • [q] Quit"
 		case 2: // Network
-			footer += "[b] Back • [q] Quit"
+			footer += "[b] Back • [Enter] View details • [q] Quit"
 		case 3: // Reporting
 			footer += "[b] Back • [q] Quit"
 		}
@@ -663,15 +709,19 @@ func (m Model) renderContainerLogs() string {
 	if m.Monitor.ContainerLogsLoading {
 		doc.WriteString(metricLabelStyle.Render("Loading logs..."))
 	} else if m.Monitor.ContainerLogs != "" {
-		// Afficher les logs dans une zone scrollable
+		// Utiliser le viewport pour afficher les logs avec défilement
 		logStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("250")).
 			Background(lipgloss.Color("235")).
 			Padding(1).
 			Height(20).
 			Width(80)
-
-		doc.WriteString(logStyle.Render(m.Monitor.ContainerLogs))
+		
+		// Configurer le viewport avec les logs
+		m.Ui.Viewport.SetContent(m.Monitor.ContainerLogs)
+		m.Ui.Viewport.Style = logStyle
+		
+		doc.WriteString(m.Ui.Viewport.View())
 	} else {
 		doc.WriteString(metricLabelStyle.Render("No logs available or logs are empty"))
 	}
