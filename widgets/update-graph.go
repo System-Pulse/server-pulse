@@ -34,8 +34,8 @@ func (m *Model) updateCharts() {
 		m.Monitor.MemoryHistory.Points = m.Monitor.MemoryHistory.Points[1:]
 	}
 
-	if len(m.Network.Interfaces) > 0 {
-		iface := m.Network.Interfaces[0]
+	if len(m.Network.NetworkResource.Interfaces) > 0 {
+		iface := m.Network.NetworkResource.Interfaces[0]
 
 		var rxRate, txRate float64
 		if len(m.Monitor.NetworkRxHistory.Points) > 0 {

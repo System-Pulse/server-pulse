@@ -68,6 +68,29 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	cs.Selected = cs.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57")).Bold(false)
 	ct.SetStyles(cs)
 
+	// Network table
+	networkColumns := []table.Column{
+		{Title: "Interface", Width: 12},
+		{Title: "Status", Width: 8},
+		{Title: "IP Addresses", Width: 25},
+		{Title: "RX", Width: 12},
+		{Title: "TX", Width: 12},
+	}
+	networkTable := table.New(
+		table.WithColumns(networkColumns),
+		table.WithFocused(false),
+	)
+	networkStyle := table.DefaultStyles()
+	networkStyle.Header = networkStyle.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+	// networkStyle.Cell = networkStyle.Cell.Foreground(lipgloss.Color("255"))
+	// networkTable.SetStyles(networkStyle)
+	networkStyle.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57")).Bold(false)
+	networkTable.SetStyles(networkStyle)
+
 	searchInput := textinput.New()
 	searchInput.Placeholder = "Search a process..."
 	searchInput.Prompt = "/"
@@ -80,6 +103,11 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	}
 
 	m := Model{
+		Network: model.NetworkModel{
+			NetworkTable: networkTable,
+			Nav: networkNav,
+			SelectedItem: model.ContainerTabGeneral,
+		},
 		Monitor: model.MonitorModel{
 			ProcessTable:       t,
 			Container:          ct,

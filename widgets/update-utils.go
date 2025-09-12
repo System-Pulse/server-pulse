@@ -64,8 +64,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // ------------------------- Handlers pour messages "système / ressources" -------------------------
 
 func (m Model) handleResourceAndProcessMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var	cmds []tea.Cmd
-	
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case info.SystemMsg:
 		m.Monitor.System = info.SystemInfo(msg)
@@ -93,7 +93,8 @@ func (m Model) handleResourceAndProcessMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case resource.NetworkMsg:
-		m.Network = resource.NetworkInfo(msg)
+		m.Network.NetworkResource = resource.NetworkInfo(msg)
+		cmds = append(cmds, m.updateNetworkTable())
 	case proc.ProcessMsg:
 		m.Monitor.Processes = []proc.ProcessInfo(msg)
 		return m, m.updateProcessTable()
@@ -659,6 +660,10 @@ func (m Model) handleTickMsg() (tea.Model, tea.Cmd) {
 		m.Monitor.App.UpdateApp(),
 	}
 	m.updateCharts()
+	updateNetworkCmd := m.updateNetworkTable()
+	if updateNetworkCmd != nil {
+		cmds = append(cmds, updateNetworkCmd)
+	}
 	return m, tea.Batch(cmds...)
 }
 
@@ -696,7 +701,7 @@ func (m Model) handleProgressFrame(msg progress.FrameMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 	mouseEvent := tea.MouseEvent(msg)
 
-	if time.Since(m.LastScrollTime) < 20*time.Millisecond { 
+	if time.Since(m.LastScrollTime) < 20*time.Millisecond {
 		return m, nil
 	}
 	m.LastScrollTime = time.Now()
@@ -719,9 +724,11 @@ func (m Model) handleScrollUp() (tea.Model, tea.Cmd) {
 		case 2:
 			m.Monitor.Container.MoveUp(m.ScrollSensitivity)
 		}
-	} else {
-		m.Ui.Viewport.ScrollUp(m.ScrollSensitivity)
-	}
+	} else if m.Ui.ActiveView == 2 {
+			m.Network.NetworkTable.MoveUp(m.ScrollSensitivity)
+		} else {
+			m.Ui.Viewport.ScrollUp(m.ScrollSensitivity)
+		}
 	return m, nil
 }
 
@@ -733,8 +740,10 @@ func (m Model) handleScrollDown() (tea.Model, tea.Cmd) {
 		case 2:
 			m.Monitor.Container.MoveDown(m.ScrollSensitivity)
 		}
-	} else {
-		m.Ui.Viewport.ScrollDown(m.ScrollSensitivity)
-	}
+	} else if m.Ui.ActiveView == 2 {
+			m.Network.NetworkTable.MoveDown(m.ScrollSensitivity)
+		} else {
+			m.Ui.Viewport.ScrollDown(m.ScrollSensitivity)
+		}
 	return m, nil
 }

@@ -36,6 +36,37 @@ func (m *Model) updateProcessTable() tea.Cmd {
 	return nil
 }
 
+func (m *Model) updateNetworkTable() tea.Cmd {
+	var rows []table.Row
+
+	for _, iface := range m.Network.NetworkResource.Interfaces {
+		statusText := "DOWN"
+		if iface.Status == "up" {
+			statusText = "UP"
+		}
+
+		ips := strings.Join(iface.IPs, ", ")
+		if ips == "" {
+			ips = "No IP"
+		}
+
+		rows = append(rows, table.Row{
+			iface.Name,
+			statusText,
+			ips,
+			utils.FormatBytes(iface.RxBytes),
+			utils.FormatBytes(iface.TxBytes),
+		})
+	}
+
+	m.Network.NetworkTable.SetRows(rows)
+	
+	tableHeight := min(10, len(rows)+1)
+	m.Network.NetworkTable.SetHeight(tableHeight)
+	
+	return nil
+}
+
 func (m *Model) updateContainerTable(containers []app.Container) tea.Cmd {
 	var rows []table.Row
 	searchTerm := strings.ToLower(m.Ui.SearchInput.Value())
@@ -86,7 +117,6 @@ func (m *Model) getStatusWithIconForTable(status, health string) string {
 
 func (m *Model) handleRealTimeStats(containerID string, statsChan chan app.ContainerStatsMsg) {
 	for stats := range statsChan {
-		// Mettre à jour les données en temps réel pour l'affichage
 		if m.Monitor.ContainerDetails != nil && m.Monitor.ContainerDetails.ID == containerID {
 			m.Monitor.ContainerDetails.Stats.CPUPercent = stats.CPUPercent
 			m.Monitor.ContainerDetails.Stats.MemoryPercent = stats.MemPercent

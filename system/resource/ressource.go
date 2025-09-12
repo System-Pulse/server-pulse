@@ -95,47 +95,70 @@ func UpdateDiskInfo() tea.Cmd {
 }
 
 func UpdateNetworkInfo() tea.Cmd {
-	return func() tea.Msg {
-		connected := true
+    return func() tea.Msg {
+        connected := true
 
-		addrs, err := net.Interfaces()
-		if err != nil {
-			return utils.ErrMsg(err)
-		}
+        interfaces, err := net.Interfaces()
+        if err != nil {
+            return utils.ErrMsg(err)
+        }
 
-		var privateIPs []string
-		for _, addr := range addrs {
-			addresses, err := addr.Addrs()
-			if err != nil {
-				continue
-			}
-			for _, a := range addresses {
-				if strings.Contains(a.String(), ".") && !strings.HasPrefix(a.String(), "127.") {
-					privateIPs = append(privateIPs, a.String())
-				}
-			}
-		}
+        var privateIPs []string
+        var networkInterfaces []NetworkInterface
 
-		publicIPv4 := "N/A"
-		publicIPv6 := "N/A"
+        for _, iface := range interfaces {
+            var interfaceIPs []string
+            status := "down"
+            if iface.Flags&net.FlagUp != 0 {
+                status = "up"
+            }
 
-		var networkInterfaces []NetworkInterface
-		netIO, err := network.IOCounters(true) 
-		if err == nil {
-			for _, io := range netIO {
-				networkInterfaces = append(networkInterfaces, NetworkInterface{
-					Name:    io.Name,
-					RxBytes: io.BytesRecv,
-					TxBytes: io.BytesSent,
-				})
-			}
-		}
+            addrs, err := iface.Addrs()
+            if err == nil {
+                for _, addr := range addrs {
+                    ipNet, ok := addr.(*net.IPNet)
+                    if ok /*&& !ipNet.IP.IsLoopback()*/ {
+                        if ipNet.IP.To4() != nil {
+                            ipStr := ipNet.IP.String()
+                            interfaceIPs = append(interfaceIPs, ipStr)
+                            
+                            if !strings.HasPrefix(ipStr, "127.") {
+                                privateIPs = append(privateIPs, ipStr)
+                            }
+                        }
+                    }
+                }
+            }
 
-		return NetworkMsg{
-			Connected:  connected,
-			PrivateIPs: privateIPs,
-			PublicIPv4: publicIPv4,
-			PublicIPv6: publicIPv6,
-		}
-	}
+            networkInterfaces = append(networkInterfaces, NetworkInterface{
+                Name:   iface.Name,
+                IPs:    interfaceIPs,
+                Status: status,
+            })
+        }
+
+        netIO, err := network.IOCounters(true)
+        if err == nil {
+            for i := range networkInterfaces {
+                for _, io := range netIO {
+                    if networkInterfaces[i].Name == io.Name {
+                        networkInterfaces[i].RxBytes = io.BytesRecv
+                        networkInterfaces[i].TxBytes = io.BytesSent
+                        break
+                    }
+                }
+            }
+        }
+
+        publicIPv4 := "N/A"
+        publicIPv6 := "N/A"
+
+        return NetworkMsg{
+            Connected:  connected,
+            PrivateIPs: privateIPs,
+            PublicIPv4: publicIPv4,
+            PublicIPv6: publicIPv6,
+            Interfaces: networkInterfaces,
+        }
+    }
 }

@@ -21,6 +21,7 @@ var (
 		DashBoard: dashboard,
 		Monitor:   monitor,
 	}
+	networkNav = []string{"Interface", "Connectivity", "Configuration", "Protocol Analysis"}
 
 	containerMenuItems = []model.ContainerMenuItem{
 		{Key: "o", Label: "Open detailed view", Description: "View detailed container information", Action: "open_single"},

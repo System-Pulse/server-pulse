@@ -40,11 +40,11 @@ func (m Model) renderHome() string {
 	}
 
 	doc := strings.Builder{}
-	systemInfo := fmt.Sprintf("Host: %s\nOS: %s\nKernel: %s\nUptime: %s", m.Monitor.System.Hostname, m.Monitor.System.OS, m.Monitor.System.Kernel, utils.FormatUptime(m.Monitor.System.Uptime))
-	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("System Info:"))
-	doc.WriteString("\n")
+	systemInfo := fmt.Sprintf("Host: %s	|	OS: %s	|	Kernel: %s	|	Uptime: %s", m.Monitor.System.Hostname, m.Monitor.System.OS, m.Monitor.System.Kernel, utils.FormatUptime(m.Monitor.System.Uptime))
+	// doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("System Info:"))
+	// doc.WriteString("\n")
 	doc.WriteString(metricLabelStyle.Render(systemInfo))
-	doc.WriteString("\n")
+	// doc.WriteString("\n")
 	header = append(header, cardStyle.MarginBottom(0).Render(doc.String()))
 
 	header = append(header, lipgloss.JoinHorizontal(lipgloss.Top, menu...))
@@ -155,47 +155,41 @@ func (m Model) renderProcesses() string {
 	return m.renderTable(m.Monitor.ProcessTable, p)
 }
 
-func (m Model) renderNetwork() string {
+func (m Model) Interfaces() string{
 	content := strings.Builder{}
 
 	statusIcon := "🔴"
 	statusText := "Disconnected"
 	statusColor := errorColor
 
-	if m.Network.Connected {
+	if m.Network.NetworkResource.Connected {
 		statusIcon = "🟢"
 		statusText = "Connected"
 		statusColor = successColor
 	}
 
-	content.WriteString(metricLabelStyle.Render("🌐 Network Status"))
-	content.WriteString("\n\n")
-
 	statusLine := fmt.Sprintf("%s %s",
 		statusIcon,
 		lipgloss.NewStyle().Foreground(statusColor).Bold(true).Render(statusText))
 	content.WriteString(statusLine)
-	content.WriteString("\n\n")
 
-	if len(m.Network.PrivateIPs) > 0 {
-		content.WriteString(metricLabelStyle.Render("Private IPs:"))
-		content.WriteString("\n")
-		for _, ip := range m.Network.PrivateIPs {
-			content.WriteString("  • " + metricValueStyle.Render(ip))
-			content.WriteString("\n")
-		}
+	if len(m.Network.NetworkResource.Interfaces) > 0 {
+		tableContent := m.renderTable(m.Network.NetworkTable, "No network interfaces")
+		content.WriteString(tableContent)
 	}
 
-	content.WriteString("\n")
-	content.WriteString(fmt.Sprintf("%-12s %s",
-		metricLabelStyle.Render("Public IPv4:"),
-		metricValueStyle.Render(m.Network.PublicIPv4)))
-	content.WriteString("\n")
-	content.WriteString(fmt.Sprintf("%-12s %s",
-		metricLabelStyle.Render("Public IPv6:"),
-		metricValueStyle.Render(m.Network.PublicIPv6)))
+	return cardNetworkStyle.
+		Margin(0, 0, 0, 0).
+		Padding(0, 1).
+		Render(content.String())
+}
 
-	return cardStyle.Render(content.String())
+func (m Model) renderNetwork() string {
+	style := lipgloss.NewStyle().Padding(0, 2).
+		Foreground(clearWhite).
+		Background(purpleCollor).
+		Bold(true)
+	return m.renderNav(m.Network.Nav, model.ContainerTab(m.Network.SelectedItem), style)
 }
 
 func (m Model) renderFooter() string {

@@ -8,7 +8,6 @@ import (
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 
 	"github.com/System-Pulse/server-pulse/system/app"
-	resource "github.com/System-Pulse/server-pulse/system/resource"
 )
 
 
@@ -25,7 +24,7 @@ const (
 )
 
 type Model struct {
-	Network             resource.NetworkInfo
+	Network             model.NetworkModel
 	Err                 error
 	Monitor             model.MonitorModel
 	Ui                  model.UIModel

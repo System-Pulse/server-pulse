@@ -36,7 +36,7 @@ func (m Model) View() string {
 		case 1: // Diagnostic
 			currentView = m.renderDignostics()
 		case 2: // Network
-			currentView = m.renderNetwork()
+			currentView = m.Interfaces()
 		case 3: // Reporting
 			currentView = m.renderReporting()
 		}
