@@ -66,7 +66,7 @@ func (m Model) renderNav(header []string, state model.ContainerTab, styleColor l
 }
 
 func (m Model) renderCurrentNav() string {
-	if strings.HasPrefix(string(m.Ui.State), "monitor")  {
+	if strings.HasPrefix(string(m.Ui.State), "monitor") {
 		style := lipgloss.NewStyle().Padding(0, 2).
 			Foreground(clearWhite).
 			Background(purpleCollor).
@@ -80,6 +80,13 @@ func (m Model) renderCurrentNav() string {
 			Background(purpleCollor).
 			Bold(true)
 		return m.renderNav(m.Network.Nav, model.ContainerTab(m.Network.SelectedItem), style)
+	}
+	if m.Ui.State == model.StateDiagnostics {
+		style := lipgloss.NewStyle().Padding(0, 2).
+			Foreground(clearWhite).
+			Background(purpleCollor).
+			Bold(true)
+		return m.renderNav(m.Diagnostic.Nav, model.ContainerTab(m.Diagnostic.SelectedItem), style)
 	}
 	return ""
 }
@@ -157,7 +164,16 @@ func (m Model) renderTable(table table.Model, placeholder string) string {
 }
 
 func (m Model) renderDignostics() string {
-	return m.renderNotImplemented("DIGNOSTICS")
+	currentView := ""
+	switch m.Diagnostic.SelectedItem {
+	case model.DiagnosticTabHealthChecks:
+		currentView = m.renderNotImplemented("Health checking")
+	case model.DiagnosticTabPerformances:
+		currentView = m.renderNotImplemented("Performance Analysis")
+	case model.DiagnosticTabLogs:
+		currentView = m.renderNotImplemented("Log Analysis")
+	}
+	return currentView
 }
 
 func (m Model) renderReporting() string {

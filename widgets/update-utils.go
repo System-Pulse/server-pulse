@@ -529,6 +529,47 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "b", "esc":
 		m.goBack()
+	case "tab", "right", "l":
+		newTab := int(m.Diagnostic.SelectedItem) + 1
+		if newTab >= len(m.Diagnostic.Nav) {
+			newTab = 0
+		}
+		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
+		return m, nil
+	case "shift+tab", "left", "h":
+		newTab := int(m.Diagnostic.SelectedItem) - 1
+		if newTab < 0 {
+			newTab = len(m.Diagnostic.Nav) - 1
+		}
+		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
+		return m, nil
+	case "1":
+		m.Diagnostic.SelectedItem = model.DiagnosticTabHealthChecks
+		return m, nil
+	case "2":
+		m.Diagnostic.SelectedItem = model.DiagnosticTabPerformances
+		return m, nil
+	case "3":
+		m.Diagnostic.SelectedItem = model.DiagnosticTabLogs
+		return m, nil
+	case "up", "k":
+		m.Diagnostic.DiagnosticTable.MoveUp(1)
+		return m, nil
+	case "down", "j":
+		m.Diagnostic.DiagnosticTable.MoveDown(1)
+		return m, nil
+	case "pageup":
+		m.Diagnostic.DiagnosticTable.MoveUp(10)
+		return m, nil
+	case "pagedown":
+		m.Diagnostic.DiagnosticTable.MoveDown(10)
+		return m, nil
+	case "home":
+		m.Diagnostic.DiagnosticTable.GotoTop()
+		return m, nil
+	case "end":
+		m.Diagnostic.DiagnosticTable.GotoBottom()
+		return m, nil
 	case "q", "ctrl+c":
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit

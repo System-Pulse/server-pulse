@@ -51,7 +51,7 @@ type ContainerDetails struct {
 	Gateway         string
 	HealthCheck     string
 	Uptime          string
-	Ports           []PortInfo 
+	Ports           []PortInfo
 	NetworkSettings any
 	HostConfig      any
 	State           any

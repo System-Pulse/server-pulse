@@ -91,6 +91,18 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	networkStyle.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57")).Bold(false)
 	networkTable.SetStyles(networkStyle)
 
+	diagnosticColumns := []table.Column{
+		{Title: "Health Check", Width: 30},
+		{Title: "Performances", Width: 12},
+		{Title: "Logs", Width: 40},
+	}
+
+	diagnosticTable := table.New(
+		table.WithColumns(diagnosticColumns),
+		table.WithFocused(true),
+	)
+	diagnosticTable.SetStyles(networkStyle)
+
 	searchInput := textinput.New()
 	searchInput.Placeholder = "Search a process..."
 	searchInput.Prompt = "/"
@@ -105,8 +117,13 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	m := Model{
 		Network: model.NetworkModel{
 			NetworkTable: networkTable,
-			Nav: networkNav,
+			Nav:          networkNav,
 			SelectedItem: model.NetworkTabInterface,
+		},
+		Diagnostic: model.DiagnosticModel{
+			DiagnosticTable: diagnosticTable,
+			Nav:             diagnosticNav,
+			SelectedItem:    model.DiagnosticTabHealthChecks,
 		},
 		Monitor: model.MonitorModel{
 			ProcessTable:       t,
@@ -147,7 +164,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			},
 		},
 		Ui: model.UIModel{
-			State:           model.StateHome,
+			State:       model.StateHome,
 			Tabs:        menu,
 			SelectedTab: 0,
 			ActiveView:  -1,

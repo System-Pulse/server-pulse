@@ -25,7 +25,7 @@ jobs:
     - name: Check formatting
       run: |
         if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then
-          echo "Code not formatted properly:"
+          echo "Code not formatted properly please execute `gofmt -w .` at the root directory :"
           gofmt -l .
           exit 1
         fi

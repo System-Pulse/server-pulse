@@ -60,10 +60,10 @@ func (m *Model) updateNetworkTable() tea.Cmd {
 	}
 
 	m.Network.NetworkTable.SetRows(rows)
-	
+
 	tableHeight := min(10, len(rows)+1)
 	m.Network.NetworkTable.SetHeight(tableHeight)
-	
+
 	return nil
 }
 

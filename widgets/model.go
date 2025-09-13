@@ -41,6 +41,7 @@ type Model struct {
 	ScrollSensitivity   int
 	LastScrollTime      time.Time
 	MouseEnabled        bool
+	Diagnostic          model.DiagnosticModel
 }
 
 func (m *Model) setState(newState model.AppState) {
@@ -51,7 +52,7 @@ func (m *Model) setState(newState model.AppState) {
 
 	switch newState {
 	case model.StateHome:
-		m.Ui.SelectedTab = -1 
+		m.Ui.SelectedTab = -1
 	case model.StateMonitor, model.StateSystem, model.StateProcess, model.StateContainers, model.StateContainer, model.StateContainerLogs:
 		m.Ui.SelectedTab = 0
 	case model.StateDiagnostics:

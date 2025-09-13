@@ -33,11 +33,11 @@ type DiskInfo struct {
 }
 
 type NetworkInterface struct {
-	Name      string
-    IPs       []string
-    RxBytes   uint64
-    TxBytes   uint64
-    Status    string // "up" or "down"
+	Name    string
+	IPs     []string
+	RxBytes uint64
+	TxBytes uint64
+	Status  string // "up" or "down"
 }
 
 type NetworkInfo struct {

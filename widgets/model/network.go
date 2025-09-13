@@ -7,8 +7,8 @@ import (
 
 type NetworkModel struct {
 	// TODO: Implement NetworkModel
-	NetworkTable table.Model
+	NetworkTable    table.Model
 	NetworkResource resource.NetworkInfo
-	Nav []string
-	SelectedItem ContainerTab
+	Nav             []string
+	SelectedItem    ContainerTab
 }

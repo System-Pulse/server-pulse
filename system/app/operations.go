@@ -111,7 +111,7 @@ func (dm *DockerManager) GetContainerLogs(containerID string, tail string) (stri
 		ShowStdout: true,
 		ShowStderr: true,
 		Timestamps: true,
-		Tail:       tail, 
+		Tail:       tail,
 	}
 
 	logs, err := dm.Cli.ContainerLogs(ctx, containerID, options)
@@ -123,7 +123,7 @@ func (dm *DockerManager) GetContainerLogs(containerID string, tail string) (stri
 	var result strings.Builder
 	scanner := bufio.NewScanner(logs)
 	lineCount := 0
-	maxLines := 500 
+	maxLines := 500
 
 	for scanner.Scan() && lineCount < maxLines {
 		line := scanner.Text()
@@ -324,7 +324,7 @@ func (dm *DockerManager) GetContainerStatsStream(containerID string) (chan Conta
 			lastCPUStats = &stats.CPUStats
 			lastSystemCPUUsage = stats.CPUStats.SystemUsage
 
-			time.Sleep(2 * time.Second) 
+			time.Sleep(2 * time.Second)
 		}
 	}()
 

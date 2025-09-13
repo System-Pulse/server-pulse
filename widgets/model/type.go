@@ -18,6 +18,11 @@ const (
 	NetworkTabConfiguration              = ContainerTabMemory
 	NetworkTabProtocol                   = ContainerTabNetwork
 	// ================================ //
+
+	// "Health Checks", "Performances", "Logs"
+	DiagnosticTabHealthChecks ContainerTab = ContainerTabGeneral
+	DiagnosticTabPerformances ContainerTab = ContainerTabCPU
+	DiagnosticTabLogs         ContainerTab = ContainerTabMemory
 )
 
 type ContainerMenuItem struct {

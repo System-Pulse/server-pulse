@@ -9,7 +9,7 @@ import (
 // getMaxContentWidth calculates the optimal content width based on terminal size
 func (m Model) getMaxContentWidth() int {
 	// Set minimum and maximum content widths
-	minWidth := 40  // Augmenté de 80 à 40 pour les petits terminaux
+	minWidth := 40 // Augmenté de 80 à 40 pour les petits terminaux
 	maxWidth := 120
 
 	// Protection contre les largeurs négatives ou nulles
