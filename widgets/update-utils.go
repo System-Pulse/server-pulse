@@ -47,23 +47,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleProgressFrame(msg)
 	}
 
-	// fallback: update interactive components (processTable / viewport)
-	if m.Ui.IsMonitorActive && m.Ui.SelectedMonitor == 1 && !m.Ui.SearchMode {
-		m.Monitor.ProcessTable, cmd = m.Monitor.ProcessTable.Update(msg)
-		cmds = append(cmds, cmd)
-	} else if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
+	// Met à jour les composants interactifs en fonction de l'état actuel
+	switch m.Ui.State {
+	case model.StateProcess:
+		if !m.Ui.SearchMode {
+			m.Monitor.ProcessTable, cmd = m.Monitor.ProcessTable.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+	case model.StateContainers:
+		if !m.Ui.SearchMode {
+			m.Monitor.Container, cmd = m.Monitor.Container.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+	case model.StateNetwork:
 		m.Network.NetworkTable, cmd = m.Network.NetworkTable.Update(msg)
 		cmds = append(cmds, cmd)
-	} else if m.Ui.IsMonitorActive && m.Ui.SelectedMonitor == 2 {
-		m.Monitor.Container, cmd = m.Monitor.Container.Update(msg)
-		cmds = append(cmds, cmd)
 	}
+
+	// Le viewport est souvent utilisé, donc on le met à jour
 	m.Ui.Viewport, cmd = m.Ui.Viewport.Update(msg)
 	cmds = append(cmds, cmd)
-	// else if m.Ui.ActiveView != -1 {
-	// 	m.Ui.Viewport, cmd = m.Ui.Viewport.Update(msg)
-	// 	cmds = append(cmds, cmd)
-	// }
 
 	return m, tea.Batch(cmds...)
 }
@@ -154,24 +157,32 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	m.Ui.Width = msg.Width
 	m.Ui.Height = msg.Height
-
-	minWidth := 40
-	minHeight := 10
-
-	if msg.Width < minWidth || msg.Height < minHeight {
+	if msg.Width < 40 || msg.Height < 10 {
+		m.Ui.Ready = false
 		return m, nil
 	}
+	m.Ui.Ready = true
 
-	headerHeight := lipgloss.Height(m.renderHome()) + 2
+	headerHeight := lipgloss.Height(m.renderHeader())
 	footerHeight := lipgloss.Height(m.renderFooter())
 	verticalMargin := headerHeight + footerHeight
 
-	// viewportHeight := max(msg.Height - verticalMargin, 1)
+	// Définir une hauteur cohérente pour tous les tableaux
+	tableHeight := msg.Height - verticalMargin - 3 // Réserve de l'espace pour les en-têtes
 
-	m.Ui.Viewport.Width = msg.Width
-	m.Ui.Viewport.Height = msg.Height - verticalMargin
 	m.Monitor.ProcessTable.SetWidth(msg.Width)
-	m.Monitor.ProcessTable.SetHeight(m.Ui.Viewport.Height - 1)
+	m.Monitor.ProcessTable.SetHeight(tableHeight)
+
+	m.Monitor.Container.SetWidth(msg.Width)
+	m.Monitor.Container.SetHeight(tableHeight)
+
+	m.Network.NetworkTable.SetWidth(msg.Width)
+	m.Network.NetworkTable.SetHeight(tableHeight)
+
+	// m.Ui.Viewport.Width = msg.Width
+	// m.Ui.Viewport.Height = msg.Height - verticalMargin
+	// m.Monitor.ProcessTable.SetWidth(msg.Width)
+	// m.Monitor.ProcessTable.SetHeight(m.Ui.Viewport.Height - 1)
 
 	progWidth := min(max(msg.Width/3, 20), progressBarWidth)
 	m.Monitor.CpuProgress.Width = progWidth
@@ -182,103 +193,361 @@ func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 		m.Monitor.DiskProgress[k] = p
 	}
 
-	if !m.Ui.Ready {
-		m.Ui.Ready = true
-	}
 	return m, nil
 }
 
 // ------------------------- Key handling (délégué) -------------------------
 
 func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if m.Monitor.ContainerMenuState == ContainerMenuVisible {
-		return m.handleContainerMenuKeys(msg)
-	}
-
+	// 1. Gérer les overlays/modals en priorité
 	if m.ConfirmationVisible {
 		return m.handleConfirmationKeys(msg)
 	}
-
+	if m.Monitor.ContainerMenuState == ContainerMenuVisible {
+		return m.handleContainerMenuKeys(msg)
+	}
 	if m.Ui.SearchMode {
 		return m.handleSearchKeys(msg)
 	}
 
-	// Gestion spécifique pour l'onglet Network
-	if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
-		// D'abord, vérifier les touches de navigation réseau
-		handled, updatedModel, cmd := m.handleNetwork(msg)
-		if handled {
-			return updatedModel, cmd
-		}
-		// Ensuite, vérifier les touches de navigation du tableau
-		if handled, mNew, cmd := m.handleMonitorNavigationKeys(msg); handled {
-			return mNew, cmd
-		}
-		// Enfin, vérifier les touches générales
-		return m.handleGeneralKeys(msg)
+	// 2. Gérer les touches en fonction de l'état principal
+	switch m.Ui.State {
+	case model.StateHome:
+		return m.handleHomeKeys(msg)
+	case model.StateMonitor:
+		return m.handleMonitorKeys(msg)
+	case model.StateSystem:
+		return m.handleSystemKeys(msg)
+	case model.StateProcess:
+		return m.handleProcessKeys(msg)
+	case model.StateContainers:
+		return m.handleContainersKeys(msg)
+	case model.StateContainer:
+		return m.handleContainerSingleKeys(msg)
+	case model.StateContainerLogs:
+		return m.handleContainerLogsKeys(msg)
+	case model.StateNetwork:
+		return m.handleNetworkKeys(msg)
+	case model.StateDiagnostics:
+		return m.handleDiagnosticsKeys(msg)
+	case model.StateReporting:
+		return m.handleReportingKeys(msg)
 	}
 
-	if m.Ui.IsMonitorActive && (m.Ui.SelectedMonitor == 1 || m.Ui.SelectedMonitor == 2) {
-		if handled, mNew, cmd := m.handleMonitorNavigationKeys(msg); handled {
-			return mNew, cmd
-		}
-	} else if m.Ui.ActiveView != -1 && !m.Ui.IsNetworkActive {
-		switch msg.String() {
-		case "up", "k":
-			m.Ui.Viewport.ScrollUp(1)
-		case "down", "j":
-			m.Ui.Viewport.ScrollDown(1)
-		}
-	}
+	return m, nil
+}
 
+func (m Model) handleHomeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "1", "2", "3", "4":
+		tabIndex, _ := strconv.Atoi(msg.String())
+		m.Ui.SelectedTab = tabIndex - 1
+	case "tab", "right", "l":
+		m.Ui.SelectedTab = (m.Ui.SelectedTab + 1) % len(m.Ui.Tabs.DashBoard)
+	case "shift+tab", "left", "h":
+		m.Ui.SelectedTab = (m.Ui.SelectedTab - 1 + len(m.Ui.Tabs.DashBoard)) % len(m.Ui.Tabs.DashBoard)
+	case "enter":
+		switch m.Ui.SelectedTab {
+		case 0:
+			m.setState(model.StateMonitor)
+		case 1:
+			m.setState(model.StateDiagnostics)
+		case 2:
+			m.setState(model.StateNetwork)
+		case 3:
+			m.setState(model.StateReporting)
+		}
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) handleGeneralKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "1", "2", "3":
+		monitorIndex, _ := strconv.Atoi(msg.String())
+		m.Ui.SelectedMonitor = monitorIndex - 1
+		// Pas besoin de 'enter' ici, on navigue directement dans les sous-menus
+		switch m.Ui.SelectedMonitor {
+		case 0:
+			m.setState(model.StateSystem)
+		case 1:
+			m.setState(model.StateProcess)
+		case 2:
+			m.setState(model.StateContainers)
+		}
+	case "tab", "right", "l":
+		m.Ui.SelectedMonitor = (m.Ui.SelectedMonitor + 1) % len(m.Ui.Tabs.Monitor)
+		switch m.Ui.SelectedMonitor {
+		case 0:
+			m.setState(model.StateSystem)
+		case 1:
+			m.setState(model.StateProcess)
+		case 2:
+			m.setState(model.StateContainers)
+		}
+	case "shift+tab", "left", "h":
+		m.Ui.SelectedMonitor = (m.Ui.SelectedMonitor - 1 + len(m.Ui.Tabs.Monitor)) % len(m.Ui.Tabs.Monitor)
+		switch m.Ui.SelectedMonitor {
+		case 0:
+			m.setState(model.StateSystem)
+		case 1:
+			m.setState(model.StateProcess)
+		case 2:
+			m.setState(model.StateContainers)
+		}
+	case "b", "esc":
+		m.goBack()
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) handleMonitorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m.handleGeneralKeys(msg)
 }
 
-func (m Model) handleNetwork(msg tea.KeyMsg) (bool, Model, tea.Cmd) {
+// ------------------------- Handlers spécifiques à chaque état -------------------------
+
+func (m Model) handleSystemKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "up", "k":
+		m.Ui.Viewport.ScrollUp(1)
+	case "down", "j":
+		m.Ui.Viewport.ScrollDown(1)
+	default:
+		return m.handleGeneralKeys(msg)
+	}
+	return m, nil
+}
+
+func (m Model) handleProcessKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "/":
+		m.Ui.SearchMode = true
+		m.Ui.SearchInput.Focus()
+	case "up", "u":
+		m.Monitor.ProcessTable.MoveUp(1)
+	case "down", "j":
+		m.Monitor.ProcessTable.MoveDown(1)
+	case "s":
+		sort.Slice(m.Monitor.Processes, func(i, j int) bool { return m.Monitor.Processes[i].CPU > m.Monitor.Processes[j].CPU })
+		return m, m.updateProcessTable()
+	case "m":
+		sort.Slice(m.Monitor.Processes, func(i, j int) bool { return m.Monitor.Processes[i].Mem > m.Monitor.Processes[j].Mem })
+		return m, m.updateProcessTable()
+	case "k": // kill
+		if len(m.Monitor.ProcessTable.SelectedRow()) > 0 {
+			pid, _ := strconv.Atoi(m.Monitor.ProcessTable.SelectedRow()[0])
+			if process, err := os.FindProcess(pid); err == nil {
+				_ = process.Kill()
+			}
+			return m, proc.UpdateProcesses()
+		}
+	default:
+		return m.handleGeneralKeys(msg)
+	}
+	return m, nil
+}
+
+func (m Model) handleContainersKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "/":
+		m.Ui.SearchMode = true
+		m.Ui.SearchInput.Focus()
+	case "up", "k":
+		m.Monitor.Container.MoveUp(1)
+	case "down", "j":
+		m.Monitor.Container.MoveDown(1)
+	case "enter":
+		if len(m.Monitor.Container.SelectedRow()) > 0 {
+			selectedRow := m.Monitor.Container.SelectedRow()
+			containerID := selectedRow[0]
+			containers, _ := m.Monitor.App.RefreshContainers()
+			found := false
+			for _, container := range containers {
+				if container.ID == containerID {
+					m.Monitor.SelectedContainer = &container
+					found = true
+					break
+				}
+			}
+			if !found {
+				m.Monitor.SelectedContainer = &app.Container{ID: containerID, Name: selectedRow[2]}
+			}
+			m.Monitor.ContainerMenuState = ContainerMenuVisible
+			m.Monitor.SelectedMenuItem = 0
+		}
+	default:
+		return m.handleGeneralKeys(msg)
+	}
+	return m, nil
+}
+
+func (m Model) handleContainerSingleKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.Monitor.SelectedContainer = nil
+		m.goBack()
+		return m, nil
+	case "tab", "right", "l":
+		m.ContainerTab = model.ContainerTab((int(m.ContainerTab) + 1) % len(m.Monitor.ContainerTabs))
+		return m, nil
+	case "shift+tab", "left", "h":
+		newTab := int(m.ContainerTab) - 1
+		if newTab < 0 {
+			newTab = len(m.Monitor.ContainerTabs) - 1
+		}
+		m.ContainerTab = model.ContainerTab(newTab)
+		return m, nil
+	case "1":
+		m.ContainerTab = model.ContainerTabGeneral
+		return m, nil
+	case "2":
+		m.ContainerTab = model.ContainerTabCPU
+		return m, nil
+	case "3":
+		m.ContainerTab = model.ContainerTabMemory
+		return m, nil
+	case "4":
+		m.ContainerTab = model.ContainerTabNetwork
+		return m, nil
+	case "5":
+		m.ContainerTab = model.ContainerTabDisk
+		return m, nil
+	case "6":
+		m.ContainerTab = model.ContainerTabEnv
+		return m, nil
+	case "r":
+		// Refresh container details
+		if m.Monitor.SelectedContainer != nil {
+			return m, m.loadContainerDetails(m.Monitor.SelectedContainer.ID)
+		}
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) handleContainerLogsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.Monitor.ContainerLogs = ""
+		m.goBack()
+	case "r":
+		// Refresh logs
+		if m.Monitor.SelectedContainer != nil {
+			m.Monitor.ContainerLogsLoading = true
+			return m, m.Monitor.App.GetContainerLogsCmd(m.Monitor.SelectedContainer.ID, "100")
+		}
+	case "up", "k":
+		m.Ui.Viewport.ScrollUp(1)
+		return m, nil
+	case "down", "j":
+		m.Ui.Viewport.ScrollDown(1)
+		return m, nil
+	case "pageup":
+		m.Ui.Viewport.PageUp()
+		return m, nil
+	case "pagedown":
+		m.Ui.Viewport.PageDown()
+		return m, nil
+	case "home":
+		m.Ui.Viewport.GotoTop()
+		return m, nil
+	case "end":
+		m.Ui.Viewport.GotoBottom()
+		return m, nil
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
 	case "tab", "right", "l":
 		newTab := int(m.Network.SelectedItem) + 1
 		if newTab >= len(m.Network.Nav) {
 			newTab = 0
 		}
 		m.Network.SelectedItem = model.ContainerTab(newTab)
-		return true, m, nil
+		return m, nil
 	case "shift+tab", "left", "h":
 		newTab := int(m.Network.SelectedItem) - 1
 		if newTab < 0 {
 			newTab = len(m.Network.Nav) - 1
 		}
 		m.Network.SelectedItem = model.ContainerTab(newTab)
-		return true, m, nil
-	case "1", "2", "3", "4":
-		// Raccourcis numériques pour les onglets réseau
-		switch msg.String() {
-		case "1":
-			m.Network.SelectedItem = model.NetworkTabInterface
-		case "2":
-			m.Network.SelectedItem = model.NetworkTabConnectivity
-		case "3":
-			m.Network.SelectedItem = model.NetworkTabConfiguration
-		case "4":
-			m.Network.SelectedItem = model.NetworkTabProtocol
-		}
-		return true, m, nil
-	case "b", "esc":
-		// Retour en arrière
-		if m.Ui.IsNetworkActive {
-			m.Ui.IsNetworkActive = false
-			m.Ui.ActiveView = -1
-			return true, m, nil
-		}
+		return m, nil
+	case "1":
+		m.Network.SelectedItem = model.NetworkTabInterface
+		return m, nil
+	case "2":
+		m.Network.SelectedItem = model.NetworkTabConnectivity
+		return m, nil
+	case "3":
+		m.Network.SelectedItem = model.NetworkTabConfiguration
+		return m, nil
+	case "4":
+		m.Network.SelectedItem = model.NetworkTabProtocol
+		return m, nil
+	case "up", "k":
+		m.Network.NetworkTable.MoveUp(1)
+		return m, nil
+	case "down", "j":
+		m.Network.NetworkTable.MoveDown(1)
+		return m, nil
+	case "pageup":
+		m.Network.NetworkTable.MoveUp(10)
+		return m, nil
+	case "pagedown":
+		m.Network.NetworkTable.MoveDown(10)
+		return m, nil
+	case "home":
+		m.Network.NetworkTable.GotoTop()
+		return m, nil
+	case "end":
+		m.Network.NetworkTable.GotoBottom()
+		return m, nil
 	case "q", "ctrl+c":
-		// Quitter
 		m.Monitor.ShouldQuit = true
-		return true, m, tea.Quit
+		return m, tea.Quit
 	}
-
-	// Si aucune touche spécifique n'est traitée
-	return false, m, nil
+	return m, nil
 }
+
+func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) handleReportingKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+// ------------------------- General keys & shortcuts -------------------------
 
 func (m Model) handleContainerMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -295,13 +564,13 @@ func (m Model) handleContainerMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		return m.executeContainerMenuAction()
 	case "o":
-		m.Monitor.ContainerViewState = ContainerViewSingle
 		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.setState(model.StateContainer)
 		m.ContainerTab = model.ContainerTabGeneral
 		return m, m.loadContainerDetails(m.Monitor.SelectedContainer.ID)
 	case "l":
-		m.Monitor.ContainerViewState = ContainerViewLogs
 		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.setState(model.StateContainerLogs)
 		m.Monitor.ContainerLogsLoading = true
 		return m, m.Monitor.App.GetContainerLogsCmd(m.Monitor.SelectedContainer.ID, "100")
 	case "r":
@@ -356,7 +625,7 @@ func (m Model) handleContainerMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Monitor.ContainerMenuState = ContainerMenuHidden
 		m.Monitor.SelectedContainer = nil
 		return m, nil
-	case "q":
+	case "q", "ctrl+c":
 		return m, tea.Quit
 	}
 	return m, nil
@@ -366,16 +635,15 @@ func (m Model) executeContainerMenuAction() (tea.Model, tea.Cmd) {
 	if m.Monitor.SelectedMenuItem >= len(m.Monitor.ContainerMenuItems) {
 		return m, nil
 	}
+	m.Monitor.ContainerMenuState = ContainerMenuHidden // Ferme le menu après action
 	action := m.Monitor.ContainerMenuItems[m.Monitor.SelectedMenuItem].Action
 	switch action {
 	case "open_single":
-		m.Monitor.ContainerViewState = ContainerViewSingle
-		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.setState(model.StateContainer)
 		m.ContainerTab = model.ContainerTabGeneral
 		return m, m.loadContainerDetails(m.Monitor.SelectedContainer.ID)
 	case "logs":
-		m.Monitor.ContainerViewState = ContainerViewLogs
-		m.Monitor.ContainerMenuState = ContainerMenuHidden
+		m.setState(model.StateContainerLogs)
 		m.Monitor.ContainerLogsLoading = true
 		return m, m.Monitor.App.GetContainerLogsCmd(m.Monitor.SelectedContainer.ID, "100")
 	case "restart":
@@ -494,258 +762,6 @@ func (m Model) handleSearchKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
-// ------------------------- Monitor navigation (process/container) -------------------------
-
-func (m Model) handleMonitorNavigationKeys(msg tea.KeyMsg) (bool, tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "up", "k":
-		if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
-			m.Network.NetworkTable.MoveUp(1)
-			return true, m, nil
-		} else if m.Ui.SelectedMonitor == 1 {
-			m.Monitor.ProcessTable.MoveUp(1)
-			return true, m, nil
-		} else if m.Ui.SelectedMonitor == 2 {
-			m.Monitor.Container.MoveUp(1)
-			return true, m, nil
-		}
-	case "down", "j":
-		if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
-			m.Network.NetworkTable.MoveDown(1)
-			return true, m, nil
-		} else if m.Ui.SelectedMonitor == 1 {
-			m.Monitor.ProcessTable.MoveDown(1)
-			return true, m, nil
-		} else if m.Ui.SelectedMonitor == 2 {
-			m.Monitor.Container.MoveDown(1)
-			return true, m, nil
-		}
-	case "pageup":
-		if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
-			m.Network.NetworkTable.MoveUp(10)
-			return true, m, nil
-		} else if m.Ui.SelectedMonitor == 1 {
-			m.Monitor.ProcessTable.MoveUp(10)
-			return true, m, nil
-		} else if m.Ui.SelectedMonitor == 2 {
-			m.Monitor.Container.MoveUp(10)
-			return true, m, nil
-		}
-	case "pagedown":
-		if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
-			m.Network.NetworkTable.MoveDown(10)
-			return true, m, nil
-		} else if m.Ui.SelectedMonitor == 1 {
-			m.Monitor.ProcessTable.MoveDown(10)
-			return true, m, nil
-		} else if m.Ui.SelectedMonitor == 2 {
-			m.Monitor.Container.MoveDown(10)
-			return true, m, nil
-		}
-	case "home":
-		if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
-			m.Network.NetworkTable.GotoTop()
-			return true, m, nil
-		} else if m.Ui.SelectedMonitor == 1 {
-			m.Monitor.ProcessTable.GotoTop()
-			return true, m, nil
-		} else if m.Ui.SelectedMonitor == 2 {
-			m.Monitor.Container.GotoTop()
-			return true, m, nil
-		}
-	case "end":
-		if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
-			m.Network.NetworkTable.GotoBottom()
-			return true, m, nil
-		} else if m.Ui.SelectedMonitor == 1 {
-			m.Monitor.ProcessTable.GotoBottom()
-			return true, m, nil
-		} else if m.Ui.SelectedMonitor == 2 {
-			m.Monitor.Container.GotoBottom()
-			return true, m, nil
-		}
-	case "/":
-		m.Ui.SearchMode = true
-		m.Ui.SearchInput.Focus()
-		return true, m, nil
-	}
-	return false, m, nil
-}
-
-// ------------------------- General keys & shortcuts -------------------------
-
-func (m Model) handleGeneralKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case "q", "ctrl+c":
-		if m.Monitor.PendingShellExec != nil {
-			return m, tea.Quit
-		}
-		m.Monitor.ShouldQuit = true
-		return m, tea.Quit
-	case "enter":
-		if m.Ui.ActiveView == -1 {
-			m.Ui.ActiveView = m.Ui.SelectedTab
-			switch m.Ui.ActiveView {
-			case 0:
-				m.Ui.IsMonitorActive = true
-			case 2:
-				m.Ui.IsNetworkActive = true
-			}
-		} else if m.Ui.IsMonitorActive {
-			if m.Ui.SelectedMonitor == 2 && len(m.Monitor.Container.SelectedRow()) > 0 {
-				selectedRow := m.Monitor.Container.SelectedRow()
-				containerID := selectedRow[0]
-				containers, err := m.Monitor.App.RefreshContainers()
-				if err == nil {
-					for _, container := range containers {
-						if container.ID == containerID {
-							m.Monitor.SelectedContainer = &container
-							m.Monitor.ContainerMenuState = ContainerMenuVisible
-							m.Monitor.SelectedMenuItem = 0
-							break
-						}
-					}
-				} else {
-					m.Monitor.SelectedContainer = &app.Container{
-						ID:     containerID,
-						Name:   selectedRow[2],
-						Image:  selectedRow[1],
-						Status: selectedRow[3],
-					}
-					m.Monitor.ContainerMenuState = ContainerMenuVisible
-					m.Monitor.SelectedMenuItem = 0
-				}
-			}
-		}
-	case "b", "esc":
-		if m.Ui.SearchMode {
-			m.Ui.SearchMode = false
-			m.Monitor.ProcessTable.Focus()
-		} else if m.Monitor.ContainerViewState == ContainerViewSingle {
-			m.Monitor.ContainerViewState = ContainerViewNone
-			m.Monitor.SelectedContainer = nil
-		} else if m.Monitor.ContainerViewState == ContainerViewLogs {
-			m.Monitor.ContainerViewState = ContainerViewNone
-			m.Monitor.SelectedContainer = nil
-			m.Monitor.ContainerLogs = ""
-		} else if m.ConfirmationVisible {
-			m.ConfirmationVisible = false
-			m.ConfirmationMessage = ""
-			m.ConfirmationAction = ""
-			m.ConfirmationData = nil
-		} else if m.Monitor.ContainerMenuState == ContainerMenuVisible {
-			m.Monitor.ContainerMenuState = ContainerMenuHidden
-			m.Monitor.SelectedContainer = nil
-		} else if m.Ui.IsMonitorActive {
-			m.Ui.IsMonitorActive = false
-			m.Ui.ActiveView = -1
-		} else if m.Ui.ActiveView != -1 {
-			m.Ui.ActiveView = -1
-		} else if m.Ui.IsNetworkActive {
-			m.Ui.IsNetworkActive = false
-			m.Ui.ActiveView = -1
-		}
-	case "tab", "right", "l":
-		if m.Monitor.ContainerViewState != ContainerViewSingle {
-			if m.Ui.ActiveView == -1 {
-				m.Ui.SelectedTab = (m.Ui.SelectedTab + 1) % len(m.Ui.Tabs.DashBoard)
-			} else if m.Ui.IsMonitorActive {
-				m.Ui.SelectedMonitor = (m.Ui.SelectedMonitor + 1) % len(m.Ui.Tabs.Monitor)
-			}
-		}
-	case "shift+tab", "left", "h":
-		if m.Monitor.ContainerViewState != ContainerViewSingle {
-			if m.Ui.ActiveView == -1 {
-				m.Ui.SelectedTab = (m.Ui.SelectedTab - 1 + len(m.Ui.Tabs.DashBoard)) % len(m.Ui.Tabs.DashBoard)
-			} else if m.Ui.IsMonitorActive {
-				m.Ui.SelectedMonitor = (m.Ui.SelectedMonitor - 1 + len(m.Ui.Tabs.Monitor)) % len(m.Ui.Tabs.Monitor)
-			}
-		}
-	case "1", "2", "3", "4":
-		if m.Monitor.ContainerViewState != ContainerViewSingle && m.Ui.ActiveView == -1 {
-			switch msg.String() {
-			case "1":
-				m.Ui.SelectedTab = 0
-			case "2":
-				m.Ui.SelectedTab = 1
-			case "3":
-				m.Ui.SelectedTab = 2
-			case "4":
-				m.Ui.SelectedTab = 3
-			}
-		}
-	case "k":
-		if m.Ui.IsMonitorActive && m.Ui.SelectedMonitor == 1 && len(m.Monitor.ProcessTable.SelectedRow()) > 0 {
-			selectedPID := m.Monitor.ProcessTable.SelectedRow()[0]
-			pid, _ := strconv.Atoi(selectedPID)
-			process, _ := os.FindProcess(pid)
-			if process != nil {
-				_ = process.Kill()
-			}
-			return m, proc.UpdateProcesses()
-		}
-	case "s":
-		if m.Ui.IsMonitorActive && m.Ui.SelectedMonitor == 1 {
-			sort.Slice(m.Monitor.Processes, func(i, j int) bool {
-				return m.Monitor.Processes[i].CPU > m.Monitor.Processes[j].CPU
-			})
-			return m, m.updateProcessTable()
-		}
-	case "m":
-		if m.Ui.IsMonitorActive && m.Ui.SelectedMonitor == 1 {
-			sort.Slice(m.Monitor.Processes, func(i, j int) bool {
-				return m.Monitor.Processes[i].Mem > m.Monitor.Processes[j].Mem
-			})
-			return m, m.updateProcessTable()
-		}
-	case "r":
-		if m.Monitor.ContainerViewState == ContainerViewLogs && m.Monitor.SelectedContainer != nil {
-			m.Monitor.ContainerLogsLoading = true
-			return m, m.Monitor.App.GetContainerLogsCmd(m.Monitor.SelectedContainer.ID, "100")
-		}
-	}
-
-	if m.Ui.IsMonitorActive &&
-		m.Monitor.ContainerViewState != ContainerViewSingle &&
-		!m.Ui.IsNetworkActive {
-		switch msg.String() {
-		case "1":
-			m.Ui.SelectedMonitor = 0
-		case "2":
-			m.Ui.SelectedMonitor = 1
-		case "3":
-			m.Ui.SelectedMonitor = 2
-		}
-	}
-
-	if m.Monitor.ContainerViewState == ContainerViewSingle {
-		switch msg.String() {
-		case "tab", "right", "l":
-			m.ContainerTab = model.ContainerTab((int(m.ContainerTab) + 1) % len(m.Monitor.ContainerTabs))
-		case "shift+tab", "left", "h":
-			newTab := int(m.ContainerTab) - 1
-			if newTab < 0 {
-				newTab = len(m.Monitor.ContainerTabs) - 1
-			}
-			m.ContainerTab = model.ContainerTab(newTab)
-		case "1":
-			m.ContainerTab = model.ContainerTabGeneral
-		case "2":
-			m.ContainerTab = model.ContainerTabCPU
-		case "3":
-			m.ContainerTab = model.ContainerTabMemory
-		case "4":
-			m.ContainerTab = model.ContainerTabNetwork
-		case "5":
-			m.ContainerTab = model.ContainerTabDisk
-		case "6":
-			m.ContainerTab = model.ContainerTabEnv
-		}
-	}
-
-	return m, nil
-}
-
 // ------------------------- Tick / périodique -------------------------
 
 func (m Model) handleTickMsg() (tea.Model, tea.Cmd) {
@@ -799,8 +815,10 @@ func (m Model) handleProgressFrame(msg progress.FrameMsg) (tea.Model, tea.Cmd) {
 // ------------------------- Mouse/trackpad handling -------------------------
 
 func (m Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	if !m.MouseEnabled {
+		return m, nil
+	}
 	mouseEvent := tea.MouseEvent(msg)
-
 	if time.Since(m.LastScrollTime) < 60*time.Millisecond {
 		return m, nil
 	}
@@ -819,33 +837,29 @@ func (m Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleScrollUp() (tea.Model, tea.Cmd) {
-	if m.Ui.IsMonitorActive {
-		switch m.Ui.SelectedMonitor {
-		case 1:
-			m.Monitor.ProcessTable.MoveUp(m.ScrollSensitivity)
-		case 2:
-			m.Monitor.Container.MoveUp(m.ScrollSensitivity)
-		}
-	} else if m.Ui.ActiveView == 2 {
-		m.Network.NetworkTable.MoveUp(m.ScrollSensitivity)
-	} else {
+	switch m.Ui.State {
+	case model.StateSystem, model.StateContainerLogs:
 		m.Ui.Viewport.ScrollUp(m.ScrollSensitivity)
+	case model.StateProcess:
+		m.Monitor.ProcessTable.MoveUp(m.ScrollSensitivity)
+	case model.StateContainers:
+		m.Monitor.Container.MoveUp(m.ScrollSensitivity)
+	case model.StateNetwork:
+		m.Network.NetworkTable.MoveUp(m.ScrollSensitivity)
 	}
 	return m, nil
 }
 
 func (m Model) handleScrollDown() (tea.Model, tea.Cmd) {
-	if m.Ui.IsMonitorActive {
-		switch m.Ui.SelectedMonitor {
-		case 1:
-			m.Monitor.ProcessTable.MoveDown(m.ScrollSensitivity)
-		case 2:
-			m.Monitor.Container.MoveDown(m.ScrollSensitivity)
-		}
-	} else if m.Ui.ActiveView == 2 {
-		m.Network.NetworkTable.MoveDown(m.ScrollSensitivity)
-	} else {
+	switch m.Ui.State {
+	case model.StateSystem, model.StateContainerLogs:
 		m.Ui.Viewport.ScrollDown(m.ScrollSensitivity)
+	case model.StateProcess:
+		m.Monitor.ProcessTable.MoveDown(m.ScrollSensitivity)
+	case model.StateContainers:
+		m.Monitor.Container.MoveDown(m.ScrollSensitivity)
+	case model.StateNetwork:
+		m.Network.NetworkTable.MoveDown(m.ScrollSensitivity)
 	}
 	return m, nil
 }

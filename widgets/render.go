@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func (m Model) renderHome() string {
+func (m Model) renderHeader() string {
 	var menu []string
 	header := []string{}
 	headerStyle := lipgloss.NewStyle().
@@ -41,10 +41,7 @@ func (m Model) renderHome() string {
 
 	doc := strings.Builder{}
 	systemInfo := fmt.Sprintf("Host: %s	|	OS: %s	|	Kernel: %s	|	Uptime: %s", m.Monitor.System.Hostname, m.Monitor.System.OS, m.Monitor.System.Kernel, utils.FormatUptime(m.Monitor.System.Uptime))
-	// doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("System Info:"))
-	// doc.WriteString("\n")
 	doc.WriteString(metricLabelStyle.Render(systemInfo))
-	// doc.WriteString("\n")
 	header = append(header, cardStyle.MarginBottom(0).Render(doc.String()))
 
 	header = append(header, lipgloss.JoinHorizontal(lipgloss.Top, menu...))
@@ -68,15 +65,61 @@ func (m Model) renderNav(header []string, state model.ContainerTab, styleColor l
 	return lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
 }
 
-func (m Model) renderNavMonitor() string {
-	if m.Ui.IsMonitorActive {
+func (m Model) renderCurrentNav() string {
+	if strings.HasPrefix(string(m.Ui.State), "monitor")  {
 		style := lipgloss.NewStyle().Padding(0, 2).
 			Foreground(clearWhite).
 			Background(purpleCollor).
 			Bold(true)
 		return m.renderNav(m.Ui.Tabs.Monitor, model.ContainerTab(m.Ui.SelectedMonitor), style)
 	}
+
+	if m.Ui.State == model.StateNetwork {
+		style := lipgloss.NewStyle().Padding(0, 2).
+			Foreground(clearWhite).
+			Background(purpleCollor).
+			Bold(true)
+		return m.renderNav(m.Network.Nav, model.ContainerTab(m.Network.SelectedItem), style)
+	}
 	return ""
+}
+
+func (m Model) renderMainContent() string {
+	var currentView string
+
+	switch m.Ui.State {
+	case model.StateHome:
+		currentView = m.renderSystem()
+	case model.StateMonitor:
+		currentView = m.renderMonitor()
+	case model.StateSystem:
+		currentView = m.renderSystem()
+	case model.StateProcess:
+		currentView = m.renderProcesses()
+	case model.StateContainers:
+		currentView = m.renderContainers()
+	case model.StateContainer:
+		currentView = m.renderContainerSingleView()
+	case model.StateContainerLogs:
+		currentView = m.renderContainerLogs()
+	case model.StateNetwork:
+		currentView = m.renderNetwork()
+	case model.StateDiagnostics:
+		currentView = m.renderDignostics()
+	case model.StateReporting:
+		currentView = m.renderReporting()
+	default:
+		currentView = fmt.Sprintf("Unknown state: %v", m.Ui.State)
+	}
+
+	// Utilise le viewport pour le contenu scrollable
+	// switch m.Ui.State {
+	// case model.StateSystem, model.StateContainerLogs, model.StateHome, model.StateMonitor:
+	m.Ui.Viewport.SetContent(currentView)
+	return m.Ui.Viewport.View()
+	// }
+
+	// return currentView
 }
 
 func (m Model) renderMonitor() string {
@@ -184,31 +227,6 @@ func (m Model) interfaces() string {
 		Render(content.String())
 }
 
-// "Interface", "Connectivity", "Configuration", "Protocol Analysis"
-
-func (m Model) connectivity() string {
-	return "Connectivity"
-}
-
-func (m Model) configuration() string {
-	return "Configuration"
-}
-
-func (m Model) protocolAnalysis() string {
-	return "Protocol Analysis"
-}
-
-func (m Model) renderNavNetwork() string {
-	if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
-		style := lipgloss.NewStyle().Padding(0, 2).
-			Foreground(clearWhite).
-			Background(purpleCollor).
-			Bold(true)
-		return m.renderNav(m.Network.Nav, model.ContainerTab(m.Network.SelectedItem), style)
-	}
-	return ""
-}
-
 func (m Model) renderNetwork() string {
 	currentView := ""
 	switch m.Network.SelectedItem {
@@ -221,13 +239,6 @@ func (m Model) renderNetwork() string {
 	case model.NetworkTabProtocol:
 		currentView = m.renderNotImplemented("Protocol Analysis")
 	}
-	// case model.NetworkTabConnectivity:
-	// 	currentView = m.connectivity()
-	// case model.NetworkTabConfiguration:
-	// 	currentView = m.configuration()
-	// case model.NetworkTabProtocol:
-	// 	currentView = m.protocolAnalysis()
-	// }
 	return currentView
 }
 
@@ -236,15 +247,14 @@ func (m Model) renderNotImplemented(feature string) string {
 }
 
 func (m Model) renderFooter() string {
-	footer := "\n"
-
+	statusLine := ""
 	if m.OperationInProgress {
 		statusStyle := lipgloss.NewStyle().
 			Foreground(clearWhite).
 			Background(purpleCollor).
 			Padding(0, 1).
 			Bold(true)
-		footer += statusStyle.Render("⏳ Operation in progress...") + "\n"
+		statusLine += statusStyle.Render("⏳ Operation in progress...") + "\n"
 	} else if m.LastOperationMsg != "" {
 		var statusStyle lipgloss.Style
 		if strings.Contains(m.LastOperationMsg, "failed") || strings.Contains(m.LastOperationMsg, "Error") {
@@ -260,43 +270,38 @@ func (m Model) renderFooter() string {
 				Padding(0, 1).
 				Bold(true)
 		}
-		footer += statusStyle.Render(m.LastOperationMsg) + "\n"
+		statusLine += statusStyle.Render(m.LastOperationMsg) + "\n"
 	}
 
-	if m.Monitor.ContainerViewState == ContainerViewSingle {
-		footer += "[b] Back to containers • [Tab/←→] Switch tabs • [1-6] Quick tab • [q] Quit"
-	} else if m.Monitor.ContainerViewState == ContainerViewLogs {
-		footer += "[r] Refresh logs • [b] Back to containers • [q] Quit"
-	} else if m.ConfirmationVisible {
-		footer += "[y] Confirm • [n] Cancel • [ESC] Cancel"
-	} else if m.Monitor.ContainerMenuState == ContainerMenuVisible {
-		footer += "[↑↓] Navigate • [Enter] Select action • [ESC/b] Close menu • [o/l/r/d/x/s/p/e] Direct action"
-	} else if m.Ui.ActiveView == -1 {
-		footer += "[Enter] Select view • [q] Quit • [Tab/←→] Navigate • [1-4] Quick select"
-	} else if m.Ui.IsMonitorActive {
-		footer += "[b] Back • [Tab/←→] Switch • [/] Search • [q] Quit"
-		switch m.Ui.SelectedMonitor {
-		case 1:
-			footer += " • [↑↓] Navigate • [k] Kill • [s] Sort CPU • [m] Sort Mem"
-		case 2:
-			footer += " • [↑↓] Navigate • [Enter] Container menu"
-		}
-	} else if m.Ui.ActiveView == 2 && m.Ui.IsNetworkActive {
-		// Ajouter les instructions spécifiques à la navigation réseau
-		footer += "[b] Back • [Tab/←→] Switch network tabs • [↑↓] Navigate table • [1-4] Quick tab • [q] Quit"
-	} else {
-		switch m.Ui.ActiveView {
-		case 0: // Monitor
-			footer += "[b] Back • [Enter] Select sub-menu • [q] Quit"
-		case 1: // Diagnostic
-			footer += "[b] Back • [q] Quit"
-		case 2: // Network
-			footer += "[b] Back • [Enter] View details • [q] Quit"
-		case 3: // Reporting
-			footer += "[b] Back • [q] Quit"
-		}
+	var hints string
+	switch m.Ui.State {
+	case model.StateHome:
+		hints = "[Enter] Select • [Tab/←→] Navigate • [1-4] Quick select • [q] Quit"
+	case model.StateMonitor:
+		hints = "[Enter] Select • [Tab/←→] Navigate • [1-3] Quick select • [b] Back • [q] Quit"
+	case model.StateSystem:
+		hints = "[↑↓] Scroll • [b] Back • [q] Quit"
+	case model.StateProcess:
+		hints = "[↑↓] Navigate • [/] Search • [k] Kill • [s/m] Sort • [b] Back • [q] Quit"
+	case model.StateContainers:
+		hints = "[↑↓] Navigate • [Enter] Menu • [/] Search • [b] Back • [q] Quit"
+	case model.StateContainer:
+		hints = "[Tab/←→] Switch tabs • [b] Back • [q] Quit"
+	case model.StateContainerLogs:
+		hints = "[↑↓] Scroll • [r] Refresh • [b] Back • [q] Quit"
+	case model.StateNetwork:
+		hints = "[Tab/←→] Switch tabs • [b] Back • [q] Quit"
+	case model.StateDiagnostics, model.StateReporting:
+		hints = "[b] Back • [q] Quit"
 	}
-	return footer
+
+	if m.ConfirmationVisible {
+		hints = "[y] Confirm • [n/ESC] Cancel"
+	} else if m.Monitor.ContainerMenuState == ContainerMenuVisible {
+		hints = "[↑↓] Navigate • [Enter] Select • [ESC/b] Close • [o/l/...] Actions"
+	}
+
+	return statusLine + "\n" + hints
 }
 
 func (m Model) renderContainerMenu() string {
@@ -326,8 +331,8 @@ func (m Model) renderContainerMenu() string {
 }
 
 func (m Model) renderContainerSingleView() string {
-	if m.Monitor.ContainerViewState != ContainerViewSingle || m.Monitor.SelectedContainer == nil {
-		return ""
+	if m.Monitor.SelectedContainer == nil {
+		return cardStyle.Render("No container selected.")
 	}
 	style := lipgloss.NewStyle().Padding(0, 2).
 		Foreground(whiteColor).
@@ -502,14 +507,12 @@ func (m Model) renderContainerNetwork() string {
 	doc.WriteString("\n\n")
 
 	if m.Monitor.ContainerDetails != nil {
-		// Statistiques réseau détaillées (style ctop)
 		rxBytes := m.Monitor.ContainerDetails.Stats.NetworkRx
 		txBytes := m.Monitor.ContainerDetails.Stats.NetworkTx
 
 		doc.WriteString(fmt.Sprintf("RX: %s/s\n", utils.FormatBytes(rxBytes)))
 		doc.WriteString(fmt.Sprintf("TX: %s/s\n\n", utils.FormatBytes(txBytes)))
 
-		// Graphiques réseau avec échelle en MB/s
 		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Receive Traffic (MB/s):"))
 		doc.WriteString("\n")
 		rxChart := m.renderNetworkRXChart(50, 6)
@@ -520,7 +523,6 @@ func (m Model) renderContainerNetwork() string {
 		txChart := m.renderNetworkTXChart(50, 6)
 		doc.WriteString(txChart)
 
-		// Informations réseau supplémentaires si disponibles
 		if m.Monitor.ContainerDetails.IPAddress != "" {
 			doc.WriteString("\n\n" + lipgloss.NewStyle().Bold(true).Render("Network Interfaces:"))
 			doc.WriteString("\n")
@@ -533,7 +535,6 @@ func (m Model) renderContainerNetwork() string {
 	return cardStyle.Render(doc.String())
 }
 
-// Rendu de l'utilisation disque du conteneur
 func (m Model) renderContainerDisk() string {
 	doc := strings.Builder{}
 
@@ -541,14 +542,12 @@ func (m Model) renderContainerDisk() string {
 	doc.WriteString("\n\n")
 
 	if m.Monitor.ContainerDetails != nil {
-		// Statistiques disque détaillées (style ctop)
 		readBytes := m.Monitor.ContainerDetails.Stats.BlockRead
 		writeBytes := m.Monitor.ContainerDetails.Stats.BlockWrite
 
 		doc.WriteString(fmt.Sprintf("Read: %s\n", utils.FormatBytes(readBytes)))
 		doc.WriteString(fmt.Sprintf("Write: %s\n\n", utils.FormatBytes(writeBytes)))
 
-		// Graphiques en barres avec échelle relative
 		totalIO := readBytes + writeBytes
 		if totalIO > 0 {
 			readPercent := float64(readBytes) / float64(totalIO) * 100
@@ -564,10 +563,8 @@ func (m Model) renderContainerDisk() string {
 			doc.WriteString(fmt.Sprintf("WRITE [%s] %.1f%%\n", writeBar, writePercent))
 		}
 
-		// Graphiques d'historique
 		doc.WriteString("\n" + lipgloss.NewStyle().Bold(true).Render("I/O History:"))
 		doc.WriteString("\n")
-		// Note: Les graphiques d'historique disque seront ajoutés ultérieurement
 		doc.WriteString("Disk I/O history charts coming soon...")
 	} else {
 		doc.WriteString(metricLabelStyle.Render("Loading disk metrics..."))
@@ -576,7 +573,6 @@ func (m Model) renderContainerDisk() string {
 	return cardStyle.Render(doc.String())
 }
 
-// Rendu des variables d'environnement du conteneur
 func (m Model) renderContainerEnv() string {
 	doc := strings.Builder{}
 
@@ -589,7 +585,6 @@ func (m Model) renderContainerEnv() string {
 			if len(parts) == 2 {
 				key := parts[0]
 				value := parts[1]
-				// Limiter la longueur de la valeur pour l'affichage
 				if len(value) > 50 {
 					value = value[:47] + "..."
 				}
@@ -607,9 +602,6 @@ func (m Model) renderContainerEnv() string {
 	return cardStyle.Render(doc.String())
 }
 
-// Helper methods for ctop-like functionality
-
-// getStatusWithIcon returns status with appropriate icon like ctop
 func (m Model) getStatusWithIcon(status string) string {
 	switch status {
 	case "running":
@@ -625,7 +617,6 @@ func (m Model) getStatusWithIcon(status string) string {
 	}
 }
 
-// getHealthWithIcon returns health status with appropriate icon like ctop
 func (m Model) getHealthWithIcon(health string) string {
 	switch health {
 	case "healthy":
@@ -639,7 +630,6 @@ func (m Model) getHealthWithIcon(health string) string {
 	}
 }
 
-// getCPUColor returns color based on CPU usage percentage (like ctop)
 func (m Model) getCPUColor(percent float64) lipgloss.Color {
 	switch {
 	case percent < 50:
@@ -651,7 +641,6 @@ func (m Model) getCPUColor(percent float64) lipgloss.Color {
 	}
 }
 
-// getMemoryColor returns color based on memory usage percentage (like ctop)
 func (m Model) getMemoryColor(percent float64) lipgloss.Color {
 	switch {
 	case percent < 60:
@@ -663,7 +652,6 @@ func (m Model) getMemoryColor(percent float64) lipgloss.Color {
 	}
 }
 
-// Rendu de la boîte de confirmation
 func (m Model) renderConfirmationDialog() string {
 	if !m.ConfirmationVisible {
 		return ""
@@ -671,20 +659,16 @@ func (m Model) renderConfirmationDialog() string {
 
 	doc := strings.Builder{}
 
-	// Titre de confirmation
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Foreground(errorColor).Render("⚠️  CONFIRMATION REQUIRED"))
 	doc.WriteString("\n\n")
 
-	// Message de confirmation
 	doc.WriteString(metricLabelStyle.Render(m.ConfirmationMessage))
 	doc.WriteString("\n\n")
 
-	// Options
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Are you sure?"))
 	doc.WriteString("\n")
 	doc.WriteString("Press 'y' to confirm or 'n' to cancel")
 
-	// Style de la boîte de dialogue
 	confirmationStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(errorColor).
@@ -695,7 +679,6 @@ func (m Model) renderConfirmationDialog() string {
 	return confirmationStyle.Render(doc.String())
 }
 
-// Rendu de la vue des logs du conteneur
 func (m Model) renderContainerLogs() string {
 	if m.Monitor.SelectedContainer == nil {
 		return cardStyle.Render("No container selected")
@@ -709,18 +692,16 @@ func (m Model) renderContainerLogs() string {
 	if m.Monitor.ContainerLogsLoading {
 		doc.WriteString(metricLabelStyle.Render("Loading logs..."))
 	} else if m.Monitor.ContainerLogs != "" {
-		// Utiliser le viewport pour afficher les logs avec défilement
 		logStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("250")).
 			Background(lipgloss.Color("235")).
 			Padding(1).
 			Height(20).
 			Width(80)
-		
-		// Configurer le viewport avec les logs
+
 		m.Ui.Viewport.SetContent(m.Monitor.ContainerLogs)
 		m.Ui.Viewport.Style = logStyle
-		
+
 		doc.WriteString(m.Ui.Viewport.View())
 	} else {
 		doc.WriteString(metricLabelStyle.Render("No logs available or logs are empty"))

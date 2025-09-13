@@ -45,7 +45,6 @@ var (
 					Padding(1, 2).
 					Margin(1, 0, 0, 0)
 
-	// Styles pour les métriques
 	metricLabelStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#cbd5e1")).
 				Bold(true)
@@ -66,27 +65,6 @@ var (
 			BorderForeground(lipgloss.Color("57")).
 			Padding(0, 1).
 			MarginBottom(1)
-
-	selectedMenuItemStyle = lipgloss.NewStyle().
-				Padding(0, 2).
-		// Background(accentColor).
-		Foreground(lipgloss.Color("black")).
-		Bold(true)
-
-	ipTableStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
-			BorderForeground(surfaceColor).
-			Background(surfaceColor).
-			Margin(1, 0)
-
-	ipTableHeaderStyle = lipgloss.NewStyle().
-				Foreground(accentColor).
-				Bold(true).
-				Padding(0, 1)
-
-	ipTableCellStyle = lipgloss.NewStyle().
-				Foreground(whiteColor).
-				Padding(0, 1)
 
 	NetworkTableStatusStyle = lipgloss.NewStyle().
 				Foreground(successColor).

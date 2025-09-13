@@ -147,6 +147,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			},
 		},
 		Ui: model.UIModel{
+			State:           model.StateHome,
 			Tabs:        menu,
 			SelectedTab: 0,
 			ActiveView:  -1,
@@ -167,7 +168,6 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	m.Monitor.ProcessTable.Focus()
 	m.updateContainerTable(containers)
 	m.Monitor.Container.Focus()
-
 	return m
 }
 
