@@ -1,30 +1,38 @@
-package widgets
+package vars
 
 import (
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 )
 
 const (
-	progressBarWidth = 40
+	ProgressBarWidth = 40
 )
 
+
+const (
+	ContainerMenuHidden model.ContainerMenuState = iota
+	ContainerMenuVisible
+)
+
+const (
+	ContainerViewNone model.ContainerViewState = iota
+	ContainerViewSingle
+	ContainerViewLogs
+	ContainerViewConfirmation
+)
+
+
 var (
-	asciiArt = `
- ▗▄▄▖▗▄▄▄▖▗▄▄▖ ▗▖  ▗▖▗▄▄▄▖▗▄▄▖     ▗▄▄▖ ▗▖ ▗▖▗▖    ▗▄▄▖▗▄▄▄▖
-▐▌   ▐▌   ▐▌ ▐▌▐▌  ▐▌▐▌   ▐▌ ▐▌    ▐▌ ▐▌▐▌ ▐▌▐▌   ▐▌   ▐▌
- ▝▀▚▖▐▛▀▀▘▐▛▀▚▖▐▌  ▐▌▐▛▀▀▘▐▛▀▚▖    ▐▛▀▘ ▐▌ ▐▌▐▌    ▝▀▚▖▐▛▀▀▘
-▗▄▄▞▘▐▙▄▄▖▐▌ ▐▌ ▝▚▞▘ ▐▙▄▄▖▐▌ ▐▌    ▐▌   ▝▚▄▞▘▐▙▄▄▖▗▄▄▞▘▐▙▄▄▖
-		`
 	dashboard = []string{"Monitor", "Diagnostic", "Network", "Reporting"}
 	monitor   = []string{"System", "Process", "Containers"}
-	menu      = model.Menu{
+	Menu      = model.Menu{
 		DashBoard: dashboard,
 		Monitor:   monitor,
 	}
-	networkNav    = []string{"Interface", "Connectivity", "Configuration", "Protocol Analysis"}
-	diagnosticNav = []string{"Health Checks", "Performances", "Logs"}
-
-	containerMenuItems = []model.ContainerMenuItem{
+	NetworkNav = []string{"Interface", "Connectivity", "Configuration", "Protocol Analysis"}
+	DiagnosticNav = []string{"Health Checks", "Performances", "Logs"}
+	
+	ContainerMenuItems = []model.ContainerMenuItem{
 		{Key: "o", Label: "Open detailed view", Description: "View detailed container information", Action: "open_single"},
 		{Key: "l", Label: "View logs", Description: "Show container logs", Action: "logs"},
 		{Key: "r", Label: "Restart", Description: "Restart container", Action: "restart"},
@@ -38,5 +46,5 @@ var (
 		// {Key: "c", Label: "Commit", Description: "Create image from container", Action: "commit"},
 	}
 
-	containerTabs = []string{"General", "CPU", "MEM", "NET", "DISK", "ENV"}
+	ContainerTabs = []string{"General", "CPU", "MEM", "NET", "DISK", "ENV"}
 )

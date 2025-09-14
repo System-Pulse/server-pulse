@@ -3,10 +3,13 @@ package widgets
 import (
 	"fmt"
 
+	v "github.com/System-Pulse/server-pulse/widgets/vars"
+
 	"github.com/charmbracelet/lipgloss"
 )
 
 func (m Model) View() string {
+
 	if m.Err != nil {
 		return fmt.Sprintf("Error: %v\n", m.Err)
 	}
@@ -22,7 +25,7 @@ func (m Model) View() string {
 	nav := m.renderCurrentNav()
 	mainContent := m.renderMainContent()
 	footer := m.renderFooter()
-	if m.Monitor.ContainerMenuState == ContainerMenuVisible {
+	if m.Monitor.ContainerMenuState == v.ContainerMenuVisible {
 		mainContent = m.renderContainerMenu()
 	} else if m.ConfirmationVisible {
 		mainContent = m.renderConfirmationDialog()
@@ -38,12 +41,6 @@ func (m Model) View() string {
 		mainContentStyled,
 		footer,
 	)
-
-	// if m.ConfirmationVisible {
-	// 	dialog := m.renderConfirmationDialog()
-	// 	// Place la boîte de dialogue au centre
-	// 	return lipgloss.Place(m.Ui.Width, m.Ui.Height, lipgloss.Center, lipgloss.Center, dialog)
-	// }
 
 	return baseView
 }

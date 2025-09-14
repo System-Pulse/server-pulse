@@ -10,18 +10,6 @@ import (
 	"github.com/System-Pulse/server-pulse/system/app"
 )
 
-const (
-	ContainerMenuHidden model.ContainerMenuState = iota
-	ContainerMenuVisible
-)
-
-const (
-	ContainerViewNone model.ContainerViewState = iota
-	ContainerViewSingle
-	ContainerViewLogs
-	ContainerViewConfirmation
-)
-
 type Model struct {
 	Network             model.NetworkModel
 	Err                 error
@@ -52,8 +40,10 @@ func (m *Model) setState(newState model.AppState) {
 
 	switch newState {
 	case model.StateHome:
-		m.Ui.SelectedTab = -1
-	case model.StateMonitor, model.StateSystem, model.StateProcess, model.StateContainers, model.StateContainer, model.StateContainerLogs:
+		m.Ui.SelectedTab = m.Ui.ActiveView
+		m.Ui.ActiveView = -1
+	case model.StateMonitor, model.StateSystem, model.StateProcess, model.StateContainers,
+		model.StateContainer, model.StateContainerLogs:
 		m.Ui.SelectedTab = 0
 	case model.StateDiagnostics:
 		m.Ui.SelectedTab = 1
@@ -75,11 +65,10 @@ func (m *Model) setState(newState model.AppState) {
 
 func (m *Model) goBack() {
 	switch m.Ui.State {
-	case model.StateSystem, model.StateProcess, model.StateContainers:
-		m.setState(model.StateMonitor)
 	case model.StateContainer, model.StateContainerLogs:
 		m.setState(model.StateContainers)
-	case model.StateMonitor, model.StateDiagnostics, model.StateNetwork, model.StateReporting:
+	case model.StateMonitor, model.StateDiagnostics, model.StateNetwork, model.StateReporting,
+		model.StateSystem, model.StateProcess, model.StateContainers:
 		m.setState(model.StateHome)
 	default:
 		if m.Ui.PreviousState != "" {
@@ -106,3 +95,4 @@ func (m *Model) ClearPendingShellExec() {
 func (m Model) GetApp() *app.DockerManager {
 	return m.Monitor.App
 }
+

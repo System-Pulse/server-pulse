@@ -15,7 +15,7 @@ const (
 	ChartDiskWrite
 )
 
-func (m *Model) updateCharts() {
+func (m Model) updateCharts() {
 	now := time.Now()
 
 	m.Monitor.CpuHistory.Points = append(m.Monitor.CpuHistory.Points, model.DataPoint{
@@ -71,5 +71,5 @@ func (m *Model) updateCharts() {
 		}
 	}
 
-	m.LastChartUpdate = now
+	// m.LastChartUpdate = now
 }

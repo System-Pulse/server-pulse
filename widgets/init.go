@@ -9,6 +9,8 @@ import (
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	resource "github.com/System-Pulse/server-pulse/system/resource"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
+	v "github.com/System-Pulse/server-pulse/widgets/vars"
+
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -17,7 +19,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Initialisation du modèle
 func InitialModel() Model {
 	apk, err := app.NewDockerManager()
 	if err != nil {
@@ -31,7 +32,6 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 
 	containers, err := apk.RefreshContainers()
 	if err != nil {
-		// Gérer l'erreur ou logger
 		fmt.Printf("Erreur lors du chargement des conteneurs: %v\n", err)
 	}
 
@@ -86,8 +86,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 		BorderForeground(lipgloss.Color("240")).
 		BorderBottom(true).
 		Bold(false)
-	// networkStyle.Cell = networkStyle.Cell.Foreground(lipgloss.Color("255"))
-	// networkTable.SetStyles(networkStyle)
+
 	networkStyle.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57")).Bold(false)
 	networkTable.SetStyles(networkStyle)
 
@@ -110,19 +109,19 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	searchInput.Width = 30
 
 	progOpts := []progress.Option{
-		progress.WithWidth(progressBarWidth),
+		progress.WithWidth(v.ProgressBarWidth),
 		progress.WithDefaultGradient(),
 	}
 
 	m := Model{
 		Network: model.NetworkModel{
 			NetworkTable: networkTable,
-			Nav:          networkNav,
+			Nav:          v.NetworkNav,
 			SelectedItem: model.NetworkTabInterface,
 		},
 		Diagnostic: model.DiagnosticModel{
 			DiagnosticTable: diagnosticTable,
-			Nav:             diagnosticNav,
+			Nav:             v.DiagnosticNav,
 			SelectedItem:    model.DiagnosticTabHealthChecks,
 		},
 		Monitor: model.MonitorModel{
@@ -133,11 +132,11 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			SwapProgress:       progress.New(progOpts...),
 			DiskProgress:       make(map[string]progress.Model),
 			App:                apk,
-			ContainerMenuState: ContainerMenuHidden,
+			ContainerMenuState: v.ContainerMenuHidden,
 			SelectedContainer:  nil,
-			ContainerMenuItems: containerMenuItems,
-			ContainerViewState: ContainerViewNone,
-			ContainerTabs:      containerTabs,
+			ContainerMenuItems: v.ContainerMenuItems,
+			ContainerViewState: v.ContainerViewNone,
+			ContainerTabs:      v.ContainerTabs,
 			CpuHistory: model.DataHistory{
 				MaxPoints: 60,
 				Points:    make([]model.DataPoint, 0),
@@ -165,7 +164,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 		},
 		Ui: model.UIModel{
 			State:       model.StateHome,
-			Tabs:        menu,
+			Tabs:        v.Menu,
 			SelectedTab: 0,
 			ActiveView:  -1,
 			SearchInput: searchInput,

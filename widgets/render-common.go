@@ -1,0 +1,40 @@
+package widgets
+
+import (
+	"fmt"
+	"strings"
+	v "github.com/System-Pulse/server-pulse/widgets/vars"
+
+	"github.com/charmbracelet/lipgloss"
+)
+
+func renderNotImplemented(feature string) string {
+	return v.CardStyle.Render(fmt.Sprintf("🚧 %s\n\nThis feature is not yet implemented.\n\nCheck back in future updates!", feature))
+}
+
+func (m Model) renderConfirmationDialog() string {
+	if !m.ConfirmationVisible {
+		return ""
+	}
+
+	doc := strings.Builder{}
+
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Foreground(v.ErrorColor).Render("⚠️  CONFIRMATION REQUIRED"))
+	doc.WriteString("\n\n")
+
+	doc.WriteString(v.MetricLabelStyle.Render(m.ConfirmationMessage))
+	doc.WriteString("\n\n")
+
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Are you sure?"))
+	doc.WriteString("\n")
+	doc.WriteString("Press 'y' to confirm or 'n' to cancel")
+
+	confirmationStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(v.ErrorColor).
+		Padding(2).
+		Background(lipgloss.Color("235")).
+		Foreground(lipgloss.Color("255"))
+
+	return confirmationStyle.Render(doc.String())
+}
