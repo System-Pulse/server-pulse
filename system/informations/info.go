@@ -17,7 +17,7 @@ func UpdateSystemInfo() tea.Cmd {
 
 		return SystemMsg{
 			Hostname: hostInfo.Hostname,
-			OS:       fmt.Sprintf("%s %s", hostInfo.OS, hostInfo.PlatformVersion),
+			OS:       fmt.Sprintf("%s %s", hostInfo.Platform, hostInfo.PlatformVersion),
 			Kernel:   hostInfo.KernelVersion,
 			Uptime:   hostInfo.Uptime,
 		}
