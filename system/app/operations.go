@@ -88,30 +88,17 @@ func (dm *DockerManager) DeleteContainer(containerID string, force bool) error {
 	return nil
 }
 
-func (dm *DockerManager) GetContainerLogsStream(containerID string, since string, follow bool) (io.ReadCloser, error) {
-	ctx := context.Background()
 
-	options := container.LogsOptions{
-		ShowStdout: true,
-		ShowStderr: true,
-		Timestamps: true,
-		Follow:     follow,
-		Since:      since,
-		Tail:       "100",
-	}
-
-	return dm.Cli.ContainerLogs(ctx, containerID, options)
-}
-
-func (dm *DockerManager) GetContainerLogs(containerID string, tail string) (string, error) {
+func (dm *DockerManager) GetContainerLogs(containerID string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	options := container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
-		Timestamps: true,
-		Tail:       tail,
+		Timestamps: false,
+		Follow:     true,
+		Tail:       "all",
 	}
 
 	logs, err := dm.Cli.ContainerLogs(ctx, containerID, options)
@@ -122,17 +109,14 @@ func (dm *DockerManager) GetContainerLogs(containerID string, tail string) (stri
 
 	var result strings.Builder
 	scanner := bufio.NewScanner(logs)
-	lineCount := 0
-	maxLines := 500
 
-	for scanner.Scan() && lineCount < maxLines {
+	for scanner.Scan() {
 		line := scanner.Text()
 		if len(line) > 8 && (line[0] == 1 || line[0] == 2) {
 			line = line[8:]
 		}
 		result.WriteString(line)
 		result.WriteString("\n")
-		lineCount++
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -141,6 +125,48 @@ func (dm *DockerManager) GetContainerLogs(containerID string, tail string) (stri
 
 	return result.String(), nil
 }
+
+func (dm *DockerManager) StreamContainerLogsCmd(containerID string) tea.Cmd {
+    return func() tea.Msg {
+        ctx := context.Background()
+
+        options := container.LogsOptions{
+            ShowStdout: true,
+            ShowStderr: true,
+            Timestamps: false,
+            Follow:     true,   // 🚀 streaming
+            Tail:       "all",  // historique complet
+        }
+
+        logs, err := dm.Cli.ContainerLogs(ctx, containerID, options)
+        if err != nil {
+            return ContainerLogsMsg{
+                ContainerID: containerID,
+                Logs:        "",
+                Error:       err,
+            }
+        }
+
+        // On lance une goroutine qui envoie chaque nouvelle ligne
+        go func() {
+            scanner := bufio.NewScanner(logs)
+            for scanner.Scan() {
+                line := scanner.Text()
+                if len(line) > 8 && (line[0] == 1 || line[0] == 2) {
+                    line = line[8:]
+                }
+                // on envoie les lignes une par une
+                tea.Println(ContainerLogLineMsg{
+                    ContainerID: containerID,
+                    Line:        line,
+                })
+            }
+        }()
+
+        return nil
+    }
+}
+
 
 func (dm *DockerManager) GetContainerStatus(containerID string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

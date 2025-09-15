@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/viewport"
 
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 
@@ -17,7 +18,7 @@ type Model struct {
 	Ui                  model.UIModel
 	ProgressBars        map[string]progress.Model
 	ContainerTab        model.ContainerTab
-	LastUpdate          time.Time
+	LogsViewport        viewport.Model
 	EnableAnimations    bool
 	LastChartUpdate     time.Time
 	LastOperationMsg    string
@@ -95,4 +96,3 @@ func (m *Model) ClearPendingShellExec() {
 func (m Model) GetApp() *app.DockerManager {
 	return m.Monitor.App
 }
-

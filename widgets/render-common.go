@@ -38,3 +38,24 @@ func (m Model) renderConfirmationDialog() string {
 
 	return confirmationStyle.Render(doc.String())
 }
+
+func (m Model) getAvailableHeight() int {
+    if m.Ui.Height <= 0 {
+        return 1
+    }
+    
+    headerHeight := lipgloss.Height(m.renderHeader())
+    navHeight := lipgloss.Height(m.renderCurrentNav())
+    footerHeight := lipgloss.Height(m.renderFooter())
+    
+    availableHeight := m.Ui.Height - headerHeight - navHeight - footerHeight
+    return max(1, availableHeight)
+}
+
+func (m Model) getContentHeight() int {
+    availableHeight := m.getAvailableHeight()
+    
+    // Réserver de l'espace pour les marges/paddings
+    contentHeight := availableHeight - 2 // 2 lignes pour les marges
+    return max(1, contentHeight)
+}

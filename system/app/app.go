@@ -111,9 +111,9 @@ func (dm *DockerManager) ToggleContainerPauseCmd(containerID string) tea.Cmd {
 	}
 }
 
-func (dm *DockerManager) GetContainerLogsCmd(containerID string, tail string) tea.Cmd {
+func (dm *DockerManager) GetContainerLogsCmd(containerID string) tea.Cmd {
 	return func() tea.Msg {
-		logs, err := dm.GetContainerLogs(containerID, tail)
+		logs, err := dm.GetContainerLogs(containerID)
 		return ContainerLogsMsg{
 			ContainerID: containerID,
 			Logs:        logs,

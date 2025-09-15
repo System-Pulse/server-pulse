@@ -80,6 +80,11 @@ type ContainerLogsMsg struct {
 	Error       error
 }
 
+type ContainerLogLineMsg struct {
+    ContainerID string
+    Line        string
+}
+
 type ContainerOperationMsg struct {
 	ContainerID string
 	Operation   string // "restart", "start", "stop", "pause", "unpause", "delete"

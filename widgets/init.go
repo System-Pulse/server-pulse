@@ -112,8 +112,9 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 		progress.WithWidth(v.ProgressBarWidth),
 		progress.WithDefaultGradient(),
 	}
-
+	logsViewport := viewport.New(100, 20)
 	m := Model{
+		LogsViewport: logsViewport,
 		Network: model.NetworkModel{
 			NetworkTable: networkTable,
 			Nav:          v.NetworkNav,
@@ -137,6 +138,12 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			ContainerMenuItems: v.ContainerMenuItems,
 			ContainerViewState: v.ContainerViewNone,
 			ContainerTabs:      v.ContainerTabs,
+			ContainerLogsPagination: model.ContainerLogsPagination{
+                PageSize:    100, // Initialiser avec une valeur par défaut
+                CurrentPage: 1,
+                TotalPages:  1,
+                Lines:       []string{},
+            },
 			CpuHistory: model.DataHistory{
 				MaxPoints: 60,
 				Points:    make([]model.DataPoint, 0),
@@ -170,8 +177,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			SearchInput: searchInput,
 			SearchMode:  false,
 			Viewport:    viewport.New(100, 20),
-			MinWidth:    40,
-			MinHeight:   10,
+			ContentHeight: 20,
 		},
 		LastChartUpdate:   time.Now(),
 		ScrollSensitivity: 3,

@@ -10,15 +10,24 @@ import (
 	"github.com/charmbracelet/bubbles/table"
 )
 
+type ContainerLogsPagination struct {
+	CurrentPage int
+	TotalPages  int
+	PageSize    int
+	Lines       []string
+}
+
 type MonitorModel struct {
-	System               info.SystemInfo
-	Cpu                  resource.CPUInfo
-	Memory               resource.MemoryInfo
-	Disks                []resource.DiskInfo
-	Processes            []proc.ProcessInfo
-	App                  *app.DockerManager
-	PendingShellExec     *ShellExecRequest
-	ShouldQuit           bool
+	System                  info.SystemInfo
+	Cpu                     resource.CPUInfo
+	Memory                  resource.MemoryInfo
+	Disks                   []resource.DiskInfo
+	Processes               []proc.ProcessInfo
+	App                     *app.DockerManager
+	PendingShellExec        *ShellExecRequest
+	ShouldQuit              bool
+	ContainerLogsPagination ContainerLogsPagination
+
 	ContainerLogs        string
 	ContainerLogsLoading bool
 	CpuHistory           DataHistory

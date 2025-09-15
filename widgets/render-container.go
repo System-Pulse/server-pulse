@@ -315,36 +315,33 @@ func (m Model) renderContainerEnv() string {
 }
 
 func (m Model) renderContainerLogs() string {
-
 	if m.Monitor.SelectedContainer == nil {
 		return v.CardStyle.Render("No container selected")
 	}
 
 	doc := strings.Builder{}
 
-	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render(fmt.Sprintf("Logs: %s", m.Monitor.SelectedContainer.Name)))
-	doc.WriteString("\n\n")
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render(
+		fmt.Sprintf("Logs: %s (Page %d/%d)",
+			m.Monitor.SelectedContainer.Name,
+			m.Monitor.ContainerLogsPagination.CurrentPage,
+			m.Monitor.ContainerLogsPagination.TotalPages)))
 
 	if m.Monitor.ContainerLogsLoading {
 		doc.WriteString(v.MetricLabelStyle.Render("Loading logs..."))
-	} else if m.Monitor.ContainerLogs != "" {
+	} else if len(m.Monitor.ContainerLogsPagination.Lines) > 0 {
 		logStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("250")).
 			Background(lipgloss.Color("235")).
+			Height(m.getContentHeight() - 4).
 			Padding(1).
-			Height(20).
 			Width(80)
 
-		m.Ui.Viewport.SetContent(m.Monitor.ContainerLogs)
-		m.Ui.Viewport.Style = logStyle
-
-		doc.WriteString(m.Ui.Viewport.View())
+		m.LogsViewport.Style = logStyle
+		doc.WriteString(m.LogsViewport.View())
 	} else {
 		doc.WriteString(v.MetricLabelStyle.Render("No logs available or logs are empty"))
 	}
-
-	doc.WriteString("\n\n")
-	doc.WriteString(v.MetricLabelStyle.Render("Press 'r' to refresh logs, 'b' to go back"))
 
 	return v.CardStyle.Render(doc.String())
 }

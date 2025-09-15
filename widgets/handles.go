@@ -2,9 +2,11 @@ package widgets
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	system "github.com/System-Pulse/server-pulse/system/app"
@@ -59,6 +61,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Monitor.Container, cmd = m.Monitor.Container.Update(msg)
 			cmds = append(cmds, cmd)
 		}
+	case model.StateContainerLogs:
+		m.LogsViewport, cmd = m.LogsViewport.Update(msg)
+		cmds = append(cmds, cmd)
 	case model.StateNetwork:
 		m.Network.NetworkTable, cmd = m.Network.NetworkTable.Update(msg)
 		cmds = append(cmds, cmd)
@@ -126,8 +131,12 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Monitor.ContainerLogsLoading = false
 		if logsMsg.Error != nil {
 			m.Monitor.ContainerLogs = fmt.Sprintf("Error loading logs: %v", logsMsg.Error)
+			m.Monitor.ContainerLogsPagination.Lines = []string{m.Monitor.ContainerLogs}
+			m.Monitor.ContainerLogsPagination.TotalPages = 1
+			m.Monitor.ContainerLogsPagination.CurrentPage = 1
 		} else {
 			m.Monitor.ContainerLogs = logsMsg.Logs
+			m.setContainerLogs(m.Monitor.ContainerLogs)
 		}
 	case system.ContainerOperationMsg:
 		opMsg := system.ContainerOperationMsg(msg)
@@ -151,22 +160,98 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *Model) setContainerLogs(logs string) {
+	lines := strings.Split(strings.TrimSpace(logs), "\n")
+
+	m.Monitor.ContainerLogsPagination.Lines = lines
+	m.Monitor.ContainerLogsPagination.PageSize = 14
+	m.Monitor.ContainerLogsPagination.CurrentPage = 1
+
+	// 🔥 recalcul du nombre de pages
+	total := len(lines)
+	if total == 0 {
+		m.Monitor.ContainerLogsPagination.TotalPages = 1
+	} else {
+		m.Monitor.ContainerLogsPagination.TotalPages =
+			(int(math.Ceil(float64(total) / float64(m.Monitor.ContainerLogsPagination.PageSize))))
+		m.Monitor.ContainerLogsPagination.CurrentPage = m.Monitor.ContainerLogsPagination.TotalPages
+	}
+
+	m.updateLogsViewport()
+}
+/*
+func (m *Model) setLiveContainerLogs(msg tea.Msg) {
+	m.Monitor.ContainerLogsPagination.Lines =
+		append(m.Monitor.ContainerLogsPagination.Lines, msg)
+
+	total := len(m.Monitor.ContainerLogsPagination.Lines)
+	m.Monitor.ContainerLogsPagination.TotalPages =
+		int(math.Ceil(float64(total) / float64(m.Monitor.ContainerLogsPagination.PageSize)))
+
+	// 🚀 auto-scroll seulement si on est déjà sur la dernière page
+	if m.Monitor.ContainerLogsPagination.CurrentPage == m.Monitor.ContainerLogsPagination.TotalPages {
+		m.Monitor.ContainerLogsPagination.CurrentPage = m.Monitor.ContainerLogsPagination.TotalPages
+		m.updateLogsViewport()
+	}
+}
+*/
+func (m *Model) updateLogsViewport() {
+	if len(m.Monitor.ContainerLogsPagination.Lines) == 0 {
+		m.LogsViewport.SetContent("No logs available")
+		return
+	}
+
+	// S'assurer que PageSize est valide
+	if m.Monitor.ContainerLogsPagination.PageSize <= 0 {
+		m.Monitor.ContainerLogsPagination.PageSize = 100
+	}
+
+	// S'assurer que CurrentPage est dans les limites
+	if m.Monitor.ContainerLogsPagination.CurrentPage < 1 {
+		m.Monitor.ContainerLogsPagination.CurrentPage = 1
+	}
+	if m.Monitor.ContainerLogsPagination.CurrentPage > m.Monitor.ContainerLogsPagination.TotalPages {
+		m.Monitor.ContainerLogsPagination.CurrentPage = m.Monitor.ContainerLogsPagination.TotalPages
+	}
+
+	start := (m.Monitor.ContainerLogsPagination.CurrentPage - 1) * m.Monitor.ContainerLogsPagination.PageSize
+	end := min(start+m.Monitor.ContainerLogsPagination.PageSize, len(m.Monitor.ContainerLogsPagination.Lines))
+
+	pageContent := strings.Join(m.Monitor.ContainerLogsPagination.Lines[start:end], "\n")
+	m.LogsViewport.SetContent(pageContent)
+}
+
 // ------------------------- Window size -------------------------
 
 func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	m.Ui.Width = msg.Width
 	m.Ui.Height = msg.Height
+
 	if msg.Width < 40 || msg.Height < 10 {
 		m.Ui.Ready = false
 		return m, nil
 	}
 	m.Ui.Ready = true
 
+	// Calculer les hauteurs de chaque section
 	headerHeight := lipgloss.Height(m.renderHeader())
+	navHeight := lipgloss.Height(m.renderCurrentNav())
 	footerHeight := lipgloss.Height(m.renderFooter())
-	verticalMargin := headerHeight + footerHeight
 
-	tableHeight := msg.Height - verticalMargin - 3
+	// Calculer la hauteur disponible pour le contenu principal
+	verticalMargin := headerHeight + navHeight + footerHeight
+	contentHeight := max(1, msg.Height-verticalMargin)
+
+	// Configurer les viewports
+	m.Ui.Viewport.Width = msg.Width
+	m.Ui.Viewport.Height = contentHeight
+
+	m.LogsViewport.Width = msg.Width
+	m.LogsViewport.Height = contentHeight
+
+	// Configurer les tables
+	tableHeight := max(1, contentHeight-3) // Réserver de l'espace pour les en-têtes
+
 	m.Monitor.ProcessTable.SetWidth(msg.Width)
 	m.Monitor.ProcessTable.SetHeight(tableHeight)
 
@@ -176,10 +261,12 @@ func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	m.Network.NetworkTable.SetWidth(msg.Width)
 	m.Network.NetworkTable.SetHeight(tableHeight)
 
+	// Configurer les barres de progression
 	progWidth := min(max(msg.Width/3, 20), v.ProgressBarWidth)
 	m.Monitor.CpuProgress.Width = progWidth
 	m.Monitor.MemProgress.Width = progWidth
 	m.Monitor.SwapProgress.Width = progWidth
+
 	for k, p := range m.Monitor.DiskProgress {
 		p.Width = progWidth
 		m.Monitor.DiskProgress[k] = p
@@ -432,17 +519,17 @@ func (m Model) handleContainerLogsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "b", "esc":
 		m.Monitor.ContainerLogs = ""
 		m.goBack()
-	case "r":
-		// Refresh logs
-		if m.Monitor.SelectedContainer != nil {
-			m.Monitor.ContainerLogsLoading = true
-			return m, m.Monitor.App.GetContainerLogsCmd(m.Monitor.SelectedContainer.ID, "100")
-		}
 	case "up", "k":
-		m.Ui.Viewport.ScrollUp(1)
+		if m.Monitor.ContainerLogsPagination.CurrentPage > 1 {
+			m.Monitor.ContainerLogsPagination.CurrentPage--
+			m.updateLogsViewport()
+		}
 		return m, nil
 	case "down", "j":
-		m.Ui.Viewport.ScrollDown(1)
+		if m.Monitor.ContainerLogsPagination.CurrentPage < m.Monitor.ContainerLogsPagination.TotalPages {
+			m.Monitor.ContainerLogsPagination.CurrentPage++
+			m.updateLogsViewport()
+		}
 		return m, nil
 	case "pageup":
 		m.Ui.Viewport.PageUp()
@@ -607,7 +694,8 @@ func (m Model) handleContainerMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
 		m.setState(model.StateContainerLogs)
 		m.Monitor.ContainerLogsLoading = true
-		return m, m.Monitor.App.GetContainerLogsCmd(m.Monitor.SelectedContainer.ID, "100")
+		return m, m.Monitor.App.GetContainerLogsCmd(
+			m.Monitor.SelectedContainer.ID)
 	case "r":
 		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
 		m.ConfirmationVisible = true
@@ -680,7 +768,8 @@ func (m Model) executeContainerMenuAction() (tea.Model, tea.Cmd) {
 	case "logs":
 		m.setState(model.StateContainerLogs)
 		m.Monitor.ContainerLogsLoading = true
-		return m, m.Monitor.App.GetContainerLogsCmd(m.Monitor.SelectedContainer.ID, "100")
+		return m, m.Monitor.App.GetContainerLogsCmd(
+			m.Monitor.SelectedContainer.ID)
 	case "restart":
 		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
 		m.ConfirmationVisible = true

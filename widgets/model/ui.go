@@ -39,8 +39,6 @@ type UIModel struct {
 	Tabs            Menu
 	Width           int
 	Height          int
-	MinWidth        int
-	MinHeight       int
 	Ready           bool
 	Spinner         spinner.Model
 	Viewport        viewport.Model
