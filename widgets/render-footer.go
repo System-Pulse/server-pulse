@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/System-Pulse/server-pulse/widgets/model"
@@ -50,7 +51,11 @@ func (m Model) renderFooter() string {
 	case model.StateContainer:
 		hints = "[Tab/←→] Switch tabs • [b] Back • [q] Quit"
 	case model.StateContainerLogs:
-		hints = "[↑↓] Scroll • [r] Refresh • [b] Back • [q] Quit"
+		streamingStatus := ""
+		if m.Monitor.ContainerLogsStreaming {
+			streamingStatus = " | 🟢 LIVE"
+		}
+		hints = fmt.Sprintf("[↑↓] Scroll • [s] Toggle streaming%s • [r] Refresh • [b] Back • [q] Quit", streamingStatus)
 	case model.StateNetwork:
 		hints = "[Tab/←→] Switch tabs • [b] Back • [q] Quit"
 	case model.StateDiagnostics, model.StateReporting:

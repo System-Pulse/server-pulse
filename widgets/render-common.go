@@ -59,3 +59,12 @@ func (m Model) getContentHeight() int {
     contentHeight := availableHeight - 2 // 2 lignes pour les marges
     return max(1, contentHeight)
 }
+
+func (m *Model) cleanupLogsStream() {
+    if m.Monitor.LogsCancelFunc != nil {
+        m.Monitor.LogsCancelFunc()
+    }
+    m.Monitor.ContainerLogsStreaming = false
+    m.Monitor.ContainerLogsChan = nil
+    m.Monitor.LogsCancelFunc = nil
+}

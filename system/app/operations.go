@@ -88,16 +88,15 @@ func (dm *DockerManager) DeleteContainer(containerID string, force bool) error {
 	return nil
 }
 
-
 func (dm *DockerManager) GetContainerLogs(containerID string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	options := container.LogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Timestamps: false,
-		Follow:     true,
+		Follow:     false,
 		Tail:       "all",
 	}
 
@@ -126,47 +125,89 @@ func (dm *DockerManager) GetContainerLogs(containerID string) (string, error) {
 	return result.String(), nil
 }
 
-func (dm *DockerManager) StreamContainerLogsCmd(containerID string) tea.Cmd {
-    return func() tea.Msg {
-        ctx := context.Background()
+func (dm *DockerManager) StreamContainerLogs(containerID string) (chan string, context.CancelFunc, error) {
+	ctx, cancel := context.WithCancel(context.Background())
 
-        options := container.LogsOptions{
-            ShowStdout: true,
-            ShowStderr: true,
-            Timestamps: false,
-            Follow:     true,   // 🚀 streaming
-            Tail:       "all",  // historique complet
-        }
+	options := container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Timestamps: false,
+		Follow:     true,
+		Tail:       "100",
+	}
 
-        logs, err := dm.Cli.ContainerLogs(ctx, containerID, options)
-        if err != nil {
-            return ContainerLogsMsg{
-                ContainerID: containerID,
-                Logs:        "",
-                Error:       err,
-            }
-        }
+	logsReader, err := dm.Cli.ContainerLogs(ctx, containerID, options)
+	if err != nil {
+		cancel()
+		return nil, nil, fmt.Errorf("failed to stream logs: %w", err)
+	}
 
-        // On lance une goroutine qui envoie chaque nouvelle ligne
-        go func() {
-            scanner := bufio.NewScanner(logs)
-            for scanner.Scan() {
-                line := scanner.Text()
-                if len(line) > 8 && (line[0] == 1 || line[0] == 2) {
-                    line = line[8:]
-                }
-                // on envoie les lignes une par une
-                tea.Println(ContainerLogLineMsg{
-                    ContainerID: containerID,
-                    Line:        line,
-                })
-            }
-        }()
+	logChan := make(chan string, 50)
 
-        return nil
-    }
+	go func() {
+		defer close(logChan)
+		defer logsReader.Close()
+
+		scanner := bufio.NewScanner(logsReader)
+		
+		buf := make([]byte, 0, 64*1024)
+		scanner.Buffer(buf, 1024*1024)
+		
+		for scanner.Scan() {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				line := scanner.Text()
+
+				cleanLine := line
+				if len(line) > 8 && (line[0] == 1 || line[0] == 2) {
+					cleanLine = line[8:]
+				}
+
+				select {
+				case logChan <- cleanLine:
+				case <-ctx.Done():
+					return
+				case <-time.After(1 * time.Second):
+					continue
+				}
+			}
+		}
+
+		if err := scanner.Err(); err != nil && !strings.Contains(err.Error(), "context canceled") {
+			select {
+			case logChan <- fmt.Sprintf("ERROR: %v", err):
+			case <-ctx.Done():
+			}
+		}
+	}()
+
+	return logChan, cancel, nil
 }
 
+func (dm *DockerManager) StartLogsStreamCmd(containerID string) tea.Cmd {
+	return func() tea.Msg {
+		logChan, cancelFunc, err := dm.StreamContainerLogs(containerID)
+		if err != nil {
+			return utils.ErrMsg(err)
+		}
+
+		return ContainerLogsStreamMsg{
+			ContainerID: containerID,
+			LogChan:     logChan,
+			CancelFunc:  cancelFunc,
+		}
+	}
+}
+
+func (dm *DockerManager) StopLogsStreamCmd(containerID string) tea.Cmd {
+	return func() tea.Msg {
+		return ContainerLogsStopMsg{
+			ContainerID: containerID,
+		}
+	}
+}
 
 func (dm *DockerManager) GetContainerStatus(containerID string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

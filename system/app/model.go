@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"time"
 
 	"github.com/moby/moby/api/types/container"
@@ -80,9 +81,19 @@ type ContainerLogsMsg struct {
 	Error       error
 }
 
+type ContainerLogsStreamMsg struct {
+	ContainerID string
+	LogChan     chan string
+	CancelFunc  context.CancelFunc
+}
+
+type ContainerLogsStopMsg struct {
+	ContainerID string
+}
+
 type ContainerLogLineMsg struct {
-    ContainerID string
-    Line        string
+	ContainerID string
+	Line        string
 }
 
 type ContainerOperationMsg struct {

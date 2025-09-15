@@ -65,6 +65,7 @@ func (m *Model) setState(newState model.AppState) {
 }
 
 func (m *Model) goBack() {
+	m.cleanupLogsStream()
 	switch m.Ui.State {
 	case model.StateContainer, model.StateContainerLogs:
 		m.setState(model.StateContainers)

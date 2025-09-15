@@ -1,6 +1,8 @@
 package model
 
 import (
+	"context"
+
 	info "github.com/System-Pulse/server-pulse/system/informations"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	resource "github.com/System-Pulse/server-pulse/system/resource"
@@ -28,6 +30,10 @@ type MonitorModel struct {
 	ShouldQuit              bool
 	ContainerLogsPagination ContainerLogsPagination
 
+	ContainerLogsStreaming bool
+	ContainerLogsChan      chan string
+	LogsCancelFunc         context.CancelFunc
+
 	ContainerLogs        string
 	ContainerLogsLoading bool
 	CpuHistory           DataHistory
@@ -49,4 +55,10 @@ type MonitorModel struct {
 	ProcessTable         table.Model
 	Container            table.Model
 	DiskProgress         map[string]progress.Model
+}
+
+func (p *ContainerLogsPagination) Clear() {
+	p.Lines = []string{}
+	p.CurrentPage = 1
+	p.TotalPages = 1
 }

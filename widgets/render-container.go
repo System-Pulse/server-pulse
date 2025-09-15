@@ -320,15 +320,30 @@ func (m Model) renderContainerLogs() string {
 	}
 
 	doc := strings.Builder{}
+	status := "Loading..."
+	if m.Monitor.ContainerLogsStreaming {
+		status = "🟢 Live Streaming"
+	} else if !m.Monitor.ContainerLogsLoading {
+		status = "🟡 Static View"
+	} else {
+		status = "⏳ Loading..."
+	}
+	// ✅ Debug info
+	debugInfo := fmt.Sprintf("Lines: %d | Streaming: %v | Loading: %v",
+		len(m.Monitor.ContainerLogsPagination.Lines),
+		m.Monitor.ContainerLogsStreaming,
+		m.Monitor.ContainerLogsLoading)
 
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render(
-		fmt.Sprintf("Logs: %s (Page %d/%d)",
+		fmt.Sprintf("Logs: %s | %s (Page %d/%d)\n%s",
 			m.Monitor.SelectedContainer.Name,
+			status,
 			m.Monitor.ContainerLogsPagination.CurrentPage,
-			m.Monitor.ContainerLogsPagination.TotalPages)))
+			m.Monitor.ContainerLogsPagination.TotalPages,
+			debugInfo))) // ✅ Temporary debug info
 
 	if m.Monitor.ContainerLogsLoading {
-		doc.WriteString(v.MetricLabelStyle.Render("Loading logs..."))
+		doc.WriteString("\n\n" + v.MetricLabelStyle.Render("Loading logs..."))
 	} else if len(m.Monitor.ContainerLogsPagination.Lines) > 0 {
 		logStyle := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("250")).
@@ -338,9 +353,9 @@ func (m Model) renderContainerLogs() string {
 			Width(80)
 
 		m.LogsViewport.Style = logStyle
-		doc.WriteString(m.LogsViewport.View())
+		doc.WriteString("\n" + m.LogsViewport.View())
 	} else {
-		doc.WriteString(v.MetricLabelStyle.Render("No logs available or logs are empty"))
+		doc.WriteString("\n\n" + v.MetricLabelStyle.Render("No logs available"))
 	}
 
 	return v.CardStyle.Render(doc.String())
