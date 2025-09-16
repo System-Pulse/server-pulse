@@ -35,8 +35,14 @@ func (dm *DockerManager) RefreshContainers() ([]Container, error) {
 	}
 
 	var result []Container
+	ctx := context.Background()
 
 	for _, cont := range containers {
+		containerJSON, err := dm.Cli.ContainerInspect(ctx, cont.ID)
+		if err != nil {
+			continue // Skip this container if inspection fails
+		}
+
 		projectName := cont.Labels["com.docker.compose.project"]
 		if projectName == "" {
 			projectName = "N/A"
@@ -64,18 +70,19 @@ func (dm *DockerManager) RefreshContainers() ([]Container, error) {
 		}
 
 		health := "N/A"
-		if strings.Contains(cont.Status, "healthy") {
-			health = "healthy"
-		} else if strings.Contains(cont.Status, "unhealthy") {
-			health = "unhealthy"
-		} else if strings.Contains(cont.Status, "starting") {
-			health = "starting"
-		} else if state == "running" {
-			health = "running"
-		} else if state == "exited" {
-			health = "exited"
-		} else if state == "paused" {
-			health = "paused"
+		if containerJSON.State.Health != nil {
+			health = string(containerJSON.State.Health.Status)
+		} else {
+			switch state {
+			case "running":
+				health = "running"
+			case "exited":
+				health = "exited"
+			case "paused":
+				health = "paused"
+			case "created":
+				health = "created"
+			}
 		}
 
 		c := Container{

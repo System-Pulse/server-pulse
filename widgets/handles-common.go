@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/System-Pulse/server-pulse/system/app"
 	system "github.com/System-Pulse/server-pulse/system/app"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	tea "github.com/charmbracelet/bubbletea"
@@ -88,7 +89,7 @@ func (m *Model) setContainerLogs(logs string) {
 	lines := strings.Split(strings.TrimSpace(logs), "\n")
 
 	m.Monitor.ContainerLogsPagination.Lines = lines
-	m.Monitor.ContainerLogsPagination.PageSize = 14
+	m.Monitor.ContainerLogsPagination.PageSize = 12 // lines by page
 	m.Monitor.ContainerLogsPagination.CurrentPage = 1
 
 	total := len(lines)
@@ -125,4 +126,31 @@ func (m *Model) updateLogsViewport() {
 
 	pageContent := strings.Join(m.Monitor.ContainerLogsPagination.Lines[start:end], "\n")
 	m.LogsViewport.SetContent(pageContent)
+}
+
+func (m Model) handleLogsStreamMsg(msg system.ContainerLogsStreamMsg) (tea.Model, tea.Cmd) {
+	m.Monitor.ContainerLogsStreaming = true
+	m.Monitor.ContainerLogsLoading = false
+	m.Monitor.ContainerLogsChan = msg.LogChan
+	m.Monitor.LogsCancelFunc = msg.CancelFunc
+
+	m.Monitor.ContainerLogsPagination.Clear()
+	m.updateLogsViewport()
+
+	return m, m.readNextLogLine()
+}
+
+func (m *Model) handleRealTimeStats(containerID string, statsChan chan app.ContainerStatsMsg) {
+	for stats := range statsChan {
+		if m.Monitor.ContainerDetails != nil && m.Monitor.ContainerDetails.ID == containerID {
+			m.Monitor.ContainerDetails.Stats.CPUPercent = stats.CPUPercent
+			m.Monitor.ContainerDetails.Stats.MemoryPercent = stats.MemPercent
+			m.Monitor.ContainerDetails.Stats.MemoryUsage = stats.MemUsage
+			m.Monitor.ContainerDetails.Stats.MemoryLimit = stats.MemLimit
+			m.Monitor.ContainerDetails.Stats.NetworkRx = stats.NetRX
+			m.Monitor.ContainerDetails.Stats.NetworkTx = stats.NetTX
+
+			m.updateChartsWithStats(stats)
+		}
+	}
 }

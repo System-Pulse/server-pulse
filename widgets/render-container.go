@@ -322,25 +322,23 @@ func (m Model) renderContainerLogs() string {
 	doc := strings.Builder{}
 	status := "Loading..."
 	if m.Monitor.ContainerLogsStreaming {
-		status = "🟢 Live Streaming"
+		status = "🟢 Live"
 	} else if !m.Monitor.ContainerLogsLoading {
-		status = "🟡 Static View"
+		if strings.ToLower(m.Monitor.SelectedContainer.Status) == "up" {
+			status = "🟡 Press 's' for live"
+		} else {
+			status = "🔴 Streaming unavailable (container not running)"
+		}
 	} else {
 		status = "⏳ Loading..."
 	}
-	// ✅ Debug info
-	debugInfo := fmt.Sprintf("Lines: %d | Streaming: %v | Loading: %v",
-		len(m.Monitor.ContainerLogsPagination.Lines),
-		m.Monitor.ContainerLogsStreaming,
-		m.Monitor.ContainerLogsLoading)
 
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render(
-		fmt.Sprintf("Logs: %s | %s (Page %d/%d)\n%s",
+		fmt.Sprintf("Logs: %s | %s (Page %d/%d)",
 			m.Monitor.SelectedContainer.Name,
 			status,
 			m.Monitor.ContainerLogsPagination.CurrentPage,
-			m.Monitor.ContainerLogsPagination.TotalPages,
-			debugInfo))) // ✅ Temporary debug info
+			m.Monitor.ContainerLogsPagination.TotalPages)))
 
 	if m.Monitor.ContainerLogsLoading {
 		doc.WriteString("\n\n" + v.MetricLabelStyle.Render("Loading logs..."))

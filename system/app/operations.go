@@ -203,7 +203,11 @@ func (dm *DockerManager) StartLogsStreamCmd(containerID string) tea.Cmd {
 	return func() tea.Msg {
 		logChan, cancelFunc, err := dm.StreamContainerLogs(containerID)
 		if err != nil {
-			return utils.ErrMsg(err)
+			return ContainerLogsMsg{
+				ContainerID: containerID,
+				Logs:        "",
+				Error:       fmt.Errorf("streaming unavailable: %w", err),
+			}
 		}
 
 		return ContainerLogsStreamMsg{

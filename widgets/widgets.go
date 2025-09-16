@@ -6,12 +6,76 @@ import (
 	"time"
 
 	"github.com/System-Pulse/server-pulse/system/app"
+	system "github.com/System-Pulse/server-pulse/system/app"
+	info "github.com/System-Pulse/server-pulse/system/informations"
+	proc "github.com/System-Pulse/server-pulse/system/process"
+	"github.com/System-Pulse/server-pulse/system/resource"
 	"github.com/System-Pulse/server-pulse/utils"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 
+	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
+
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		return m.handleWindowSize(msg)
+	case tea.KeyMsg:
+		return m.handleKeyMsg(msg)
+	case tea.MouseMsg:
+		return m.handleMouseMsg(msg)
+	case info.SystemMsg, resource.CpuMsg, resource.MemoryMsg, resource.DiskMsg, resource.NetworkMsg, proc.ProcessMsg:
+		return m.handleResourceAndProcessMsgs(msg)
+	case system.ContainerMsg, system.ContainerDetailsMsg, system.ContainerLogsMsg, system.ContainerOperationMsg,
+		system.ExecShellMsg, system.ContainerStatsChanMsg:
+		return m.handleContainerRelatedMsgs(msg)
+	case system.ContainerLogsStreamMsg:
+		return m.handleLogsStreamMsg(msg)
+	case system.ContainerLogsStopMsg:
+		return m.handleLogsStopMsg()
+	case system.ContainerLogLineMsg:
+		return m.handleLogLineMsg(msg)
+	case model.ClearOperationMsg:
+		m.LastOperationMsg = ""
+	case utils.ErrMsg:
+		m.Err = msg
+	case utils.TickMsg:
+		return m.handleTickMsg()
+	case progress.FrameMsg:
+		return m.handleProgressFrame(msg)
+	}
+
+	switch m.Ui.State {
+	case model.StateProcess:
+		if !m.Ui.SearchMode {
+			m.Monitor.ProcessTable, cmd = m.Monitor.ProcessTable.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+	case model.StateContainers:
+		if !m.Ui.SearchMode {
+			m.Monitor.Container, cmd = m.Monitor.Container.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+	case model.StateContainerLogs:
+		m.LogsViewport, cmd = m.LogsViewport.Update(msg)
+		cmds = append(cmds, cmd)
+	case model.StateNetwork:
+		m.Network.NetworkTable, cmd = m.Network.NetworkTable.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
+	m.Ui.Viewport, cmd = m.Ui.Viewport.Update(msg)
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
+}
 
 func (m *Model) updateProcessTable() tea.Cmd {
 	var rows []table.Row
@@ -80,7 +144,6 @@ func (m *Model) updateContainerTable(containers []app.Container) tea.Cmd {
 			continue
 		}
 
-		// Format status with icon like ctop
 		statusWithIcon, health := m.getStatusWithIconForTable(c.Status, c.Health)
 
 		rows = append(rows, table.Row{
@@ -95,40 +158,6 @@ func (m *Model) updateContainerTable(containers []app.Container) tea.Cmd {
 	}
 	m.Monitor.Container.SetRows(rows)
 	return nil
-}
-
-func (m *Model) getStatusWithIconForTable(status, health string) (string, string) {
-	switch health {
-	case "healthy":
-		return "☼ " + status, health
-	case "unhealthy":
-		return "⚠ " + status, health
-	case "running":
-		return "▶ " + status, "N/A"
-	case "exited":
-		return "⏹ " + status, "N/A"
-	case "paused":
-		return "⏸ " + status, "N/A"
-	case "created":
-		return "◉ " + status, "N/A"
-	default:
-		return status, health
-	}
-}
-
-func (m *Model) handleRealTimeStats(containerID string, statsChan chan app.ContainerStatsMsg) {
-	for stats := range statsChan {
-		if m.Monitor.ContainerDetails != nil && m.Monitor.ContainerDetails.ID == containerID {
-			m.Monitor.ContainerDetails.Stats.CPUPercent = stats.CPUPercent
-			m.Monitor.ContainerDetails.Stats.MemoryPercent = stats.MemPercent
-			m.Monitor.ContainerDetails.Stats.MemoryUsage = stats.MemUsage
-			m.Monitor.ContainerDetails.Stats.MemoryLimit = stats.MemLimit
-			m.Monitor.ContainerDetails.Stats.NetworkRx = stats.NetRX
-			m.Monitor.ContainerDetails.Stats.NetworkTx = stats.NetTX
-
-			m.updateChartsWithStats(stats)
-		}
-	}
 }
 
 func (m *Model) updateChartsWithStats(stats app.ContainerStatsMsg) {
@@ -169,24 +198,8 @@ func (m *Model) updateChartsWithStats(stats app.ContainerStatsMsg) {
 	m.LastChartUpdate = now
 }
 
-func (m *Model) loadContainerDetails(containerID string) tea.Cmd {
-	return func() tea.Msg {
-		details, err := m.Monitor.App.GetContainerDetails(containerID)
-		if err != nil {
-			return utils.ErrMsg(err)
-		}
-		return app.ContainerDetailsMsg(*details)
-	}
-}
-
 func tick() tea.Cmd {
 	return tea.Tick(time.Second*2, func(t time.Time) tea.Msg {
 		return utils.TickMsg(t)
-	})
-}
-
-func clearOperationMessage() tea.Cmd {
-	return tea.Tick(time.Second*5, func(t time.Time) tea.Msg {
-		return model.ClearOperationMsg{}
 	})
 }

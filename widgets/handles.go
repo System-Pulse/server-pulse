@@ -5,6 +5,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	system "github.com/System-Pulse/server-pulse/system/app"
@@ -19,65 +20,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
-
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var (
-		cmd  tea.Cmd
-		cmds []tea.Cmd
-	)
-
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		return m.handleWindowSize(msg)
-	case tea.KeyMsg:
-		return m.handleKeyMsg(msg)
-	case tea.MouseMsg:
-		return m.handleMouseMsg(msg)
-	case info.SystemMsg, resource.CpuMsg, resource.MemoryMsg, resource.DiskMsg, resource.NetworkMsg, proc.ProcessMsg:
-		return m.handleResourceAndProcessMsgs(msg)
-	case system.ContainerMsg, system.ContainerDetailsMsg, system.ContainerLogsMsg, system.ContainerOperationMsg,
-		system.ExecShellMsg, system.ContainerStatsChanMsg:
-		return m.handleContainerRelatedMsgs(msg)
-	case system.ContainerLogsStreamMsg:
-		return m.handleLogsStreamMsg(msg)
-	case system.ContainerLogsStopMsg:
-		return m.handleLogsStopMsg()
-	case system.ContainerLogLineMsg:
-		return m.handleLogLineMsg(msg)
-	case model.ClearOperationMsg:
-		m.LastOperationMsg = ""
-	case utils.ErrMsg:
-		m.Err = msg
-	case utils.TickMsg:
-		return m.handleTickMsg()
-	case progress.FrameMsg:
-		return m.handleProgressFrame(msg)
-	}
-
-	switch m.Ui.State {
-	case model.StateProcess:
-		if !m.Ui.SearchMode {
-			m.Monitor.ProcessTable, cmd = m.Monitor.ProcessTable.Update(msg)
-			cmds = append(cmds, cmd)
-		}
-	case model.StateContainers:
-		if !m.Ui.SearchMode {
-			m.Monitor.Container, cmd = m.Monitor.Container.Update(msg)
-			cmds = append(cmds, cmd)
-		}
-	case model.StateContainerLogs:
-		m.LogsViewport, cmd = m.LogsViewport.Update(msg)
-		cmds = append(cmds, cmd)
-	case model.StateNetwork:
-		m.Network.NetworkTable, cmd = m.Network.NetworkTable.Update(msg)
-		cmds = append(cmds, cmd)
-	}
-
-	m.Ui.Viewport, cmd = m.Ui.Viewport.Update(msg)
-	cmds = append(cmds, cmd)
-
-	return m, tea.Batch(cmds...)
-}
 
 // ------------------------- Handlers for system-related and resource messages -------------------------
 
@@ -126,6 +68,17 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case system.ContainerMsg:
 		containers := []system.Container(msg)
+		if m.Monitor.SelectedContainer != nil && m.Monitor.ContainerLogsStreaming {
+			for _, container := range containers {
+				if container.ID == m.Monitor.SelectedContainer.ID {
+					if strings.ToLower(container.Status) != "up" && m.Monitor.ContainerLogsStreaming {
+						m.cleanupLogsStream()
+						m.LastOperationMsg = fmt.Sprintf("Container stopped, streaming disabled (status: %s)", container.Status)
+					}
+					break
+				}
+			}
+		}
 		return m, m.updateContainerTable(containers)
 	case system.ContainerDetailsMsg:
 		details := system.ContainerDetails(msg)
@@ -134,7 +87,12 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		logsMsg := system.ContainerLogsMsg(msg)
 		m.Monitor.ContainerLogsLoading = false
 		if logsMsg.Error != nil {
-			m.Monitor.ContainerLogs = fmt.Sprintf("Error loading logs: %v", logsMsg.Error)
+			if strings.Contains(logsMsg.Error.Error(), "streaming unavailable") {
+				m.Monitor.ContainerLogs = fmt.Sprintf("Streaming not available: %v\nShowing static logs instead...", logsMsg.Error)
+				return m, m.Monitor.App.GetContainerLogsCmd(m.Monitor.SelectedContainer.ID)
+			} else {
+				m.Monitor.ContainerLogs = fmt.Sprintf("Error loading logs: %v", logsMsg.Error)
+			}
 			m.Monitor.ContainerLogsPagination.Lines = []string{m.Monitor.ContainerLogs}
 			m.Monitor.ContainerLogsPagination.TotalPages = 1
 			m.Monitor.ContainerLogsPagination.CurrentPage = 1
@@ -162,18 +120,6 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
-}
-
-func (m Model) handleLogsStreamMsg(msg system.ContainerLogsStreamMsg) (tea.Model, tea.Cmd) {
-	m.Monitor.ContainerLogsStreaming = true
-	m.Monitor.ContainerLogsLoading = false
-	m.Monitor.ContainerLogsChan = msg.LogChan
-	m.Monitor.LogsCancelFunc = msg.CancelFunc
-
-	m.Monitor.ContainerLogsPagination.Clear()
-	m.updateLogsViewport()
-
-	return m, m.readNextLogLine()
 }
 
 // ------------------------- Window size -------------------------
