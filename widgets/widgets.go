@@ -81,14 +81,14 @@ func (m *Model) updateContainerTable(containers []app.Container) tea.Cmd {
 		}
 
 		// Format status with icon like ctop
-		statusWithIcon := m.getStatusWithIconForTable(c.Status, c.Health)
+		statusWithIcon, health := m.getStatusWithIconForTable(c.Status, c.Health)
 
 		rows = append(rows, table.Row{
 			c.ID,
 			utils.Ellipsis(c.Image, 12),
 			utils.Ellipsis(c.Name, 16),
 			statusWithIcon,
-			c.Health,
+			health,
 			c.Project,
 			utils.Ellipsis(c.PortsStr, 20),
 		})
@@ -97,22 +97,22 @@ func (m *Model) updateContainerTable(containers []app.Container) tea.Cmd {
 	return nil
 }
 
-func (m *Model) getStatusWithIconForTable(status, health string) string {
-	switch {
-	case health == "healthy":
-		return "☼ " + status
-	case health == "unhealthy":
-		return "⚠ " + status
-	case status == "running":
-		return "▶ " + status
-	case status == "exited":
-		return "⏹ " + status
-	case status == "paused":
-		return "⏸ " + status
-	case status == "created":
-		return "◉ " + status
+func (m *Model) getStatusWithIconForTable(status, health string) (string, string) {
+	switch health {
+	case "healthy":
+		return "☼ " + status, health
+	case "unhealthy":
+		return "⚠ " + status, health
+	case "running":
+		return "▶ " + status, "N/A"
+	case "exited":
+		return "⏹ " + status, "N/A"
+	case "paused":
+		return "⏸ " + status, "N/A"
+	case "created":
+		return "◉ " + status, "N/A"
 	default:
-		return status
+		return status, health
 	}
 }
 
