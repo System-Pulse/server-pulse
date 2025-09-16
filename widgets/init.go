@@ -56,6 +56,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 		{Title: "Image", Width: 12},
 		{Title: "Name", Width: 16},
 		{Title: "Status", Width: 12},
+		{Title: "Health", Width: 12},
 		{Title: "Project", Width: 20},
 		{Title: "Ports", Width: 20},
 	}

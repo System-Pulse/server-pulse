@@ -88,6 +88,7 @@ func (m *Model) updateContainerTable(containers []app.Container) tea.Cmd {
 			utils.Ellipsis(c.Image, 12),
 			utils.Ellipsis(c.Name, 16),
 			statusWithIcon,
+			c.Health,
 			c.Project,
 			utils.Ellipsis(c.PortsStr, 20),
 		})
