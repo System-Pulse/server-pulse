@@ -42,6 +42,7 @@ type MonitorModel struct {
 	NetworkTxHistory     DataHistory
 	DiskReadHistory      DataHistory
 	DiskWriteHistory     DataHistory
+	ContainerHistories   map[string]ContainerHistory // History per container ID
 	ContainerViewState   ContainerViewState
 	ContainerTabs        []string
 	ContainerDetails     *app.ContainerDetails

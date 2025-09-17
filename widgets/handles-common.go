@@ -141,16 +141,32 @@ func (m Model) handleLogsStreamMsg(msg system.ContainerLogsStreamMsg) (tea.Model
 }
 
 func (m *Model) handleRealTimeStats(containerID string, statsChan chan app.ContainerStatsMsg) {
-	for stats := range statsChan {
-		if m.Monitor.ContainerDetails != nil && m.Monitor.ContainerDetails.ID == containerID {
-			m.Monitor.ContainerDetails.Stats.CPUPercent = stats.CPUPercent
-			m.Monitor.ContainerDetails.Stats.MemoryPercent = stats.MemPercent
-			m.Monitor.ContainerDetails.Stats.MemoryUsage = stats.MemUsage
-			m.Monitor.ContainerDetails.Stats.MemoryLimit = stats.MemLimit
-			m.Monitor.ContainerDetails.Stats.NetworkRx = stats.NetRX
-			m.Monitor.ContainerDetails.Stats.NetworkTx = stats.NetTX
+    for stats := range statsChan {
+        if m.Monitor.ContainerDetails == nil {
+            m.Monitor.ContainerDetails = &app.ContainerDetails{
+                Container: app.Container{
+                    ID: containerID,
+                },
+                Stats: app.ContainerStats{
+                    CPUPercent:    stats.CPUPercent,
+                    MemoryPercent: stats.MemPercent,
+                    MemoryUsage:   stats.MemUsage,
+                    MemoryLimit:   stats.MemLimit,
+                    NetworkRx:     stats.NetRX,  // En bytes
+                    NetworkTx:     stats.NetTX,  // En bytes
+                },
+            }
+        }
 
-			m.updateChartsWithStats(stats)
-		}
-	}
+        if m.Monitor.ContainerDetails.Container.ID == containerID {
+            m.Monitor.ContainerDetails.Stats.CPUPercent = stats.CPUPercent
+            m.Monitor.ContainerDetails.Stats.MemoryPercent = stats.MemPercent
+            m.Monitor.ContainerDetails.Stats.MemoryUsage = stats.MemUsage
+            m.Monitor.ContainerDetails.Stats.MemoryLimit = stats.MemLimit
+            m.Monitor.ContainerDetails.Stats.NetworkRx = stats.NetRX
+            m.Monitor.ContainerDetails.Stats.NetworkTx = stats.NetTX
+
+            m.updateChartsWithStats(stats)
+        }
+    }
 }

@@ -77,50 +77,126 @@ func clearOperationMessage() tea.Cmd {
 }
 
 func (m *Model) loadContainerDetails(containerID string) tea.Cmd {
+	return tea.Sequence(
+		func() tea.Msg {
+			details, err := m.Monitor.App.GetContainerDetails(containerID)
+			if err != nil {
+				return utils.ErrMsg(err)
+			}
+			return app.ContainerDetailsMsg(*details)
+		},
+		func() tea.Msg {
+			statsChan, err := m.Monitor.App.GetContainerStatsStream(containerID)
+			if err != nil {
+				return utils.ErrMsg(err)
+			}
+			return app.ContainerStatsChanMsg{
+				ContainerID: containerID,
+				StatsChan:   statsChan,
+			}
+		},
+	)
+}
+
+func (m *Model) startContainerStats(containerID string) tea.Cmd {
 	return func() tea.Msg {
-		details, err := m.Monitor.App.GetContainerDetails(containerID)
+		statsChan, err := m.Monitor.App.GetContainerStatsStream(containerID)
 		if err != nil {
 			return utils.ErrMsg(err)
 		}
-		return app.ContainerDetailsMsg(*details)
+
+		return app.ContainerStatsChanMsg{
+			ContainerID: containerID,
+			StatsChan:   statsChan,
+		}
+	}
+}
+
+func (m *Model) stopContainerStats() {
+	// Close any active stats channels
+	for containerID, containerHistory := range m.Monitor.ContainerHistories {
+		// For now, we'll just clear the history when stopping stats
+		// In a real implementation, we might want to close the channel
+		containerHistory.CpuHistory.Points = []model.DataPoint{}
+		containerHistory.MemoryHistory.Points = []model.DataPoint{}
+		containerHistory.NetworkRxHistory.Points = []model.DataPoint{}
+		containerHistory.NetworkTxHistory.Points = []model.DataPoint{}
+		m.Monitor.ContainerHistories[containerID] = containerHistory
 	}
 }
 
 func (m *Model) updateChartsWithStats(stats app.ContainerStatsMsg) {
 	now := time.Now()
+	// fmt.Printf("DEBUG: updateChartsWithStats called for container %s - CPU: %.1f%%, Mem: %.1f%%, NetRX: %d, NetTX: %d\n",
+	// 	stats.ContainerID, stats.CPUPercent, stats.MemPercent, stats.NetRX, stats.NetTX)
 
-	m.Monitor.CpuHistory.Points = append(m.Monitor.CpuHistory.Points, model.DataPoint{
+	// Initialize container history if it doesn't exist
+	if _, exists := m.Monitor.ContainerHistories[stats.ContainerID]; !exists {
+		m.Monitor.ContainerHistories[stats.ContainerID] = model.ContainerHistory{
+			CpuHistory: model.DataHistory{
+				MaxPoints: 60,
+				Points:    make([]model.DataPoint, 0),
+			},
+			MemoryHistory: model.DataHistory{
+				MaxPoints: 60,
+				Points:    make([]model.DataPoint, 0),
+			},
+			NetworkRxHistory: model.DataHistory{
+				MaxPoints: 60,
+				Points:    make([]model.DataPoint, 0),
+			},
+			NetworkTxHistory: model.DataHistory{
+				MaxPoints: 60,
+				Points:    make([]model.DataPoint, 0),
+			},
+		}
+	}
+
+	// Get container history
+	containerHistory := m.Monitor.ContainerHistories[stats.ContainerID]
+	// fmt.Printf("DEBUG: Container history for %s - CPU points: %d, Memory points: %d\n",
+	// 	stats.ContainerID, len(containerHistory.CpuHistory.Points), len(containerHistory.MemoryHistory.Points))
+
+	// Update CPU history
+	containerHistory.CpuHistory.Points = append(containerHistory.CpuHistory.Points, model.DataPoint{
 		Timestamp: now,
 		Value:     stats.CPUPercent,
 	})
-	if len(m.Monitor.CpuHistory.Points) > m.Monitor.CpuHistory.MaxPoints {
-		m.Monitor.CpuHistory.Points = m.Monitor.CpuHistory.Points[1:]
+	if len(containerHistory.CpuHistory.Points) > containerHistory.CpuHistory.MaxPoints {
+		containerHistory.CpuHistory.Points = containerHistory.CpuHistory.Points[1:]
 	}
 
-	m.Monitor.MemoryHistory.Points = append(m.Monitor.MemoryHistory.Points, model.DataPoint{
+	// Update Memory history
+	containerHistory.MemoryHistory.Points = append(containerHistory.MemoryHistory.Points, model.DataPoint{
 		Timestamp: now,
 		Value:     stats.MemPercent,
 	})
-	if len(m.Monitor.MemoryHistory.Points) > m.Monitor.MemoryHistory.MaxPoints {
-		m.Monitor.MemoryHistory.Points = m.Monitor.MemoryHistory.Points[1:]
+	if len(containerHistory.MemoryHistory.Points) > containerHistory.MemoryHistory.MaxPoints {
+		containerHistory.MemoryHistory.Points = containerHistory.MemoryHistory.Points[1:]
 	}
 
-	m.Monitor.NetworkRxHistory.Points = append(m.Monitor.NetworkRxHistory.Points, model.DataPoint{
+	// Update Network RX history
+	containerHistory.NetworkRxHistory.Points = append(containerHistory.NetworkRxHistory.Points, model.DataPoint{
 		Timestamp: now,
 		Value:     float64(stats.NetRX) / 1024 / 1024,
 	})
-	if len(m.Monitor.NetworkRxHistory.Points) > m.Monitor.NetworkRxHistory.MaxPoints {
-		m.Monitor.NetworkRxHistory.Points = m.Monitor.NetworkRxHistory.Points[1:]
+	if len(containerHistory.NetworkRxHistory.Points) > containerHistory.NetworkRxHistory.MaxPoints {
+		containerHistory.NetworkRxHistory.Points = containerHistory.NetworkRxHistory.Points[1:]
 	}
 
-	m.Monitor.NetworkTxHistory.Points = append(m.Monitor.NetworkTxHistory.Points, model.DataPoint{
+	// Update Network TX history
+	containerHistory.NetworkTxHistory.Points = append(containerHistory.NetworkTxHistory.Points, model.DataPoint{
 		Timestamp: now,
 		Value:     float64(stats.NetTX) / 1024 / 1024,
 	})
-	if len(m.Monitor.NetworkTxHistory.Points) > m.Monitor.NetworkTxHistory.MaxPoints {
-		m.Monitor.NetworkTxHistory.Points = m.Monitor.NetworkTxHistory.Points[1:]
+	if len(containerHistory.NetworkTxHistory.Points) > containerHistory.NetworkTxHistory.MaxPoints {
+		containerHistory.NetworkTxHistory.Points = containerHistory.NetworkTxHistory.Points[1:]
 	}
 
+	// Store updated history back to map
+	m.Monitor.ContainerHistories[stats.ContainerID] = containerHistory
+	// fmt.Printf("DEBUG: Updated container history for %s - CPU points: %d, Memory points: %d\n",
+	// 	stats.ContainerID, len(containerHistory.CpuHistory.Points), len(containerHistory.MemoryHistory.Points))
 	m.LastChartUpdate = now
 }
 

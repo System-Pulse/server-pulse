@@ -50,6 +50,13 @@ type DataPoint struct {
 	Value     float64
 }
 
+type ContainerHistory struct {
+	CpuHistory       DataHistory
+	MemoryHistory    DataHistory
+	NetworkRxHistory DataHistory
+	NetworkTxHistory DataHistory
+}
+
 type ChartType int
 
 type ContainerViewState int

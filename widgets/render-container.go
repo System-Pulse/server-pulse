@@ -136,7 +136,7 @@ func (m Model) renderContainerCPU() string {
 	doc := strings.Builder{}
 
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("CPU Usage"))
-	doc.WriteString("\n\n")
+	doc.WriteString("\n")
 
 	if m.Monitor.ContainerDetails != nil {
 		cpuPercent := m.Monitor.ContainerDetails.Stats.CPUPercent
@@ -173,7 +173,7 @@ func (m Model) renderContainerMemory() string {
 	doc := strings.Builder{}
 
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Memory Usage"))
-	doc.WriteString("\n\n")
+	doc.WriteString("\n")
 
 	if m.Monitor.ContainerDetails != nil {
 		memPercent := m.Monitor.ContainerDetails.Stats.MemoryPercent
@@ -215,21 +215,21 @@ func (m Model) renderContainerNetwork() string {
 	doc := strings.Builder{}
 
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Network Usage"))
-	doc.WriteString("\n\n")
+	doc.WriteString("\n")
 
 	if m.Monitor.ContainerDetails != nil {
 		rxBytes := m.Monitor.ContainerDetails.Stats.NetworkRx
 		txBytes := m.Monitor.ContainerDetails.Stats.NetworkTx
 
-		doc.WriteString(fmt.Sprintf("RX: %s/s\n", utils.FormatBytes(rxBytes)))
-		doc.WriteString(fmt.Sprintf("TX: %s/s\n\n", utils.FormatBytes(txBytes)))
-
-		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Receive Traffic (MB/s):"))
-		doc.WriteString("\n")
+		// doc.WriteString(fmt.Sprintf("RX: %s/s\n", utils.FormatBytes(rxBytes)))
+		// doc.WriteString(fmt.Sprintf("TX: %s/s\n\n", utils.FormatBytes(txBytes)))
+		// Afficher à la fois les totaux et les débits
+        doc.WriteString(fmt.Sprintf("RX Total: %s\n", utils.FormatBytes(rxBytes)))
+        doc.WriteString(fmt.Sprintf("TX Total: %s\n\n", utils.FormatBytes(txBytes)))
+		// doc.WriteString("\n")
 		rxChart := m.renderNetworkRXChart(50, 6)
 		doc.WriteString(rxChart)
 
-		doc.WriteString("\n" + lipgloss.NewStyle().Bold(true).Render("Transmit Traffic (MB/s):"))
 		doc.WriteString("\n")
 		txChart := m.renderNetworkTXChart(50, 6)
 		doc.WriteString(txChart)

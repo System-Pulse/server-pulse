@@ -4,6 +4,7 @@ go 1.24.2
 
 require (
 	github.com/charmbracelet/bubbletea v1.3.6
+	github.com/guptarohit/asciigraph v0.7.3
 	github.com/moby/moby/api v1.52.0-alpha.1
 	github.com/moby/moby/client v0.1.0-alpha.0
 )

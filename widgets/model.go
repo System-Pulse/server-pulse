@@ -70,14 +70,18 @@ func (m *Model) goBack() {
 	m.cleanupLogsStream()
 	switch m.Ui.State {
 	case model.StateContainer, model.StateContainerLogs:
+		m.stopContainerStats()
 		m.setState(model.StateContainers)
 	case model.StateMonitor, model.StateDiagnostics, model.StateNetwork, model.StateReporting,
 		model.StateSystem, model.StateProcess, model.StateContainers:
+		m.stopContainerStats()
 		m.setState(model.StateHome)
 	default:
 		if m.Ui.PreviousState != "" {
+			m.stopContainerStats()
 			m.setState(m.Ui.PreviousState)
 		} else {
+			m.stopContainerStats()
 			m.setState(model.StateHome)
 		}
 	}

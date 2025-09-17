@@ -3,113 +3,222 @@ package widgets
 import (
 	"fmt"
 	"math"
-	"strings"
 
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/guptarohit/asciigraph"
 )
 
 func (m Model) renderCPUChart(width, height int) string {
+	// Get container-specific history if available
+	var points []float64
+	if m.Monitor.SelectedContainer != nil {
+		if containerHistory, exists := m.Monitor.ContainerHistories[m.Monitor.SelectedContainer.ID]; exists {
+			points = extractValues(containerHistory.CpuHistory.Points)
+		}
+	}
 
-	return renderLineChart(m.Monitor.CpuHistory, "CPU Usage Over Time (%)", width, height, 0, 100)
+	// Fallback to global history if no container-specific data
+	if len(points) < 1 {
+		points = extractValues(m.Monitor.CpuHistory.Points)
+	}
+
+	if len(points) < 1 {
+		return renderEmptyChart("CPU Usage Over Time (%)", height)
+	}
+
+	graph := asciigraph.Plot(
+		points,
+		asciigraph.Width(width),
+		asciigraph.Height(height-2),
+		asciigraph.LowerBound(0),
+		asciigraph.UpperBound(100),
+		asciigraph.Caption("CPU Usage Over Time (%)"),
+	)
+
+	return graph
 }
 
 func (m Model) renderMemoryChart(width, height int) string {
+	// Get container-specific history if available
+	var points []float64
+	if m.Monitor.SelectedContainer != nil {
+		if containerHistory, exists := m.Monitor.ContainerHistories[m.Monitor.SelectedContainer.ID]; exists {
+			points = extractValues(containerHistory.MemoryHistory.Points)
+		}
+	}
 
-	return renderLineChart(m.Monitor.MemoryHistory, "Memory Usage Over Time (%)", width, height, 0, 100)
+	// Fallback to global history if no container-specific data
+	if len(points) < 1 {
+		points = extractValues(m.Monitor.MemoryHistory.Points)
+	}
+
+	if len(points) < 2 {
+		lenP := fmt.Sprintf("%d", len(points))
+		return renderEmptyChart("Memory Usage Over Time (%)-> "+lenP, height)
+	}
+
+	graph := asciigraph.Plot(
+		points,
+		asciigraph.Width(width),
+		asciigraph.Height(height-2),
+		asciigraph.LowerBound(0),
+		asciigraph.UpperBound(100),
+		asciigraph.Caption("Memory Usage Over Time (%)"),
+	)
+
+	return graph
 }
 
 func (m Model) renderNetworkRXChart(width, height int) string {
+	// Get container-specific history if available
+	var points []float64
+	var maxValue float64
+	caption := "Network RX"
 
-	maxValue := getMaxValue(m.Monitor.NetworkRxHistory.Points) * 1.2
-	return renderLineChart(m.Monitor.NetworkRxHistory, "Network RX (MB/s)", width, height, 0, maxValue)
+	if m.Monitor.SelectedContainer != nil {
+		if containerHistory, exists := m.Monitor.ContainerHistories[m.Monitor.SelectedContainer.ID]; exists {
+			points = extractValues(containerHistory.NetworkRxHistory.Points)
+			points, maxValue, caption = getOptimalNetworkScale(points, "RX")
+		}
+	}
+
+	// Fallback to global history if no container-specific data
+	if len(points) < 1 {
+		points = extractValues(m.Monitor.NetworkRxHistory.Points)
+		points, maxValue, caption = getOptimalNetworkScale(points, "RX")
+	}
+
+	if len(points) < 1 {
+		return renderEmptyChart("Network RX", height)
+	}
+
+	// Ensure minimum scale for visibility
+	if maxValue < 0.1 {
+		maxValue = 0.1
+	}
+
+	graph := asciigraph.Plot(
+		points,
+		asciigraph.Width(width),
+		asciigraph.Height(height-2),
+		asciigraph.LowerBound(0),
+		asciigraph.UpperBound(maxValue),
+		asciigraph.Caption(caption),
+	)
+
+	return graph
 }
 
 func (m Model) renderNetworkTXChart(width, height int) string {
+	// Get container-specific history if available
+	var points []float64
+	var maxValue float64
+	caption := "Network TX"
 
-	maxValue := getMaxValue(m.Monitor.NetworkTxHistory.Points) * 1.2
-	return renderLineChart(m.Monitor.NetworkTxHistory, "Network TX (MB/s)", width, height, 0, maxValue)
-}
-
-func renderLineChart(history model.DataHistory, title string, width, height int, minValue, maxValue float64) string {
-	if width < 10 || height < 3 {
-		return title + "\n[Chart too small to display]"
-	}
-	if len(history.Points) < 2 {
-		return renderEmptyChart(title, width, height)
-	}
-
-	points := make([]float64, len(history.Points))
-	for i, point := range history.Points {
-		points[i] = point.Value
-	}
-
-	var builder strings.Builder
-
-	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("229"))
-	builder.WriteString(titleStyle.Render(title))
-	builder.WriteString("\n")
-
-	chartHeight := height - 3
-	for y := chartHeight - 1; y >= 0; y-- {
-		yValue := minValue + (maxValue-minValue)*float64(y)/float64(chartHeight-1)
-		yLabel := fmt.Sprintf("%4.0f ┤", yValue)
-		builder.WriteString(yLabel)
-
-		for x := 0; x < len(points) && x < width-len(yLabel)-1; x++ {
-			normalizedValue := (points[x] - minValue) / (maxValue - minValue)
-			chartY := int(normalizedValue * float64(chartHeight-1))
-
-			if chartY == y {
-				builder.WriteString("●")
-			} else if y < chartY && y > 0 {
-				prevNormalized := 0.0
-				if x > 0 {
-					prevNormalized = (points[x-1] - minValue) / (maxValue - minValue)
-				}
-				prevChartY := int(prevNormalized * float64(chartHeight-1))
-
-				if (y >= prevChartY && y <= chartY) || (y >= chartY && y <= prevChartY) {
-					builder.WriteString("╲")
-				} else {
-					builder.WriteString(" ")
-				}
-			} else {
-				builder.WriteString(" ")
-			}
+	if m.Monitor.SelectedContainer != nil {
+		if containerHistory, exists := m.Monitor.ContainerHistories[m.Monitor.SelectedContainer.ID]; exists {
+			points = extractValues(containerHistory.NetworkTxHistory.Points)
+			points, maxValue, caption = getOptimalNetworkScale(points, "TX")
 		}
-		builder.WriteString("\n")
 	}
 
-	builder.WriteString("    0 ┼")
-	for i := 0; i < width-7; i++ {
-		builder.WriteString("─")
-	}
-	builder.WriteString("\n")
-
-	if len(history.Points) > 1 {
-		startTime := history.Points[0].Timestamp.Format("15:04")
-		endTime := history.Points[len(history.Points)-1].Timestamp.Format("15:04")
-		builder.WriteString(fmt.Sprintf("      %s%s%s", startTime,
-			strings.Repeat(" ", width-14), endTime))
+	// Fallback to global history if no container-specific data
+	if len(points) < 1 {
+		points = extractValues(m.Monitor.NetworkTxHistory.Points)
+		points, maxValue, caption = getOptimalNetworkScale(points, "TX")
 	}
 
-	return builder.String()
+	if len(points) < 1 {
+		return renderEmptyChart("Network TX", height)
+	}
+
+	// Ensure minimum scale for visibility
+	if maxValue < 0.1 {
+		maxValue = 0.1
+	}
+
+	graph := asciigraph.Plot(
+		points,
+		asciigraph.Width(width),
+		asciigraph.Height(height-2),
+		asciigraph.LowerBound(0),
+		asciigraph.UpperBound(maxValue),
+		asciigraph.Caption(caption),
+	)
+	return graph
 }
 
-func renderEmptyChart(title string, width, height int) string {
-	var builder strings.Builder
-	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("229"))
-	builder.WriteString(titleStyle.Render(title))
-	builder.WriteString("\n")
+func extractValues(points []model.DataPoint) []float64 {
+	values := make([]float64, len(points))
+	for i, point := range points {
+		values[i] = point.Value
+	}
+	return values
+}
+
+func renderEmptyChart(title string, height int) string {
+	var builder string
+	builder = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("229")).Render(title) + "\n"
 
 	for y := 0; y < height-2; y++ {
-		builder.WriteString(strings.Repeat(" ", width))
-		builder.WriteString("\n")
+		builder += "\n"
 	}
 
-	builder.WriteString("Collecting data...")
-	return builder.String()
+	builder += "Collecting data..."
+	return builder
+}
+
+// getOptimalNetworkScale determines the best scale and unit for network data
+func getOptimalNetworkScale(points []float64, direction string) ([]float64, float64, string) {
+	if len(points) == 0 {
+		return points, 10.0, "Network " + direction + " (MB/s)"
+	}
+
+	maxValue := getMaxValueFromFloat64(points)
+	caption := "Network " + direction
+
+	// Determine the best unit and scale based on the maximum value
+	if maxValue < 0.001 { // Less than 1 KB/s in MB units
+		// Convert to KB/s for better visibility
+		convertedPoints := make([]float64, len(points))
+		for i, val := range points {
+			convertedPoints[i] = val * 1024 // Convert MB to KB
+		}
+		maxConverted := getMaxValueFromFloat64(convertedPoints) * 1.2
+		// Ensure minimum scale for KB/s
+		if maxConverted < 1.0 {
+			maxConverted = 1.0
+		}
+		return convertedPoints, maxConverted, caption + " (KB/s)"
+	} else if maxValue < 0.1 { // Less than 100 KB/s in MB units
+		maxValue *= 1.2
+		// Ensure minimum scale for visibility with small MB values
+		if maxValue < 0.01 {
+			maxValue = 0.01
+		}
+		return points, maxValue, caption + " (MB/s)"
+	} else if maxValue < 1.0 { // Less than 1 MB/s
+		maxValue *= 1.2
+		return points, maxValue, caption + " (MB/s)"
+	} else {
+		// Normal MB/s scale
+		maxValue *= 1.2
+		return points, maxValue, caption + " (MB/s)"
+	}
+}
+
+func getMaxValueFromFloat64(values []float64) float64 {
+	if len(values) == 0 {
+		return 0.001
+	}
+	max := values[0]
+	for _, value := range values {
+		if value > max {
+			max = value
+		}
+	}
+	return math.Max(max, 0.001) // Ensure at least 0.001 to avoid division by zero
 }
 
 func getMaxValue(points []model.DataPoint) float64 {

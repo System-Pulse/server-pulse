@@ -196,6 +196,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 				MaxPoints: 60,
 				Points:    make([]model.DataPoint, 0),
 			},
+			ContainerHistories: make(map[string]model.ContainerHistory),
 		},
 		Ui: model.UIModel{
 			State:         model.StateHome,
