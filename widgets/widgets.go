@@ -190,3 +190,34 @@ func clearOperationMessage() tea.Cmd {
 		return model.ClearOperationMsg{}
 	})
 }
+
+func (m *Model) updateSecurityTable() tea.Cmd {
+	var rows []table.Row
+
+	for _, check := range m.Diagnostic.SecurityChecks {
+		// Add status icons based on status
+		statusWithIcon := m.getSecurityStatusIcon(check.Status) + " " + check.Status
+
+		rows = append(rows, table.Row{
+			check.Name,
+			statusWithIcon,
+			check.Details,
+		})
+	}
+
+	m.Diagnostic.SecurityTable.SetRows(rows)
+	return nil
+}
+
+func (m *Model) getSecurityStatusIcon(status string) string {
+	switch strings.ToLower(status) {
+	case "valid", "secure", "disabled", "ok":
+		return "✓" // Green checkmark
+	case "warning", "expiring":
+		return "⚠" // Warning triangle
+	case "invalid", "critical", "enabled", "error":
+		return "✗" // Red X
+	default:
+		return "●" // Neutral dot
+	}
+}

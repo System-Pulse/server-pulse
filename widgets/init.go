@@ -8,6 +8,7 @@ import (
 	info "github.com/System-Pulse/server-pulse/system/informations"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	resource "github.com/System-Pulse/server-pulse/system/resource"
+	"github.com/System-Pulse/server-pulse/system/security"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
 
@@ -113,6 +114,30 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 		progress.WithWidth(v.ProgressBarWidth),
 		progress.WithDefaultGradient(),
 	}
+
+	securityManager := security.NewSecurityManager()
+
+	securityColumns := []table.Column{
+		{Title: "Name", Width: 20},
+		{Title: "Status", Width: 15},
+		{Title: "Details", Width: 40},
+	}
+	securityTable := table.New(
+		table.WithColumns(securityColumns),
+		table.WithFocused(true),
+		table.WithHeight(10),
+	)
+
+	tableStyle := table.DefaultStyles()
+	tableStyle.Header = tableStyle.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+	tableStyle.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57")).Bold(false)
+
+	securityTable.SetStyles(tableStyle)
+
 	logsViewport := viewport.New(100, 20)
 	m := Model{
 		LogsViewport: logsViewport,
@@ -125,6 +150,8 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			DiagnosticTable: diagnosticTable,
 			Nav:             v.DiagnosticNav,
 			SelectedItem:    model.DiagnosticSecurityChecks,
+			SecurityManager: securityManager,
+			SecurityTable:   securityTable,
 		},
 		Monitor: model.MonitorModel{
 			ProcessTable:       t,

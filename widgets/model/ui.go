@@ -9,20 +9,21 @@ import (
 type AppState string
 
 const (
-	StateHome             AppState = "home"
-	StateMonitor          AppState = "monitor"
-	StateSystem           AppState = "monitor.system"
-	StateProcess          AppState = "monitor.process"
-	StateContainers       AppState = "monitor.containers"
-	StateContainer        AppState = "monitor.containers.single"
-	StateContainerLogs    AppState = "monitor.containers.logs"
-	StateDiagnostics      AppState = "diagnostics"
-	StateNetwork          AppState = "network"
-	StateInterfaces       AppState = "network.interfaces"
-	StateConnectivity     AppState = "network.connectivity"
-	StateConfiguration    AppState = "network.configuration"
-	StateProtocolAnalysis AppState = "network.protocol.analysis"
-	StateReporting        AppState = "reporting"
+	StateHome               AppState = "home"
+	StateMonitor            AppState = "monitor"
+	StateSystem             AppState = "monitor.system"
+	StateProcess            AppState = "monitor.process"
+	StateContainers         AppState = "monitor.containers"
+	StateContainer          AppState = "monitor.containers.single"
+	StateContainerLogs      AppState = "monitor.containers.logs"
+	StateDiagnostics        AppState = "diagnostics"
+	StateCertificateDetails AppState = "diagnostics.certificate"
+	StateNetwork            AppState = "network"
+	StateInterfaces         AppState = "network.interfaces"
+	StateConnectivity       AppState = "network.connectivity"
+	StateConfiguration      AppState = "network.configuration"
+	StateProtocolAnalysis   AppState = "network.protocol.analysis"
+	StateReporting          AppState = "reporting"
 )
 
 type UIModel struct {
