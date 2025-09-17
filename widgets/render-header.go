@@ -2,8 +2,8 @@ package widgets
 
 import (
 	"fmt"
-	"strings"
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
+	"strings"
 
 	"github.com/System-Pulse/server-pulse/utils"
 	"github.com/charmbracelet/lipgloss"

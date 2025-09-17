@@ -2,8 +2,8 @@ package widgets
 
 import (
 	"fmt"
-	"strings"
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -40,31 +40,31 @@ func (m Model) renderConfirmationDialog() string {
 }
 
 func (m Model) getAvailableHeight() int {
-    if m.Ui.Height <= 0 {
-        return 1
-    }
-    
-    headerHeight := lipgloss.Height(m.renderHeader())
-    navHeight := lipgloss.Height(m.renderCurrentNav())
-    footerHeight := lipgloss.Height(m.renderFooter())
-    
-    availableHeight := m.Ui.Height - headerHeight - navHeight - footerHeight
-    return max(1, availableHeight)
+	if m.Ui.Height <= 0 {
+		return 1
+	}
+
+	headerHeight := lipgloss.Height(m.renderHeader())
+	navHeight := lipgloss.Height(m.renderCurrentNav())
+	footerHeight := lipgloss.Height(m.renderFooter())
+
+	availableHeight := m.Ui.Height - headerHeight - navHeight - footerHeight
+	return max(1, availableHeight)
 }
 
 func (m Model) getContentHeight() int {
-    availableHeight := m.getAvailableHeight()
-    
-    // Réserver de l'espace pour les marges/paddings
-    contentHeight := availableHeight - 2 // 2 lignes pour les marges
-    return max(1, contentHeight)
+	availableHeight := m.getAvailableHeight()
+
+	// Réserver de l'espace pour les marges/paddings
+	contentHeight := availableHeight - 2 // 2 lignes pour les marges
+	return max(1, contentHeight)
 }
 
 func (m *Model) cleanupLogsStream() {
-    if m.Monitor.LogsCancelFunc != nil {
-        m.Monitor.LogsCancelFunc()
-    }
-    m.Monitor.ContainerLogsStreaming = false
-    m.Monitor.ContainerLogsChan = nil
-    m.Monitor.LogsCancelFunc = nil
+	if m.Monitor.LogsCancelFunc != nil {
+		m.Monitor.LogsCancelFunc()
+	}
+	m.Monitor.ContainerLogsStreaming = false
+	m.Monitor.ContainerLogsChan = nil
+	m.Monitor.LogsCancelFunc = nil
 }

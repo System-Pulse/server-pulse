@@ -8,7 +8,6 @@ const (
 	ProgressBarWidth = 40
 )
 
-
 const (
 	ContainerMenuHidden model.ContainerMenuState = iota
 	ContainerMenuVisible
@@ -21,7 +20,6 @@ const (
 	ContainerViewConfirmation
 )
 
-
 var (
 	dashboard = []string{"Monitor", "Diagnostic", "Network", "Reporting"}
 	monitor   = []string{"System", "Process", "Containers"}
@@ -29,7 +27,7 @@ var (
 		DashBoard: dashboard,
 		Monitor:   monitor,
 	}
-	NetworkNav = []string{"Interface", "Connectivity", "Configuration", "Protocol Analysis"}
+	NetworkNav    = []string{"Interface", "Connectivity", "Configuration", "Protocol Analysis"}
 	DiagnosticNav = []string{"Security Checks", "Performances", "Logs"}
 
 	ContainerMenuItems = []model.ContainerMenuItem{

@@ -6,76 +6,12 @@ import (
 	"time"
 
 	"github.com/System-Pulse/server-pulse/system/app"
-	system "github.com/System-Pulse/server-pulse/system/app"
-	info "github.com/System-Pulse/server-pulse/system/informations"
-	proc "github.com/System-Pulse/server-pulse/system/process"
-	"github.com/System-Pulse/server-pulse/system/resource"
 	"github.com/System-Pulse/server-pulse/utils"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 
-	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 )
-
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var (
-		cmd  tea.Cmd
-		cmds []tea.Cmd
-	)
-
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		return m.handleWindowSize(msg)
-	case tea.KeyMsg:
-		return m.handleKeyMsg(msg)
-	case tea.MouseMsg:
-		return m.handleMouseMsg(msg)
-	case info.SystemMsg, resource.CpuMsg, resource.MemoryMsg, resource.DiskMsg, resource.NetworkMsg, proc.ProcessMsg:
-		return m.handleResourceAndProcessMsgs(msg)
-	case system.ContainerMsg, system.ContainerDetailsMsg, system.ContainerLogsMsg, system.ContainerOperationMsg,
-		system.ExecShellMsg, system.ContainerStatsChanMsg:
-		return m.handleContainerRelatedMsgs(msg)
-	case system.ContainerLogsStreamMsg:
-		return m.handleLogsStreamMsg(msg)
-	case system.ContainerLogsStopMsg:
-		return m.handleLogsStopMsg()
-	case system.ContainerLogLineMsg:
-		return m.handleLogLineMsg(msg)
-	case model.ClearOperationMsg:
-		m.LastOperationMsg = ""
-	case utils.ErrMsg:
-		m.Err = msg
-	case utils.TickMsg:
-		return m.handleTickMsg()
-	case progress.FrameMsg:
-		return m.handleProgressFrame(msg)
-	}
-
-	switch m.Ui.State {
-	case model.StateProcess:
-		if !m.Ui.SearchMode {
-			m.Monitor.ProcessTable, cmd = m.Monitor.ProcessTable.Update(msg)
-			cmds = append(cmds, cmd)
-		}
-	case model.StateContainers:
-		if !m.Ui.SearchMode {
-			m.Monitor.Container, cmd = m.Monitor.Container.Update(msg)
-			cmds = append(cmds, cmd)
-		}
-	case model.StateContainerLogs:
-		m.LogsViewport, cmd = m.LogsViewport.Update(msg)
-		cmds = append(cmds, cmd)
-	case model.StateNetwork:
-		m.Network.NetworkTable, cmd = m.Network.NetworkTable.Update(msg)
-		cmds = append(cmds, cmd)
-	}
-
-	m.Ui.Viewport, cmd = m.Ui.Viewport.Update(msg)
-	cmds = append(cmds, cmd)
-
-	return m, tea.Batch(cmds...)
-}
 
 func (m *Model) updateProcessTable() tea.Cmd {
 	var rows []table.Row
@@ -201,12 +137,6 @@ func (m *Model) updateChartsWithStats(stats app.ContainerStatsMsg) {
 func tick() tea.Cmd {
 	return tea.Tick(time.Second*2, func(t time.Time) tea.Msg {
 		return utils.TickMsg(t)
-	})
-}
-
-func clearOperationMessage() tea.Cmd {
-	return tea.Tick(time.Second*5, func(t time.Time) tea.Msg {
-		return model.ClearOperationMsg{}
 	})
 }
 

@@ -10,23 +10,23 @@ import (
 )
 
 func (m Model) renderCPUChart(width, height int) string {
-	
+
 	return renderLineChart(m.Monitor.CpuHistory, "CPU Usage Over Time (%)", width, height, 0, 100)
 }
 
 func (m Model) renderMemoryChart(width, height int) string {
-	
+
 	return renderLineChart(m.Monitor.MemoryHistory, "Memory Usage Over Time (%)", width, height, 0, 100)
 }
 
 func (m Model) renderNetworkRXChart(width, height int) string {
-	
+
 	maxValue := getMaxValue(m.Monitor.NetworkRxHistory.Points) * 1.2
 	return renderLineChart(m.Monitor.NetworkRxHistory, "Network RX (MB/s)", width, height, 0, maxValue)
 }
 
 func (m Model) renderNetworkTXChart(width, height int) string {
-	
+
 	maxValue := getMaxValue(m.Monitor.NetworkTxHistory.Points) * 1.2
 	return renderLineChart(m.Monitor.NetworkTxHistory, "Network TX (MB/s)", width, height, 0, maxValue)
 }
@@ -50,7 +50,7 @@ func renderLineChart(history model.DataHistory, title string, width, height int,
 	builder.WriteString(titleStyle.Render(title))
 	builder.WriteString("\n")
 
-	chartHeight := height - 3 
+	chartHeight := height - 3
 	for y := chartHeight - 1; y >= 0; y-- {
 		yValue := minValue + (maxValue-minValue)*float64(y)/float64(chartHeight-1)
 		yLabel := fmt.Sprintf("%4.0f ┤", yValue)
