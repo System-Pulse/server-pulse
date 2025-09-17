@@ -20,7 +20,7 @@ const (
 	// ================================ //
 
 	// "Health Checks", "Performances", "Logs"
-	DiagnosticTabHealthChecks ContainerTab = ContainerTabGeneral
+	DiagnosticSecurityChecks  ContainerTab = ContainerTabGeneral
 	DiagnosticTabPerformances ContainerTab = ContainerTabCPU
 	DiagnosticTabLogs         ContainerTab = ContainerTabMemory
 )

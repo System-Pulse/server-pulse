@@ -594,7 +594,7 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
 		return m, nil
 	case "1":
-		m.Diagnostic.SelectedItem = model.DiagnosticTabHealthChecks
+		m.Diagnostic.SelectedItem = model.DiagnosticSecurityChecks
 		return m, nil
 	case "2":
 		m.Diagnostic.SelectedItem = model.DiagnosticTabPerformances

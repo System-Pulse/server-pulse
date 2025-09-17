@@ -92,7 +92,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	networkTable.SetStyles(networkStyle)
 
 	diagnosticColumns := []table.Column{
-		{Title: "Health Check", Width: 30},
+		{Title: "Security Check", Width: 30},
 		{Title: "Performances", Width: 12},
 		{Title: "Logs", Width: 40},
 	}
@@ -124,7 +124,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 		Diagnostic: model.DiagnosticModel{
 			DiagnosticTable: diagnosticTable,
 			Nav:             v.DiagnosticNav,
-			SelectedItem:    model.DiagnosticTabHealthChecks,
+			SelectedItem:    model.DiagnosticSecurityChecks,
 		},
 		Monitor: model.MonitorModel{
 			ProcessTable:       t,
@@ -140,11 +140,11 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			ContainerViewState: v.ContainerViewNone,
 			ContainerTabs:      v.ContainerTabs,
 			ContainerLogsPagination: model.ContainerLogsPagination{
-                PageSize:    100, // Initialiser avec une valeur par défaut
-                CurrentPage: 1,
-                TotalPages:  1,
-                Lines:       []string{},
-            },
+				PageSize:    100, // Initialiser avec une valeur par défaut
+				CurrentPage: 1,
+				TotalPages:  1,
+				Lines:       []string{},
+			},
 			CpuHistory: model.DataHistory{
 				MaxPoints: 60,
 				Points:    make([]model.DataPoint, 0),
@@ -171,13 +171,13 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			},
 		},
 		Ui: model.UIModel{
-			State:       model.StateHome,
-			Tabs:        v.Menu,
-			SelectedTab: 0,
-			ActiveView:  -1,
-			SearchInput: searchInput,
-			SearchMode:  false,
-			Viewport:    viewport.New(100, 20),
+			State:         model.StateHome,
+			Tabs:          v.Menu,
+			SelectedTab:   0,
+			ActiveView:    -1,
+			SearchInput:   searchInput,
+			SearchMode:    false,
+			Viewport:      viewport.New(100, 20),
 			ContentHeight: 20,
 		},
 		LastChartUpdate:   time.Now(),
