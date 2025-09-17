@@ -1,11 +1,13 @@
 package widgets
 
 import (
+	"strings"
 	"time"
 
 	"github.com/System-Pulse/server-pulse/system/app"
 	"github.com/System-Pulse/server-pulse/utils"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -81,6 +83,81 @@ func (m *Model) loadContainerDetails(containerID string) tea.Cmd {
 			return utils.ErrMsg(err)
 		}
 		return app.ContainerDetailsMsg(*details)
+	}
+}
+
+func (m *Model) updateChartsWithStats(stats app.ContainerStatsMsg) {
+	now := time.Now()
+
+	m.Monitor.CpuHistory.Points = append(m.Monitor.CpuHistory.Points, model.DataPoint{
+		Timestamp: now,
+		Value:     stats.CPUPercent,
+	})
+	if len(m.Monitor.CpuHistory.Points) > m.Monitor.CpuHistory.MaxPoints {
+		m.Monitor.CpuHistory.Points = m.Monitor.CpuHistory.Points[1:]
+	}
+
+	m.Monitor.MemoryHistory.Points = append(m.Monitor.MemoryHistory.Points, model.DataPoint{
+		Timestamp: now,
+		Value:     stats.MemPercent,
+	})
+	if len(m.Monitor.MemoryHistory.Points) > m.Monitor.MemoryHistory.MaxPoints {
+		m.Monitor.MemoryHistory.Points = m.Monitor.MemoryHistory.Points[1:]
+	}
+
+	m.Monitor.NetworkRxHistory.Points = append(m.Monitor.NetworkRxHistory.Points, model.DataPoint{
+		Timestamp: now,
+		Value:     float64(stats.NetRX) / 1024 / 1024,
+	})
+	if len(m.Monitor.NetworkRxHistory.Points) > m.Monitor.NetworkRxHistory.MaxPoints {
+		m.Monitor.NetworkRxHistory.Points = m.Monitor.NetworkRxHistory.Points[1:]
+	}
+
+	m.Monitor.NetworkTxHistory.Points = append(m.Monitor.NetworkTxHistory.Points, model.DataPoint{
+		Timestamp: now,
+		Value:     float64(stats.NetTX) / 1024 / 1024,
+	})
+	if len(m.Monitor.NetworkTxHistory.Points) > m.Monitor.NetworkTxHistory.MaxPoints {
+		m.Monitor.NetworkTxHistory.Points = m.Monitor.NetworkTxHistory.Points[1:]
+	}
+
+	m.LastChartUpdate = now
+}
+
+func tick() tea.Cmd {
+	return tea.Tick(time.Second*2, func(t time.Time) tea.Msg {
+		return utils.TickMsg(t)
+	})
+}
+
+func (m *Model) updateSecurityTable() tea.Cmd {
+	var rows []table.Row
+
+	for _, check := range m.Diagnostic.SecurityChecks {
+		// Add status icons based on status
+		statusWithIcon := m.getSecurityStatusIcon(check.Status) + " " + check.Status
+
+		rows = append(rows, table.Row{
+			check.Name,
+			statusWithIcon,
+			check.Details,
+		})
+	}
+
+	m.Diagnostic.SecurityTable.SetRows(rows)
+	return nil
+}
+
+func (m *Model) getSecurityStatusIcon(status string) string {
+	switch strings.ToLower(status) {
+	case "valid", "secure", "disabled", "ok":
+		return "✓" // Green checkmark
+	case "warning", "expiring":
+		return "⚠" // Warning triangle
+	case "invalid", "critical", "enabled", "error":
+		return "✗" // Red X
+	default:
+		return "●" // Neutral dot
 	}
 }
 
