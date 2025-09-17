@@ -8,6 +8,7 @@ import (
 	info "github.com/System-Pulse/server-pulse/system/informations"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	resource "github.com/System-Pulse/server-pulse/system/resource"
+	"github.com/System-Pulse/server-pulse/system/security"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
 
@@ -92,7 +93,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	networkTable.SetStyles(networkStyle)
 
 	diagnosticColumns := []table.Column{
-		{Title: "Health Check", Width: 30},
+		{Title: "Security Check", Width: 30},
 		{Title: "Performances", Width: 12},
 		{Title: "Logs", Width: 40},
 	}
@@ -113,6 +114,30 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 		progress.WithWidth(v.ProgressBarWidth),
 		progress.WithDefaultGradient(),
 	}
+
+	securityManager := security.NewSecurityManager()
+
+	securityColumns := []table.Column{
+		{Title: "Name", Width: 20},
+		{Title: "Status", Width: 15},
+		{Title: "Details", Width: 40},
+	}
+	securityTable := table.New(
+		table.WithColumns(securityColumns),
+		table.WithFocused(true),
+		table.WithHeight(10),
+	)
+
+	tableStyle := table.DefaultStyles()
+	tableStyle.Header = tableStyle.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(false)
+	tableStyle.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57")).Bold(false)
+
+	securityTable.SetStyles(tableStyle)
+
 	logsViewport := viewport.New(100, 20)
 	m := Model{
 		LogsViewport: logsViewport,
@@ -124,7 +149,9 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 		Diagnostic: model.DiagnosticModel{
 			DiagnosticTable: diagnosticTable,
 			Nav:             v.DiagnosticNav,
-			SelectedItem:    model.DiagnosticTabHealthChecks,
+			SelectedItem:    model.DiagnosticSecurityChecks,
+			SecurityManager: securityManager,
+			SecurityTable:   securityTable,
 		},
 		Monitor: model.MonitorModel{
 			ProcessTable:       t,
@@ -140,11 +167,11 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			ContainerViewState: v.ContainerViewNone,
 			ContainerTabs:      v.ContainerTabs,
 			ContainerLogsPagination: model.ContainerLogsPagination{
-                PageSize:    100, // Initialiser avec une valeur par défaut
-                CurrentPage: 1,
-                TotalPages:  1,
-                Lines:       []string{},
-            },
+				PageSize:    100, // Initialiser avec une valeur par défaut
+				CurrentPage: 1,
+				TotalPages:  1,
+				Lines:       []string{},
+			},
 			CpuHistory: model.DataHistory{
 				MaxPoints: 60,
 				Points:    make([]model.DataPoint, 0),
@@ -171,13 +198,13 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			},
 		},
 		Ui: model.UIModel{
-			State:       model.StateHome,
-			Tabs:        v.Menu,
-			SelectedTab: 0,
-			ActiveView:  -1,
-			SearchInput: searchInput,
-			SearchMode:  false,
-			Viewport:    viewport.New(100, 20),
+			State:         model.StateHome,
+			Tabs:          v.Menu,
+			SelectedTab:   0,
+			ActiveView:    -1,
+			SearchInput:   searchInput,
+			SearchMode:    false,
+			Viewport:      viewport.New(100, 20),
 			ContentHeight: 20,
 		},
 		LastChartUpdate:   time.Now(),

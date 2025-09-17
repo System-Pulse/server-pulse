@@ -30,8 +30,8 @@ var (
 		Monitor:   monitor,
 	}
 	NetworkNav = []string{"Interface", "Connectivity", "Configuration", "Protocol Analysis"}
-	DiagnosticNav = []string{"Health Checks", "Performances", "Logs"}
-	
+	DiagnosticNav = []string{"Security Checks", "Performances", "Logs"}
+
 	ContainerMenuItems = []model.ContainerMenuItem{
 		{Key: "o", Label: "Open detailed view", Description: "View detailed container information", Action: "open_single"},
 		{Key: "l", Label: "View logs", Description: "Show container logs", Action: "logs"},

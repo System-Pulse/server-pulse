@@ -9,6 +9,7 @@ import (
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 
 	"github.com/System-Pulse/server-pulse/system/app"
+	"github.com/System-Pulse/server-pulse/system/security"
 )
 
 type Model struct {
@@ -31,6 +32,7 @@ type Model struct {
 	LastScrollTime      time.Time
 	MouseEnabled        bool
 	Diagnostic          model.DiagnosticModel
+	SecurityManager     *security.SecurityManager
 }
 
 func (m *Model) setState(newState model.AppState) {
@@ -46,7 +48,7 @@ func (m *Model) setState(newState model.AppState) {
 	case model.StateMonitor, model.StateSystem, model.StateProcess, model.StateContainers,
 		model.StateContainer, model.StateContainerLogs:
 		m.Ui.SelectedTab = 0
-	case model.StateDiagnostics:
+	case model.StateDiagnostics, model.StateCertificateDetails:
 		m.Ui.SelectedTab = 1
 	case model.StateNetwork:
 		m.Ui.SelectedTab = 2

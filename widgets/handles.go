@@ -15,12 +15,75 @@ import (
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
 
 	"github.com/System-Pulse/server-pulse/system/resource"
+	"github.com/System-Pulse/server-pulse/system/security"
 	"github.com/System-Pulse/server-pulse/utils"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var (
+		cmd  tea.Cmd
+		cmds []tea.Cmd
+	)
+
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		return m.handleWindowSize(msg)
+	case tea.KeyMsg:
+		return m.handleKeyMsg(msg)
+	case tea.MouseMsg:
+		return m.handleMouseMsg(msg)
+	case info.SystemMsg, resource.CpuMsg, resource.MemoryMsg, resource.DiskMsg, resource.NetworkMsg, proc.ProcessMsg:
+		return m.handleResourceAndProcessMsgs(msg)
+	case system.ContainerMsg, system.ContainerDetailsMsg, system.ContainerLogsMsg, system.ContainerOperationMsg,
+		system.ExecShellMsg, system.ContainerStatsChanMsg:
+		return m.handleContainerRelatedMsgs(msg)
+	case security.SecurityMsg:
+		return m.handleSecurityCheckMsgs(msg)
+	case security.CertificateDisplayMsg:
+		return m.handleCertificateDisplayMsg(msg)
+	case system.ContainerLogsStreamMsg:
+		return m.handleLogsStreamMsg(msg)
+	case system.ContainerLogsStopMsg:
+		return m.handleLogsStopMsg()
+	case system.ContainerLogLineMsg:
+		return m.handleLogLineMsg(msg)
+	case model.ClearOperationMsg:
+		m.LastOperationMsg = ""
+	case utils.ErrMsg:
+		m.Err = msg
+	case utils.TickMsg:
+		return m.handleTickMsg()
+	case progress.FrameMsg:
+		return m.handleProgressFrame(msg)
+	}
+
+	switch m.Ui.State {
+	case model.StateProcess:
+		if !m.Ui.SearchMode {
+			m.Monitor.ProcessTable, cmd = m.Monitor.ProcessTable.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+	case model.StateContainers:
+		if !m.Ui.SearchMode {
+			m.Monitor.Container, cmd = m.Monitor.Container.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+	case model.StateContainerLogs:
+		m.LogsViewport, cmd = m.LogsViewport.Update(msg)
+		cmds = append(cmds, cmd)
+	case model.StateNetwork:
+		m.Network.NetworkTable, cmd = m.Network.NetworkTable.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
+	m.Ui.Viewport, cmd = m.Ui.Viewport.Update(msg)
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
+}
 // ------------------------- Handlers for system-related and resource messages -------------------------
 
 func (m Model) handleResourceAndProcessMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -203,6 +266,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleNetworkKeys(msg)
 	case model.StateDiagnostics:
 		return m.handleDiagnosticsKeys(msg)
+	case model.StateCertificateDetails:
+		return m.handleCertificateDetailsKeys(msg)
 	case model.StateReporting:
 		return m.handleReportingKeys(msg)
 	}
@@ -227,6 +292,10 @@ func (m Model) handleHomeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case 1:
 			m.setState(model.StateDiagnostics)
 			m.Ui.ActiveView = m.Ui.SelectedTab
+			// Auto-load security checks if we're on security tab and they're not loaded
+			if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
+				return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+			}
 		case 2:
 			m.setState(model.StateNetwork)
 			m.Ui.ActiveView = m.Ui.SelectedTab
@@ -531,6 +600,10 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			newTab = 0
 		}
 		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
+		// Auto-load security checks if switching to security tab and not loaded
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+		}
 		return m, nil
 	case "shift+tab", "left", "h":
 		newTab := int(m.Diagnostic.SelectedItem) - 1
@@ -538,9 +611,17 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			newTab = len(m.Diagnostic.Nav) - 1
 		}
 		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
+		// Auto-load security checks if switching to security tab and not loaded
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+		}
 		return m, nil
 	case "1":
-		m.Diagnostic.SelectedItem = model.DiagnosticTabHealthChecks
+		m.Diagnostic.SelectedItem = model.DiagnosticSecurityChecks
+		// Auto-load security checks if not already loaded
+		if len(m.Diagnostic.SecurityChecks) == 0 {
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+		}
 		return m, nil
 	case "2":
 		m.Diagnostic.SelectedItem = model.DiagnosticTabPerformances
@@ -549,23 +630,113 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.SelectedItem = model.DiagnosticTabLogs
 		return m, nil
 	case "up", "k":
-		m.Diagnostic.DiagnosticTable.MoveUp(1)
+		// Handle navigation based on current diagnostic tab
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+			m.Diagnostic.SecurityTable.MoveUp(1)
+		} else {
+			m.Diagnostic.DiagnosticTable.MoveUp(1)
+		}
 		return m, nil
 	case "down", "j":
-		m.Diagnostic.DiagnosticTable.MoveDown(1)
+		// Handle navigation based on current diagnostic tab
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+			m.Diagnostic.SecurityTable.MoveDown(1)
+		} else {
+			m.Diagnostic.DiagnosticTable.MoveDown(1)
+		}
 		return m, nil
 	case "pageup":
-		m.Diagnostic.DiagnosticTable.MoveUp(10)
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+			m.Diagnostic.SecurityTable.MoveUp(10)
+		} else {
+			m.Diagnostic.DiagnosticTable.MoveUp(10)
+		}
 		return m, nil
 	case "pagedown":
-		m.Diagnostic.DiagnosticTable.MoveDown(10)
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+			m.Diagnostic.SecurityTable.MoveDown(10)
+		} else {
+			m.Diagnostic.DiagnosticTable.MoveDown(10)
+		}
 		return m, nil
 	case "home":
-		m.Diagnostic.DiagnosticTable.GotoTop()
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+			m.Diagnostic.SecurityTable.GotoTop()
+		} else {
+			m.Diagnostic.DiagnosticTable.GotoTop()
+		}
 		return m, nil
 	case "end":
-		m.Diagnostic.DiagnosticTable.GotoBottom()
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+			m.Diagnostic.SecurityTable.GotoBottom()
+		} else {
+			m.Diagnostic.DiagnosticTable.GotoBottom()
+		}
 		return m, nil
+	case "r":
+		// Refresh security checks when on security tab
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+		}
+		return m, nil
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	case "enter":
+		// Check if we're on security checks tab and get selected security check
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityTable.SelectedRow()) > 0 {
+			selectedRow := m.Diagnostic.SecurityTable.SelectedRow()
+			if len(selectedRow) > 0 && selectedRow[0] == "SSL Certificate" {
+				// Show detailed SSL certificate information
+				return m, m.Diagnostic.SecurityManager.RunCertificateDisplay()
+			}
+		}
+		return m, nil
+	}
+
+	return m, nil
+}
+
+func (m Model) handleSecurityCheckMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case security.SecurityMsg:
+		checks := []security.SecurityCheck(msg)
+		m.Diagnostic.SecurityChecks = checks
+		return m, m.updateSecurityTable()
+	}
+	return m, nil
+}
+
+// ------------------------- handler for certificate display messages -------------------------
+func (m Model) handleCertificateDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case security.CertificateDisplayMsg:
+		certInfo := security.CertificateInfos(msg)
+		// Store certificate info in model for display
+		m.Diagnostic.CertificateInfo = &certInfo
+		// Switch to certificate details view
+		m.setState(model.StateCertificateDetails)
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m Model) handleCertificateDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
+	case "up", "k":
+		m.Ui.Viewport.ScrollUp(1)
+	case "down", "j":
+		m.Ui.Viewport.ScrollDown(1)
+	case "pageup":
+		m.Ui.Viewport.PageUp()
+	case "pagedown":
+		m.Ui.Viewport.PageDown()
+	case "home":
+		m.Ui.Viewport.GotoTop()
+	case "end":
+		m.Ui.Viewport.GotoBottom()
 	case "q", "ctrl+c":
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit

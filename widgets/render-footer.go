@@ -66,7 +66,9 @@ func (m Model) renderFooter() string {
 		hints = fmt.Sprintf("[↑↓] Scroll • [r] Refresh • [home/end] Navigate%s • [b] Back • [q] Quit", streamingHint)
 	case model.StateNetwork:
 		hints = "[Tab/←→] Switch tabs • [b] Back • [q] Quit"
-	case model.StateDiagnostics, model.StateReporting:
+	case model.StateDiagnostics:
+		hints = "[b] Back • [enter] Details • [q] Quit"
+	case model.StateCertificateDetails, model.StateReporting:
 		hints = "[b] Back • [q] Quit"
 	}
 
