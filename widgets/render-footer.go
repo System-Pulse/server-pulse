@@ -51,11 +51,19 @@ func (m Model) renderFooter() string {
 	case model.StateContainer:
 		hints = "[Tab/←→] Switch tabs • [b] Back • [q] Quit"
 	case model.StateContainerLogs:
-		streamingStatus := ""
-		if m.Monitor.ContainerLogsStreaming {
-			streamingStatus = " | 🟢 LIVE"
+		streamingHint := ""
+		if m.Monitor.SelectedContainer != nil {
+			if strings.ToLower(m.Monitor.SelectedContainer.Status) == "up" {
+				if m.Monitor.ContainerLogsStreaming {
+					streamingHint = " | [s] Stop streaming"
+				} else {
+					streamingHint = " | [s] Start streaming"
+				}
+			} else {
+				streamingHint = ""
+			}
 		}
-		hints = fmt.Sprintf("[↑↓] Scroll • [s] Toggle streaming%s • [r] Refresh • [b] Back • [q] Quit", streamingStatus)
+		hints = fmt.Sprintf("[↑↓] Scroll • [r] Refresh • [home/end] Navigate%s • [b] Back • [q] Quit", streamingHint)
 	case model.StateNetwork:
 		hints = "[Tab/←→] Switch tabs • [b] Back • [q] Quit"
 	case model.StateDiagnostics:

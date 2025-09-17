@@ -5,6 +5,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	system "github.com/System-Pulse/server-pulse/system/app"
@@ -83,7 +84,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	return m, tea.Batch(cmds...)
 }
-
 // ------------------------- Handlers for system-related and resource messages -------------------------
 
 func (m Model) handleResourceAndProcessMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -131,6 +131,17 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case system.ContainerMsg:
 		containers := []system.Container(msg)
+		if m.Monitor.SelectedContainer != nil && m.Monitor.ContainerLogsStreaming {
+			for _, container := range containers {
+				if container.ID == m.Monitor.SelectedContainer.ID {
+					if strings.ToLower(container.Status) != "up" && m.Monitor.ContainerLogsStreaming {
+						m.cleanupLogsStream()
+						m.LastOperationMsg = fmt.Sprintf("Container stopped, streaming disabled (status: %s)", container.Status)
+					}
+					break
+				}
+			}
+		}
 		return m, m.updateContainerTable(containers)
 	case system.ContainerDetailsMsg:
 		details := system.ContainerDetails(msg)
@@ -139,7 +150,12 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		logsMsg := system.ContainerLogsMsg(msg)
 		m.Monitor.ContainerLogsLoading = false
 		if logsMsg.Error != nil {
-			m.Monitor.ContainerLogs = fmt.Sprintf("Error loading logs: %v", logsMsg.Error)
+			if strings.Contains(logsMsg.Error.Error(), "streaming unavailable") {
+				m.Monitor.ContainerLogs = fmt.Sprintf("Streaming not available: %v\nShowing static logs instead...", logsMsg.Error)
+				return m, m.Monitor.App.GetContainerLogsCmd(m.Monitor.SelectedContainer.ID)
+			} else {
+				m.Monitor.ContainerLogs = fmt.Sprintf("Error loading logs: %v", logsMsg.Error)
+			}
 			m.Monitor.ContainerLogsPagination.Lines = []string{m.Monitor.ContainerLogs}
 			m.Monitor.ContainerLogsPagination.TotalPages = 1
 			m.Monitor.ContainerLogsPagination.CurrentPage = 1
@@ -167,18 +183,6 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
-}
-
-func (m Model) handleLogsStreamMsg(msg system.ContainerLogsStreamMsg) (tea.Model, tea.Cmd) {
-	m.Monitor.ContainerLogsStreaming = true
-	m.Monitor.ContainerLogsLoading = false
-	m.Monitor.ContainerLogsChan = msg.LogChan
-	m.Monitor.LogsCancelFunc = msg.CancelFunc
-
-	m.Monitor.ContainerLogsPagination.Clear()
-	m.updateLogsViewport()
-
-	return m, m.readNextLogLine()
 }
 
 // ------------------------- Window size -------------------------
