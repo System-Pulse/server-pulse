@@ -44,5 +44,5 @@ var (
 		// {Key: "c", Label: "Commit", Description: "Create image from container", Action: "commit"},
 	}
 
-	ContainerTabs = []string{"General", "CPU", "MEM", "NET", "DISK", "ENV"}
+	ContainerTabs = []string{"General", "CPU", "MEM", "NET", "ENV"} // disk remove
 )

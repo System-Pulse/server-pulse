@@ -16,9 +16,9 @@ const (
 )
 
 var lastNetworkTotals = make(map[string]struct {
-    RxBytes uint64
-    TxBytes uint64
-    Time    time.Time
+	RxBytes uint64
+	TxBytes uint64
+	Time    time.Time
 })
 
 func (m Model) updateCharts() {
@@ -42,39 +42,37 @@ func (m Model) updateCharts() {
 
 	if len(m.Network.NetworkResource.Interfaces) > 0 {
 		iface := m.Network.NetworkResource.Interfaces[0]
-        
-        key := iface.Name
-        last, exists := lastNetworkTotals[key]
-        
-        var rxRate, txRate float64
-        if exists {
-            timeDiff := now.Sub(last.Time).Seconds()
-            if timeDiff > 0 {
-                // Calcul correct du débit en MB/s
-                rxRate = float64(iface.RxBytes-last.RxBytes) / timeDiff / 1024 / 1024
-                txRate = float64(iface.TxBytes-last.TxBytes) / timeDiff / 1024 / 1024
-            }
-        }
-        
-        // Mettre à jour les totaux pour le prochain calcul
-        lastNetworkTotals[key] = struct {
-            RxBytes uint64
-            TxBytes uint64
-            Time    time.Time
-        }{
-            RxBytes: iface.RxBytes,
-            TxBytes: iface.TxBytes,
-            Time:    now,
-        }
 
-        m.Monitor.NetworkRxHistory.Points = append(m.Monitor.NetworkRxHistory.Points, model.DataPoint{
-            Timestamp: now,
-            Value:     rxRate,
-        })
-        m.Monitor.NetworkTxHistory.Points = append(m.Monitor.NetworkTxHistory.Points, model.DataPoint{
-            Timestamp: now,
-            Value:     txRate,
-        })
+		key := iface.Name
+		last, exists := lastNetworkTotals[key]
+
+		var rxRate, txRate float64
+		if exists {
+			timeDiff := now.Sub(last.Time).Seconds()
+			if timeDiff > 0 {
+				rxRate = float64(iface.RxBytes-last.RxBytes) / timeDiff / 1024 / 1024
+				txRate = float64(iface.TxBytes-last.TxBytes) / timeDiff / 1024 / 1024
+			}
+		}
+
+		lastNetworkTotals[key] = struct {
+			RxBytes uint64
+			TxBytes uint64
+			Time    time.Time
+		}{
+			RxBytes: iface.RxBytes,
+			TxBytes: iface.TxBytes,
+			Time:    now,
+		}
+
+		m.Monitor.NetworkRxHistory.Points = append(m.Monitor.NetworkRxHistory.Points, model.DataPoint{
+			Timestamp: now,
+			Value:     rxRate,
+		})
+		m.Monitor.NetworkTxHistory.Points = append(m.Monitor.NetworkTxHistory.Points, model.DataPoint{
+			Timestamp: now,
+			Value:     txRate,
+		})
 
 		if len(m.Monitor.NetworkRxHistory.Points) > m.Monitor.NetworkRxHistory.MaxPoints {
 			m.Monitor.NetworkRxHistory.Points = m.Monitor.NetworkRxHistory.Points[1:]

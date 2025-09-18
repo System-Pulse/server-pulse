@@ -8,6 +8,7 @@ import (
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
 
 	"github.com/System-Pulse/server-pulse/widgets/model"
+	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -61,8 +62,8 @@ func (m Model) renderContainerSingleView() string {
 		content = m.renderContainerMemory()
 	case model.ContainerTabNetwork:
 		content = m.renderContainerNetwork()
-	case model.ContainerTabDisk:
-		content = m.renderContainerDisk()
+	// case model.ContainerTabDisk:
+	// 	content = m.renderContainerDisk() // temporary
 	case model.ContainerTabEnv:
 		content = m.renderContainerEnv()
 	default:
@@ -142,20 +143,8 @@ func (m Model) renderContainerCPU() string {
 		cpuPercent := m.Monitor.ContainerDetails.Stats.CPUPercent
 		doc.WriteString(fmt.Sprintf("Usage: %.1f%%\n", cpuPercent))
 
-		cpuBar := ""
-		cpuBlocks := int(cpuPercent / 5)
-		barColor := getCPUColor(cpuPercent)
-
-		for i := range 20 {
-			if i < cpuBlocks {
-				cpuBar += "█"
-			} else {
-				cpuBar += "░"
-			}
-		}
-
-		coloredBar := lipgloss.NewStyle().Foreground(barColor).Render(cpuBar)
-		doc.WriteString(fmt.Sprintf("[%s]\n\n", coloredBar))
+		// Display progress bar with dynamic color
+		doc.WriteString(renderProgressBar(cpuPercent) + "\n\n")
 
 		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Usage History:"))
 		doc.WriteString("\n")
@@ -185,20 +174,8 @@ func (m Model) renderContainerMemory() string {
 		doc.WriteString(fmt.Sprintf("Limit: %s\n", utils.FormatBytes(memLimit)))
 		doc.WriteString(fmt.Sprintf("Available: %s\n\n", utils.FormatBytes(memLimit-memUsage)))
 
-		memBar := ""
-		memBlocks := int(memPercent / 5)
-		barColor := getMemoryColor(memPercent)
-
-		for i := range 20 {
-			if i < memBlocks {
-				memBar += "█"
-			} else {
-				memBar += "░"
-			}
-		}
-
-		coloredBar := lipgloss.NewStyle().Foreground(barColor).Render(memBar)
-		doc.WriteString(fmt.Sprintf("[%s]\n\n", coloredBar))
+		// Display progress bar with dynamic color
+		doc.WriteString(renderProgressBar(memPercent) + "\n\n")
 
 		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Usage History:"))
 		doc.WriteString("\n")
@@ -223,9 +200,8 @@ func (m Model) renderContainerNetwork() string {
 
 		// doc.WriteString(fmt.Sprintf("RX: %s/s\n", utils.FormatBytes(rxBytes)))
 		// doc.WriteString(fmt.Sprintf("TX: %s/s\n\n", utils.FormatBytes(txBytes)))
-		// Afficher à la fois les totaux et les débits
-        doc.WriteString(fmt.Sprintf("RX Total: %s\n", utils.FormatBytes(rxBytes)))
-        doc.WriteString(fmt.Sprintf("TX Total: %s\n\n", utils.FormatBytes(txBytes)))
+		doc.WriteString(fmt.Sprintf("RX Total: %s\n", utils.FormatBytes(rxBytes)))
+		doc.WriteString(fmt.Sprintf("TX Total: %s\n\n", utils.FormatBytes(txBytes)))
 		// doc.WriteString("\n")
 		rxChart := m.renderNetworkRXChart(50, 6)
 		doc.WriteString(rxChart)
@@ -246,6 +222,7 @@ func (m Model) renderContainerNetwork() string {
 	return v.CardStyle.Render(doc.String())
 }
 
+/* temporary
 func (m Model) renderContainerDisk() string {
 	doc := strings.Builder{}
 
@@ -283,6 +260,7 @@ func (m Model) renderContainerDisk() string {
 
 	return v.CardStyle.Render(doc.String())
 }
+*/
 
 func (m Model) renderContainerEnv() string {
 
@@ -387,24 +365,21 @@ func getHealthWithIcon(health string) string {
 	}
 }
 
-func getCPUColor(percent float64) lipgloss.Color {
+// renderProgressBar creates a progress bar with appropriate color based on percentage
+func renderProgressBar(percent float64) string {
+	var gradientStart, gradientEnd string
+
 	switch {
 	case percent < 50:
-		return lipgloss.Color("46") // Green
+		gradientStart, gradientEnd = "#00ff00", "#00cc00" // Green
 	case percent < 80:
-		return lipgloss.Color("226") // Yellow
+		gradientStart, gradientEnd = "#ffff00", "#cccc00" // Yellow
 	default:
-		return lipgloss.Color("196") // Red
+		gradientStart, gradientEnd = "#ff0000", "#cc0000" // Red
 	}
-}
 
-func getMemoryColor(percent float64) lipgloss.Color {
-	switch {
-	case percent < 60:
-		return lipgloss.Color("46") // Green
-	case percent < 85:
-		return lipgloss.Color("226") // Yellow
-	default:
-		return lipgloss.Color("196") // Red
-	}
+	// Create a temporary progress bar with the desired gradient
+	// Use the same width as other progress bars in the system
+	prog := progress.New(progress.WithWidth(v.ProgressBarWidth), progress.WithGradient(gradientStart, gradientEnd))
+	return prog.ViewAs(percent / 100)
 }
