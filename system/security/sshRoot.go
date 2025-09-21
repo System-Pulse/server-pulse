@@ -6,22 +6,29 @@ import (
 	"strings"
 )
 
-type SSHSystemChecker struct {
-	configPath string
-}
+// SSHSystemChecker retrieves the active SSH daemon configuration.
+type SSHSystemChecker struct{}
+
 
 func NewSSHSystemChecker() *SSHSystemChecker {
-	return &SSHSystemChecker{
-		configPath: "/etc/ssh/sshd_config",
-	}
+	return &SSHSystemChecker{}
 }
 
 func (s *SSHSystemChecker) GetActiveConfig() (map[string]string, error) {
+	// First, try running `sshd -T` without sudo.
 	cmd := exec.Command("sshd", "-T")
 	output, err := cmd.Output()
+
+	// If the command fails, try again with `sudo -n`.
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute sshd -T: %v", err)
+		cmd = exec.Command("sudo", "-n", "sshd", "-T")
+		var errSudo error
+		output, errSudo = cmd.Output()
+		if errSudo != nil {
+			return nil, fmt.Errorf("failed to execute 'sshd -T' (err: %v) and 'sudo -n sshd -T' (err: %v)", err, errSudo)
+		}
 	}
+
 	config := make(map[string]string)
 	lines := strings.Split(string(output), "\n")
 
@@ -33,7 +40,7 @@ func (s *SSHSystemChecker) GetActiveConfig() (map[string]string, error) {
 
 		parts := strings.SplitN(line, " ", 2)
 		if len(parts) == 2 {
-			config[parts[0]] = parts[1]
+			config[strings.ToLower(parts[0])] = parts[1]
 		}
 	}
 
@@ -52,18 +59,31 @@ func (sm *SecurityManager) checkSSHRootLogin() SecurityCheck {
 		}
 	}
 
-	permitRootLogin := strings.ToLower(config["permitrootlogin"])
-	enabled := (permitRootLogin == "yes" ||
-		permitRootLogin == "without-password" ||
-		permitRootLogin == "prohibit-password")
+	// Check for the permitrootlogin key. If not present, the default is 'prohibit-password'.
+	permitRootLogin, ok := config["permitrootlogin"]
+	if !ok {
+		permitRootLogin = "prohibit-password"
+	}
 
 	status := "Disabled"
-	if enabled {
-		status = "Enabled"
+	details := "SSH root login is disabled."
+
+	switch strings.ToLower(permitRootLogin) {
+	case "yes":
+		status = "Enabled (with password)"
+		details = "Root login with a password is permitted. This is a high security risk."
+	case "without-password", "prohibit-password":
+		status = "Enabled (key-only)"
+		details = "Root can login, but only with key-based authentication."
+	case "forced-commands-only":
+		status = "Enabled (commands-only)"
+		details = "Root can login via public key, but only to run specific commands."
+	case "no":
 	}
+
 	return SecurityCheck{
 		Name:    "SSH Root Login",
 		Status:  status,
-		Details: "SSH root login is " + status,
+		Details: details,
 	}
 }

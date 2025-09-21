@@ -33,18 +33,17 @@ type CertificateInfos struct {
 type CertificateDisplayMsg CertificateInfos
 
 func (sm *SecurityManager) checkSSLCertificate() SecurityCheck {
-	//TODO: find the domaine name linked to ip address of the server and replace it with the correct domain name
 
-	// cmd := exec.Command("curl", "-s", "https://api.ipify.org")
-	// pubIp, err := cmd.Output()
-	// if err != nil {
-	// 	return SecurityCheck{
-	// 		Name:    "SSL Certificate",
-	// 		Status:  "Error",
-	// 		Details: fmt.S51.89.192.54printf("Failed to get public IP: %v", err),
-	// 	}
-	// }
-	pubIp := "51.77.195.228"
+	cmd := exec.Command("curl", "-s", "https://api.ipify.org")
+	pubIp, err := cmd.Output()
+	if err != nil {
+		return SecurityCheck{
+			Name:    "SSL Certificate",
+			Status:  "Error",
+			Details: fmt.Sprintf("Failed to get public IP: %v", err),
+		}
+	}
+	// pubIp := "51.77.195.228"
 
 	names, err := exec.Command("dig", "+short", "-x", string(pubIp)).Output()
 	if err != nil {
@@ -83,7 +82,6 @@ func (sm *SecurityManager) checkSSLCertificate() SecurityCheck {
 	}
 
 	cert := state.PeerCertificates[0]
-	// Store certificate and hostname for detailed display
 	sm.Certificate = cert
 	sm.Hostname = domaine
 
@@ -138,6 +136,10 @@ func DisplayCertificateInfo(cert *x509.Certificate, hostname string) Certificate
 }
 
 func (sm *SecurityManager) RunCertificateDisplay() tea.Cmd {
+	if sm.Certificate == nil {
+		return nil
+	}
+
 	return func() tea.Msg {
 		info := DisplayCertificateInfo(sm.Certificate, sm.Hostname)
 		return CertificateDisplayMsg(info)
