@@ -233,16 +233,6 @@ func getMaxValueFromFloat64(values []float64) float64 {
 	return math.Max(max, 0.001) // Ensure at least 0.001 to avoid division by zero
 }
 
-func getMaxValue(points []model.DataPoint) float64 {
-	max := 0.0
-	for _, point := range points {
-		if point.Value > max {
-			max = point.Value
-		}
-	}
-	return math.Max(max, 1.0)
-}
-
 // getOptimalCPUScale determines the best scale for CPU usage data
 func getOptimalCPUScale(points []float64) ([]float64, float64, string) {
 	if len(points) == 0 {

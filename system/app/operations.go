@@ -128,14 +128,12 @@ func (dm *DockerManager) GetContainerLogs(containerID string) (string, error) {
 func (dm *DockerManager) StreamContainerLogs(containerID string) (chan string, context.CancelFunc, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// 🔥 NOUVEAU: Vérifier l'état du conteneur avant de streamer
 	containerJSON, err := dm.Cli.ContainerInspect(ctx, containerID)
 	if err != nil {
 		cancel()
 		return nil, nil, fmt.Errorf("failed to inspect container: %w", err)
 	}
 
-	// Si le conteneur n'est pas en cours d'exécution, retourner une erreur explicite
 	if containerJSON.State.Status != "running" {
 		cancel()
 		return nil, nil, fmt.Errorf("container is not running (status: %s), streaming not available", containerJSON.State.Status)

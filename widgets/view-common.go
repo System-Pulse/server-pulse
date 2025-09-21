@@ -98,20 +98,6 @@ func (m *Model) loadContainerDetails(containerID string) tea.Cmd {
 	)
 }
 
-func (m *Model) startContainerStats(containerID string) tea.Cmd {
-	return func() tea.Msg {
-		statsChan, err := m.Monitor.App.GetContainerStatsStream(containerID)
-		if err != nil {
-			return utils.ErrMsg(err)
-		}
-
-		return app.ContainerStatsChanMsg{
-			ContainerID: containerID,
-			StatsChan:   statsChan,
-		}
-	}
-}
-
 func (m *Model) stopContainerStats() {
 	// Close any active stats channels
 	for containerID, containerHistory := range m.Monitor.ContainerHistories {
@@ -127,8 +113,6 @@ func (m *Model) stopContainerStats() {
 
 func (m *Model) updateChartsWithStats(stats app.ContainerStatsMsg) {
 	now := time.Now()
-	// fmt.Printf("DEBUG: updateChartsWithStats called for container %s - CPU: %.1f%%, Mem: %.1f%%, NetRX: %d, NetTX: %d\n",
-	// 	stats.ContainerID, stats.CPUPercent, stats.MemPercent, stats.NetRX, stats.NetTX)
 
 	// Initialize container history if it doesn't exist
 	if _, exists := m.Monitor.ContainerHistories[stats.ContainerID]; !exists {
@@ -155,8 +139,6 @@ func (m *Model) updateChartsWithStats(stats app.ContainerStatsMsg) {
 
 	// Get container history
 	containerHistory := m.Monitor.ContainerHistories[stats.ContainerID]
-	// fmt.Printf("DEBUG: Container history for %s - CPU points: %d, Memory points: %d\n",
-	// 	stats.ContainerID, len(containerHistory.CpuHistory.Points), len(containerHistory.MemoryHistory.Points))
 
 	// Update CPU history
 	containerHistory.CpuHistory.Points = append(containerHistory.CpuHistory.Points, model.DataPoint{
@@ -219,8 +201,7 @@ func (m *Model) updateChartsWithStats(stats app.ContainerStatsMsg) {
 
 	// Store updated history back to map
 	m.Monitor.ContainerHistories[stats.ContainerID] = containerHistory
-	// fmt.Printf("DEBUG: Updated container history for %s - CPU points: %d, Memory points: %d\n",
-	// 	stats.ContainerID, len(containerHistory.CpuHistory.Points), len(containerHistory.MemoryHistory.Points))
+
 	m.LastChartUpdate = now
 }
 
