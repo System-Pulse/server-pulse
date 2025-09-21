@@ -148,18 +148,20 @@ func (m *Model) handleRealTimeStats(containerID string, statsChan chan app.Conta
 					ID: containerID,
 				},
 				Stats: app.ContainerStats{
-					CPUPercent:    stats.CPUPercent,
-					MemoryPercent: stats.MemPercent,
-					MemoryUsage:   stats.MemUsage,
-					MemoryLimit:   stats.MemLimit,
-					NetworkRx:     stats.NetRX,
-					NetworkTx:     stats.NetTX,
+					CPUPercent:     stats.CPUPercent,
+					PerCPUPercents: stats.PerCPUPercents,
+					MemoryPercent:  stats.MemPercent,
+					MemoryUsage:    stats.MemUsage,
+					MemoryLimit:    stats.MemLimit,
+					NetworkRx:      stats.NetRX,
+					NetworkTx:      stats.NetTX,
 				},
 			}
 		}
 
 		if m.Monitor.ContainerDetails.Container.ID == containerID {
 			m.Monitor.ContainerDetails.Stats.CPUPercent = stats.CPUPercent
+			m.Monitor.ContainerDetails.Stats.PerCPUPercents = stats.PerCPUPercents
 			m.Monitor.ContainerDetails.Stats.MemoryPercent = stats.MemPercent
 			m.Monitor.ContainerDetails.Stats.MemoryUsage = stats.MemUsage
 			m.Monitor.ContainerDetails.Stats.MemoryLimit = stats.MemLimit

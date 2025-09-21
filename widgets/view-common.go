@@ -137,6 +137,7 @@ func (m *Model) updateChartsWithStats(stats app.ContainerStatsMsg) {
 				MaxPoints: 60,
 				Points:    make([]model.DataPoint, 0),
 			},
+			PerCpuHistory: make(map[int]model.DataHistory), // Initialize empty map for per-core history
 			MemoryHistory: model.DataHistory{
 				MaxPoints: 60,
 				Points:    make([]model.DataPoint, 0),
@@ -164,6 +165,29 @@ func (m *Model) updateChartsWithStats(stats app.ContainerStatsMsg) {
 	})
 	if len(containerHistory.CpuHistory.Points) > containerHistory.CpuHistory.MaxPoints {
 		containerHistory.CpuHistory.Points = containerHistory.CpuHistory.Points[1:]
+	}
+
+	// Update per-core CPU history
+	if len(stats.PerCPUPercents) > 0 {
+		for i, cpuPercent := range stats.PerCPUPercents {
+			// Initialize history for this core if it doesn't exist
+			if _, exists := containerHistory.PerCpuHistory[i]; !exists {
+				containerHistory.PerCpuHistory[i] = model.DataHistory{
+					MaxPoints: 60,
+					Points:    make([]model.DataPoint, 0),
+				}
+			}
+
+			coreHistory := containerHistory.PerCpuHistory[i]
+			coreHistory.Points = append(coreHistory.Points, model.DataPoint{
+				Timestamp: now,
+				Value:     cpuPercent,
+			})
+			if len(coreHistory.Points) > coreHistory.MaxPoints {
+				coreHistory.Points = coreHistory.Points[1:]
+			}
+			containerHistory.PerCpuHistory[i] = coreHistory
+		}
 	}
 
 	// Update Memory history

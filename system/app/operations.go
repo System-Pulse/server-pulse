@@ -348,6 +348,7 @@ func (dm *DockerManager) GetContainerStatsStream(containerID string) (chan Conta
 		decoder := json.NewDecoder(response.Body)
 		var lastCPUStats *CPUStats
 		var lastSystemCPUUsage uint64
+		var lastPerCPUUsage []uint64
 
 		for {
 			var stats StatsJSON
@@ -359,17 +360,43 @@ func (dm *DockerManager) GetContainerStatsStream(containerID string) (chan Conta
 			}
 
 			cpuPercent := 0.0
+			perCpuPercents := make([]float64, len(stats.CPUStats.CPUUsage.PercpuUsage))
+
 			if lastCPUStats != nil && lastSystemCPUUsage > 0 {
 				cpuDelta := float64(stats.CPUStats.CPUUsage.TotalUsage - lastCPUStats.CPUUsage.TotalUsage)
 				systemDelta := float64(stats.CPUStats.SystemUsage - lastSystemCPUUsage)
 
-				if systemDelta > 0 && cpuDelta > 0 {
-					cpuPercent = (cpuDelta / systemDelta) * float64(len(stats.CPUStats.CPUUsage.PercpuUsage)) * 100.0
-					if cpuPercent > 100 {
-						cpuPercent = 100
+				// Handle division by zero
+				if systemDelta == 0 {
+					// Use previous values if available
+					cpuPercent = (cpuDelta / 1) * float64(len(stats.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+				} else {
+					numberCpus := float64(len(stats.CPUStats.CPUUsage.PercpuUsage))
+					if numberCpus == 0 {
+						numberCpus = 1 // Fallback to 1 CPU
+					}
+					cpuPercent = (cpuDelta / systemDelta) * numberCpus * 100.0
+				}
+
+				// Calculate per-core CPU usage
+				if len(stats.CPUStats.CPUUsage.PercpuUsage) > 0 && len(lastPerCPUUsage) == len(stats.CPUStats.CPUUsage.PercpuUsage) {
+					for i, usage := range stats.CPUStats.CPUUsage.PercpuUsage {
+						if i < len(lastPerCPUUsage) {
+							perCpuDelta := float64(usage) - float64(lastPerCPUUsage[i])
+							perCpuPercent := (perCpuDelta / systemDelta) * 100.0
+							perCpuPercents[i] = perCpuPercent
+						}
 					}
 				}
+
+				if cpuPercent > 100 {
+					cpuPercent = 100
+				}
 			}
+
+			// Update last values for next iteration
+			lastPerCPUUsage = make([]uint64, len(stats.CPUStats.CPUUsage.PercpuUsage))
+			copy(lastPerCPUUsage, stats.CPUStats.CPUUsage.PercpuUsage)
 
 			memoryPercent := 0.0
 			if stats.MemoryStats.Limit > 0 {
@@ -395,14 +422,15 @@ func (dm *DockerManager) GetContainerStatsStream(containerID string) (chan Conta
 			}
 
 			statsChan <- ContainerStatsMsg{
-				ContainerID: containerID,
-				CPUPercent:  cpuPercent,
-				MemPercent:  memoryPercent,
-				MemUsage:    stats.MemoryStats.Usage,
-				MemLimit:    stats.MemoryStats.Limit,
-				NetRX:       networkRx,
-				NetTX:       networkTx,
-				DiskUsage:   blockRead + blockWrite,
+				ContainerID:    containerID,
+				CPUPercent:     cpuPercent,
+				PerCPUPercents: perCpuPercents,
+				MemPercent:     memoryPercent,
+				MemUsage:       stats.MemoryStats.Usage,
+				MemLimit:       stats.MemoryStats.Limit,
+				NetRX:          networkRx,
+				NetTX:          networkTx,
+				DiskUsage:      blockRead + blockWrite,
 			}
 
 			lastCPUStats = &stats.CPUStats

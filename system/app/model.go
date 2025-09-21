@@ -34,14 +34,15 @@ type PortInfo struct {
 }
 
 type ContainerStats struct {
-	CPUPercent    float64
-	MemoryUsage   uint64
-	MemoryLimit   uint64
-	MemoryPercent float64
-	NetworkRx     uint64
-	NetworkTx     uint64
-	BlockRead     uint64
-	BlockWrite    uint64
+	CPUPercent     float64
+	PerCPUPercents []float64
+	MemoryUsage    uint64
+	MemoryLimit    uint64
+	MemoryPercent  float64
+	NetworkRx      uint64
+	NetworkTx      uint64
+	BlockRead      uint64
+	BlockWrite     uint64
 }
 
 type ContainerDetails struct {
@@ -120,12 +121,13 @@ type ExecShellMsg struct {
 }
 
 type ContainerStatsMsg struct {
-	ContainerID string
-	CPUPercent  float64
-	MemPercent  float64
-	MemUsage    uint64
-	MemLimit    uint64
-	NetRX       uint64
-	NetTX       uint64
-	DiskUsage   uint64
+	ContainerID    string
+	CPUPercent     float64
+	PerCPUPercents []float64
+	MemPercent     float64
+	MemUsage       uint64
+	MemLimit       uint64
+	NetRX          uint64
+	NetTX          uint64
+	DiskUsage      uint64
 }
