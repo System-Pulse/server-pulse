@@ -36,4 +36,3 @@ func (sm *SecurityManager) RunSecurityChecks() tea.Cmd {
 		return SecurityMsg(checks)
 	}
 }
-

@@ -9,7 +9,6 @@ import (
 // SSHSystemChecker retrieves the active SSH daemon configuration.
 type SSHSystemChecker struct{}
 
-
 func NewSSHSystemChecker() *SSHSystemChecker {
 	return &SSHSystemChecker{}
 }

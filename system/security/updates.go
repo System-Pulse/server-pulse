@@ -1,6 +1,5 @@
 package security
 
-
 func (sm *SecurityManager) checkSystemUpdates() SecurityCheck {
 	// TODO: Replace with your actual system updates check function
 	return SecurityCheck{
