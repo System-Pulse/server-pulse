@@ -52,6 +52,7 @@ type DataPoint struct {
 
 type ContainerHistory struct {
 	CpuHistory       DataHistory
+	PerCpuHistory    map[int]DataHistory // History per CPU core
 	MemoryHistory    DataHistory
 	NetworkRxHistory DataHistory
 	NetworkTxHistory DataHistory

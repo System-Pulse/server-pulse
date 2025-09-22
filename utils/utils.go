@@ -152,7 +152,7 @@ func CheckDockerPermissions() (bool, string) {
 			if err != nil {
 				continue
 			}
-			if group.Name == "docker" {
+			if group.Name == "docker" || group.Name == "root" {
 				return true, "The user has permissions to run Docker."
 			}
 		}

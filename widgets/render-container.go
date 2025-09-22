@@ -150,6 +150,13 @@ func (m Model) renderContainerCPU() string {
 		doc.WriteString("\n")
 		chart := m.renderCPUChart(50, 10)
 		doc.WriteString(chart)
+
+		// Display per-core CPU usage if available
+		doc.WriteString("\n\n")
+		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Per-Core Usage:"))
+		doc.WriteString("\n")
+		perCoreCharts := m.renderAllPerCPUCharts(50, 6)
+		doc.WriteString(perCoreCharts)
 	} else {
 		doc.WriteString(v.MetricLabelStyle.Render("Loading CPU metrics..."))
 	}
@@ -169,10 +176,8 @@ func (m Model) renderContainerMemory() string {
 		memUsage := m.Monitor.ContainerDetails.Stats.MemoryUsage
 		memLimit := m.Monitor.ContainerDetails.Stats.MemoryLimit
 
-		doc.WriteString(fmt.Sprintf("Usage: %.1f%%\n", memPercent))
-		doc.WriteString(fmt.Sprintf("Used: %s\n", utils.FormatBytes(memUsage)))
-		doc.WriteString(fmt.Sprintf("Limit: %s\n", utils.FormatBytes(memLimit)))
-		doc.WriteString(fmt.Sprintf("Available: %s\n\n", utils.FormatBytes(memLimit-memUsage)))
+		doc.WriteString(fmt.Sprintf("Usage: %.1f%% | Used: %s | Limit: %s | Available: %s\n\n", memPercent,
+			utils.FormatBytes(memUsage), utils.FormatBytes(memLimit), utils.FormatBytes(memLimit-memUsage)))
 
 		// Display progress bar with dynamic color
 		doc.WriteString(renderProgressBar(memPercent) + "\n\n")

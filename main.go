@@ -60,7 +60,6 @@ func runTUI() bool {
 	// Check if we need to execute a shell
 	if model, ok := finalModel.(widgets.Model); ok {
 		if shellRequest := model.GetPendingShellExec(); shellRequest != nil {
-			// Attendre un peu avant d'exécuter le shell pour stabiliser
 			time.Sleep(100 * time.Millisecond)
 
 			// Execute shell outside TUI

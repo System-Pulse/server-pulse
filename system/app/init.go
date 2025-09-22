@@ -127,8 +127,23 @@ func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDeta
 	if stats.PreCPUStats.CPUUsage.TotalUsage > 0 && stats.CPUStats.SystemUsage > stats.PreCPUStats.SystemUsage {
 		cpuDelta := float64(stats.CPUStats.CPUUsage.TotalUsage - stats.PreCPUStats.CPUUsage.TotalUsage)
 		systemDelta := float64(stats.CPUStats.SystemUsage - stats.PreCPUStats.SystemUsage)
-		if systemDelta > 0 {
-			cpuPercent = (cpuDelta / systemDelta) * float64(len(stats.CPUStats.CPUUsage.PercpuUsage)) * 100.0
+
+		// Handle division by zero
+		if systemDelta == 0 {
+			// Use a small value to avoid division by zero
+			systemDelta = 1
+		}
+
+		numberCpus := float64(len(stats.CPUStats.CPUUsage.PercpuUsage))
+		if numberCpus == 0 {
+			numberCpus = 1 // Fallback to 1 CPU
+		}
+
+		cpuPercent = (cpuDelta / systemDelta) * numberCpus * 100.0
+
+		// Cap CPU percentage at 100%
+		if cpuPercent > 100 {
+			cpuPercent = 100
 		}
 	}
 
