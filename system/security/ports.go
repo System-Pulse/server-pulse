@@ -62,6 +62,14 @@ func extractPortFromAddr(addr string) string {
 	return ""
 }
 
+type RiskLevel int
+
+const (
+	Secure RiskLevel = iota
+	Warning
+	HighRisk
+)
+
 func (sm *SecurityManager) checkOpenPorts() SecurityCheck {
 	o := NewOpenedPortsChecker()
 
@@ -82,24 +90,75 @@ func (sm *SecurityManager) checkOpenPorts() SecurityCheck {
 		}
 	}
 
+	maxRisk := Secure
+	var riskPorts []string
+	var criticalFindings []string
+
 	for port := range openPorts {
-		if port == 22 {
-			return SecurityCheck{
-				Name:    "Open Ports",
-				Status:  "Warning",
-				Details: "Port 22 (SSH) is open. Change default ssh port for more security.",
+		risk, message := analyzePortRisk(port)
+
+		if risk > maxRisk {
+			maxRisk = risk
+			if risk == HighRisk {
+				criticalFindings = []string{message}
+				riskPorts = []string{fmt.Sprintf("%d", port)}
 			}
+		} else if risk == maxRisk && risk == HighRisk {
+			criticalFindings = append(criticalFindings, message)
+			riskPorts = append(riskPorts, fmt.Sprintf("%d", port))
 		}
 	}
+	return buildSecurityCheckResult(maxRisk, openPorts, riskPorts, criticalFindings)
+}
 
-	return SecurityCheck{
-		Name:    "Open Ports",
-		Status:  "Secure",
-		Details: fmt.Sprintf("%d Opened ports: %s", len(openPorts), ShowOpenedPortsDetails(openPorts)),
+func analyzePortRisk(port int) (RiskLevel, string) {
+	switch port {
+	case 22:
+		return Warning, "Port 22 (SSH) is open. Change default ssh port for more security."
+	case 20, 21:
+		return Warning, "Port 20/21 (FTP) is open. FTP is insecure, consider using SFTP or FTPS."
+	case 23:
+		return HighRisk, "Port 23 (Telnet) is open. Telnet is insecure and should be closed."
+	case 161, 162:
+		return Warning, "Port 161/162 (SNMP) is open. SNMP can expose sensitive information."
+	case 137, 138, 139:
+		return HighRisk, "Port 137/138/139 (NetBIOS), you can be attacked by null sessions."
+	case 445:
+		return HighRisk, "Port 445 (SMB) is open. SMB has had many vulnerabilities."
+	case 3389:
+		return HighRisk, "Port 3389 (RDP) is open. RDP is often targeted by attackers."
+	case 3306, 5432, 6379, 27017:
+		return HighRisk, "Database port exposed. Databases should not be accessible from internet."
+	default:
+		return Secure, ""
 	}
 }
 
-func ShowOpenedPortsDetails(ports map[int]bool) string {
+func buildSecurityCheckResult(maxRisk RiskLevel, allPorts map[int]bool, riskPorts []string, findings []string) SecurityCheck {
+	switch maxRisk {
+	case HighRisk:
+		return SecurityCheck{
+			Name:   "Open Ports",
+			Status: "High Risk",
+			Details: fmt.Sprintf("Critical ports detected (%s): %s",
+				strings.Join(riskPorts, ", "), strings.Join(findings, " | ")),
+		}
+	case Warning:
+		return SecurityCheck{
+			Name:    "Open Ports",
+			Status:  "Warning",
+			Details: strings.Join(findings, " | "),
+		}
+	default:
+		return SecurityCheck{
+			Name:    "Open Ports",
+			Status:  "Secure",
+			Details: fmt.Sprintf("%d ports open: %s", len(allPorts), ShowOpenedPorts(allPorts)),
+		}
+	}
+}
+
+func ShowOpenedPorts(ports map[int]bool) string {
 	if len(ports) == 0 {
 		return "No open ports detected"
 	}
