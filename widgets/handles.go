@@ -206,6 +206,10 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleDiagnosticsKeys(msg)
 	case model.StateCertificateDetails:
 		return m.handleCertificateDetailsKeys(msg)
+	case model.StateSSHRootDetails:
+		return m.handleSSHRootDetailsKeys(msg)
+	case model.StateOpenedPortsDetails:
+		return m.handleOpenedPortsDetailsKeys(msg)
 	case model.StateReporting:
 		return m.handleReportingKeys(msg)
 	}
@@ -232,7 +236,8 @@ func (m Model) handleHomeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Ui.ActiveView = m.Ui.SelectedTab
 			// Auto-load security checks if we're on security tab and they're not loaded
 			if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
-				return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+				domain := m.Diagnostic.DomainInput.Value()
+				return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 			}
 		case 2:
 			m.setState(model.StateNetwork)
@@ -529,6 +534,30 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	domain := m.Diagnostic.DomainInput.Value()
+	// Handle domain input mode first
+	if m.Diagnostic.DomainInputMode {
+		switch msg.String() {
+		case "enter":
+			if domain != "" {
+				m.Diagnostic.DomainInputMode = false
+				m.Diagnostic.DomainInput.Blur()
+				return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
+			}
+		case "esc":
+			// Cancel domain input
+			m.Diagnostic.DomainInputMode = false
+			m.Diagnostic.DomainInput.Blur()
+			return m, nil
+		default:
+			// Update text input
+			var cmd tea.Cmd
+			m.Diagnostic.DomainInput, cmd = m.Diagnostic.DomainInput.Update(msg)
+			return m, cmd
+		}
+		return m, nil
+	}
+
 	switch msg.String() {
 	case "b", "esc":
 		m.goBack()
@@ -540,7 +569,8 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
 		// Auto-load security checks if switching to security tab and not loaded
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
-			return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+			// domain := m.Diagnostic.DomainInput.Value()
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 		}
 		return m, nil
 	case "shift+tab", "left", "h":
@@ -551,14 +581,14 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
 		// Auto-load security checks if switching to security tab and not loaded
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
-			return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 		}
 		return m, nil
 	case "1":
 		m.Diagnostic.SelectedItem = model.DiagnosticSecurityChecks
 		// Auto-load security checks if not already loaded
 		if len(m.Diagnostic.SecurityChecks) == 0 {
-			return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 		}
 		return m, nil
 	case "2":
@@ -614,7 +644,14 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "r":
 		// Refresh security checks when on security tab
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
-			return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
+		}
+	case "d":
+		// Enter domain input mode when on security tab
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+			m.Diagnostic.DomainInputMode = true
+			m.Diagnostic.DomainInput.Focus()
+			return m, nil
 		}
 		return m, nil
 	case "q", "ctrl+c":
@@ -625,8 +662,11 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityTable.SelectedRow()) > 0 {
 			selectedRow := m.Diagnostic.SecurityTable.SelectedRow()
 			if len(selectedRow) > 0 && selectedRow[0] == "SSL Certificate" {
-				// Show detailed SSL certificate information
 				return m, m.Diagnostic.SecurityManager.RunCertificateDisplay()
+			} else if len(selectedRow) > 0 && selectedRow[0] == "SSH Root Login" {
+				return m, m.Diagnostic.SecurityManager.DisplaySSHRootInfos()
+			} else if len(selectedRow) > 0 && selectedRow[0] == "Open Ports" {
+				return m, m.Diagnostic.SecurityManager.DisplayOpenedPortsInfos()
 			}
 		}
 		return m, nil
@@ -675,6 +715,80 @@ func (m Model) handleCertificateDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		m.Ui.Viewport.GotoTop()
 	case "end":
 		m.Ui.Viewport.GotoBottom()
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+// ------------------------- handle SSH root display messages -------------------------
+func (m Model) handleSSHRootDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case security.SSHRootMsg:
+		sshRootInfo := security.SSHRootInfos(msg)
+		// Store SSH root info in model for display
+		m.Diagnostic.SSHRootInfo = &sshRootInfo
+		// Switch to SSH root details view
+		m.setState(model.StateSSHRootDetails)
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m Model) handleSSHRootDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
+	case "up", "k":
+		m.Ui.Viewport.ScrollUp(1)
+	case "down", "j":
+		m.Ui.Viewport.ScrollDown(1)
+	case "pageup":
+		m.Ui.Viewport.PageUp()
+	case "pagedown":
+		m.Ui.Viewport.PageDown()
+	case "home":
+		m.Ui.Viewport.GotoTop()
+	case "end":
+		m.Ui.Viewport.GotoBottom()
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+// ------------------------- handler for opened ports display messages -------------------------
+func (m Model) handleOpenedPortsDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case security.OpenedPortsMsg:
+		openedPortsInfo := security.OpenedPortsInfos(msg)
+		// Store opened ports info in model for display
+		m.Diagnostic.OpenedPortsInfo = &openedPortsInfo
+		// Switch to opened ports details view
+		m.setState(model.StateOpenedPortsDetails)
+		return m, m.updatePortsTable()
+	}
+	return m, nil
+}
+
+func (m Model) handleOpenedPortsDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
+	case "up", "k":
+		m.Diagnostic.PortsTable.MoveUp(1)
+	case "down", "j":
+		m.Diagnostic.PortsTable.MoveDown(1)
+	case "pageup":
+		m.Diagnostic.PortsTable.MoveUp(10)
+	case "pagedown":
+		m.Diagnostic.PortsTable.MoveDown(10)
+	case "home":
+		m.Diagnostic.PortsTable.GotoTop()
+	case "end":
+		m.Diagnostic.PortsTable.GotoBottom()
 	case "q", "ctrl+c":
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit

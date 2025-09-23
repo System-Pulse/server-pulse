@@ -33,10 +33,30 @@ func (m Model) renderDiagnosticSecurity() string {
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Security Checks"))
 	doc.WriteString("\n\n")
 
+	// Domain input section
+	if m.Diagnostic.DomainInputMode {
+		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Enter Domain Name for SSL Check"))
+		doc.WriteString("\n")
+		doc.WriteString(m.Diagnostic.DomainInput.View())
+		doc.WriteString("\n\n")
+		doc.WriteString(lipgloss.NewStyle().Faint(true).Render("Press Enter to check SSL, Esc to cancel"))
+		doc.WriteString("\n\n")
+	} else {
+		// Show current domain or prompt to enter one
+		currentDomain := m.Diagnostic.DomainInput.Value()
+		if currentDomain == "" {
+			doc.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render("Press 'd' to enter domain name for SSL check"))
+		} else {
+			doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Current Domain: ") + currentDomain)
+			doc.WriteString("\n")
+			doc.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render("Press 'd' to change domain, 'r' to refresh checks"))
+		}
+		doc.WriteString("\n\n")
+	}
+
 	// Security table
 	doc.WriteString(m.Diagnostic.SecurityTable.View())
 
-	// Last update info - we'll use current time for now since we don't track LastUpdate yet
 	doc.WriteString("\n\n")
 
 	return vars.CardStyle.Render(doc.String())
@@ -104,8 +124,40 @@ func (m Model) renderCertificateDetails() string {
 		doc.WriteString("\n")
 	}
 
-	// Navigation hint
-	// doc.WriteString(vars.MetricLabelStyle.Render("Press 'b' or 'Esc' to go back"))
+	return vars.CardStyle.Render(doc.String())
+}
+
+func (m Model) renderSSHRootDetails() string {
+	if m.Diagnostic.SSHRootInfo == nil {
+		return vars.CardStyle.Render("No SSH root login information available")
+	}
+
+	sshInfo := m.Diagnostic.SSHRootInfo
+	doc := strings.Builder{}
+
+	// Title
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("SSH Root Login Details"))
+	doc.WriteString("\n\n")
+
+	doc.WriteString(vars.MetricLabelStyle.Render("Status: ") + sshInfo.Status + "\n")
+	doc.WriteString(vars.MetricLabelStyle.Render("Details: ") + sshInfo.Details + "\n")
+
+	return vars.CardStyle.Render(doc.String())
+}
+
+func (m Model) renderOpenedPortsDetails() string {
+	if m.Diagnostic.OpenedPortsInfo == nil {
+		return vars.CardStyle.Render("No opened ports information available")
+	}
+
+	doc := strings.Builder{}
+
+	// Title
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Opened Ports Details"))
+	doc.WriteString("\n\n")
+
+	doc.WriteString(m.Diagnostic.PortsTable.View())
+	doc.WriteString("\n\n")
 
 	return vars.CardStyle.Render(doc.String())
 }

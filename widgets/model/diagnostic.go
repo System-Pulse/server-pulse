@@ -3,6 +3,7 @@ package model
 import (
 	"github.com/System-Pulse/server-pulse/system/security"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/textinput"
 )
 
 type DiagnosticModel struct {
@@ -13,4 +14,9 @@ type DiagnosticModel struct {
 	SecurityTable   table.Model
 	SecurityChecks  []security.SecurityCheck
 	CertificateInfo *security.CertificateInfos
+	SSHRootInfo     *security.SSHRootInfos
+	DomainInput     textinput.Model
+	DomainInputMode bool
+	OpenedPortsInfo *security.OpenedPortsInfos
+	PortsTable      table.Model
 }

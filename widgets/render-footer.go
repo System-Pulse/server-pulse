@@ -68,7 +68,7 @@ func (m Model) renderFooter() string {
 		hints = "[Tab/←→] Switch tabs • [b] Back • [q] Quit"
 	case model.StateDiagnostics:
 		hints = "[b] Back • [enter] Details • [q] Quit"
-	case model.StateCertificateDetails, model.StateReporting:
+	case model.StateCertificateDetails, model.StateSSHRootDetails, model.StateReporting:
 		hints = "[b] Back • [q] Quit"
 	}
 

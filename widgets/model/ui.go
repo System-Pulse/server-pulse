@@ -18,6 +18,8 @@ const (
 	StateContainerLogs      AppState = "monitor.containers.logs"
 	StateDiagnostics        AppState = "diagnostics"
 	StateCertificateDetails AppState = "diagnostics.certificate"
+	StateSSHRootDetails     AppState = "diagnostics.sshroot"
+	StateOpenedPortsDetails AppState = "diagnostics.openedports"
 	StateNetwork            AppState = "network"
 	StateInterfaces         AppState = "network.interfaces"
 	StateConnectivity       AppState = "network.connectivity"
