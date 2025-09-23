@@ -33,6 +33,27 @@ func (m Model) renderDiagnosticSecurity() string {
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Security Checks"))
 	doc.WriteString("\n\n")
 
+	// Domain input section
+	if m.Diagnostic.DomainInputMode {
+		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Enter Domain Name for SSL Check"))
+		doc.WriteString("\n")
+		doc.WriteString(m.Diagnostic.DomainInput.View())
+		doc.WriteString("\n\n")
+		doc.WriteString(lipgloss.NewStyle().Faint(true).Render("Press Enter to check SSL, Esc to cancel"))
+		doc.WriteString("\n\n")
+	} else {
+		// Show current domain or prompt to enter one
+		currentDomain := m.Diagnostic.DomainInput.Value()
+		if currentDomain == "" {
+			doc.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render("Press 'd' to enter domain name for SSL check"))
+		} else {
+			doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Current Domain: ") + currentDomain)
+			doc.WriteString("\n")
+			doc.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render("Press 'd' to change domain, 'r' to refresh checks"))
+		}
+		doc.WriteString("\n\n")
+	}
+
 	// Security table
 	doc.WriteString(m.Diagnostic.SecurityTable.View())
 

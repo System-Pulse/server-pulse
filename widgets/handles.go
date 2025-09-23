@@ -234,7 +234,8 @@ func (m Model) handleHomeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Ui.ActiveView = m.Ui.SelectedTab
 			// Auto-load security checks if we're on security tab and they're not loaded
 			if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
-				return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+				domain := m.Diagnostic.DomainInput.Value()
+				return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 			}
 		case 2:
 			m.setState(model.StateNetwork)
@@ -531,6 +532,30 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	domain := m.Diagnostic.DomainInput.Value()
+	// Handle domain input mode first
+	if m.Diagnostic.DomainInputMode {
+		switch msg.String() {
+		case "enter":
+			if domain != "" {
+				m.Diagnostic.DomainInputMode = false
+				m.Diagnostic.DomainInput.Blur()
+				return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
+			}
+		case "esc":
+			// Cancel domain input
+			m.Diagnostic.DomainInputMode = false
+			m.Diagnostic.DomainInput.Blur()
+			return m, nil
+		default:
+			// Update text input
+			var cmd tea.Cmd
+			m.Diagnostic.DomainInput, cmd = m.Diagnostic.DomainInput.Update(msg)
+			return m, cmd
+		}
+		return m, nil
+	}
+
 	switch msg.String() {
 	case "b", "esc":
 		m.goBack()
@@ -542,7 +567,8 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
 		// Auto-load security checks if switching to security tab and not loaded
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
-			return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+			// domain := m.Diagnostic.DomainInput.Value()
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 		}
 		return m, nil
 	case "shift+tab", "left", "h":
@@ -553,14 +579,14 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
 		// Auto-load security checks if switching to security tab and not loaded
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
-			return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 		}
 		return m, nil
 	case "1":
 		m.Diagnostic.SelectedItem = model.DiagnosticSecurityChecks
 		// Auto-load security checks if not already loaded
 		if len(m.Diagnostic.SecurityChecks) == 0 {
-			return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 		}
 		return m, nil
 	case "2":
@@ -616,7 +642,14 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "r":
 		// Refresh security checks when on security tab
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
-			return m, m.Diagnostic.SecurityManager.RunSecurityChecks()
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
+		}
+	case "d":
+		// Enter domain input mode when on security tab
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+			m.Diagnostic.DomainInputMode = true
+			m.Diagnostic.DomainInput.Focus()
+			return m, nil
 		}
 		return m, nil
 	case "q", "ctrl+c":

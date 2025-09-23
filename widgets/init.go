@@ -152,6 +152,14 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			SelectedItem:    model.DiagnosticSecurityChecks,
 			SecurityManager: securityManager,
 			SecurityTable:   securityTable,
+			DomainInput: func() textinput.Model {
+				ti := textinput.New()
+				ti.Placeholder = "Enter domain name (e.g., example.com)"
+				ti.CharLimit = 100
+				ti.Width = 40
+				return ti
+			}(),
+			DomainInputMode: false,
 		},
 		Monitor: model.MonitorModel{
 			ProcessTable:       t,

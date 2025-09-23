@@ -23,10 +23,10 @@ type SecurityCheckResult struct {
 
 type SecurityMsg []SecurityCheck
 
-func (sm *SecurityManager) RunSecurityChecks() tea.Cmd {
+func (sm *SecurityManager) RunSecurityChecks(domain string) tea.Cmd {
 	return func() tea.Msg {
 		checks := []SecurityCheck{
-			sm.checkSSLCertificate(),
+			sm.checkSSLCertificate(domain),
 			sm.checkSSHRootLogin(),
 			sm.checkOpenPorts(),
 			sm.checkFirewallStatus(),

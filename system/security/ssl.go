@@ -30,30 +30,14 @@ type CertificateInfos struct {
 
 type CertificateDisplayMsg CertificateInfos
 
-func (sm *SecurityManager) checkSSLCertificate() SecurityCheck {
-
-	// cmd := exec.Command("curl", "-s", "https://api.ipify.org")
-	// pubIp, err := cmd.Output()
-	// if err != nil {
-	// 	return SecurityCheck{
-	// 		Name:    "SSL Certificate",
-	// 		Status:  "Error",
-	// 		Details: fmt.Sprintf("Failed to get public IP: %v", err),
-	// 	}
-	// }
-
-	// names, err := exec.Command("dig", "+short", "-x", string(pubIp)).Output()
-	// if err != nil {
-	// 	return SecurityCheck{
-	// 		Name:    "SSL Certificate",
-	// 		Status:  "Error",
-	// 		Details: fmt.Sprintf("Failed to get domain name: %v", err),
-	// 	}
-	// }
-
-	// domaine := strings.TrimSpace(string(names))
-	// domaine = strings.TrimSuffix(domaine, ".")
-	domaine := "arndofficiel.com"
+func (sm *SecurityManager) checkSSLCertificate(domaine string) SecurityCheck {
+	if domaine == "" {
+		return SecurityCheck{
+			Name:    "SSL Certificate",
+			Status:  "Error",
+			Details: "Domain name is required",
+		}
+	}
 
 	port := "443"
 	conn, err := tls.Dial("tcp", domaine+":"+port, &tls.Config{
