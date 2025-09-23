@@ -4,10 +4,19 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 // SSHSystemChecker retrieves the active SSH daemon configuration.
 type SSHSystemChecker struct{}
+
+type SSHRootInfos struct {
+	Status  string
+	Details string
+}
+
+type SSHRootMsg SSHRootInfos
 
 func NewSSHSystemChecker() *SSHSystemChecker {
 	return &SSHSystemChecker{}
@@ -84,5 +93,15 @@ func (sm *SecurityManager) checkSSHRootLogin() SecurityCheck {
 		Name:    "SSH Root Login",
 		Status:  status,
 		Details: details,
+	}
+}
+
+func (sm *SecurityManager) DisplaySSHRootInfos() tea.Cmd {
+	return func() tea.Msg {
+		check := sm.checkSSHRootLogin()
+		return SSHRootMsg(SSHRootInfos{
+			Status:  check.Status,
+			Details: check.Details,
+		})
 	}
 }

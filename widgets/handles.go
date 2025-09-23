@@ -206,6 +206,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleDiagnosticsKeys(msg)
 	case model.StateCertificateDetails:
 		return m.handleCertificateDetailsKeys(msg)
+	case model.StateSSHRootDetails:
+		return m.handleSSHRootDetailsKeys(msg)
 	case model.StateReporting:
 		return m.handleReportingKeys(msg)
 	}
@@ -625,8 +627,9 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityTable.SelectedRow()) > 0 {
 			selectedRow := m.Diagnostic.SecurityTable.SelectedRow()
 			if len(selectedRow) > 0 && selectedRow[0] == "SSL Certificate" {
-				// Show detailed SSL certificate information
 				return m, m.Diagnostic.SecurityManager.RunCertificateDisplay()
+			} else if len(selectedRow) > 0 && selectedRow[0] == "SSH Root Login" {
+				return m, m.Diagnostic.SecurityManager.DisplaySSHRootInfos()
 			}
 		}
 		return m, nil
@@ -660,6 +663,43 @@ func (m Model) handleCertificateDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleCertificateDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
+	case "up", "k":
+		m.Ui.Viewport.ScrollUp(1)
+	case "down", "j":
+		m.Ui.Viewport.ScrollDown(1)
+	case "pageup":
+		m.Ui.Viewport.PageUp()
+	case "pagedown":
+		m.Ui.Viewport.PageDown()
+	case "home":
+		m.Ui.Viewport.GotoTop()
+	case "end":
+		m.Ui.Viewport.GotoBottom()
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+// ------------------------- handle SSH root display messages -------------------------
+func (m Model) handleSSHRootDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case security.SSHRootMsg:
+		sshRootInfo := security.SSHRootInfos(msg)
+		// Store SSH root info in model for display
+		m.Diagnostic.SSHRootInfo = &sshRootInfo
+		// Switch to SSH root details view
+		m.setState(model.StateSSHRootDetails)
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m Model) handleSSHRootDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "b", "esc":
 		m.goBack()

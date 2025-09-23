@@ -32,7 +32,6 @@ func (sm *SecurityManager) RunSecurityChecks() tea.Cmd {
 			sm.checkFirewallStatus(),
 			sm.checkSystemUpdates(),
 		}
-
 		return SecurityMsg(checks)
 	}
 }

@@ -104,8 +104,23 @@ func (m Model) renderCertificateDetails() string {
 		doc.WriteString("\n")
 	}
 
-	// Navigation hint
-	// doc.WriteString(vars.MetricLabelStyle.Render("Press 'b' or 'Esc' to go back"))
+	return vars.CardStyle.Render(doc.String())
+}
+
+func (m Model) renderSSHRootDetails() string {
+	if m.Diagnostic.SSHRootInfo == nil {
+		return vars.CardStyle.Render("No SSH root login information available")
+	}
+
+	sshInfo := m.Diagnostic.SSHRootInfo
+	doc := strings.Builder{}
+
+	// Title
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("SSH Root Login Details"))
+	doc.WriteString("\n\n")
+
+	doc.WriteString(vars.MetricLabelStyle.Render("Status: ") + sshInfo.Status + "\n")
+	doc.WriteString(vars.MetricLabelStyle.Render("Details: ") + sshInfo.Details + "\n")
 
 	return vars.CardStyle.Render(doc.String())
 }

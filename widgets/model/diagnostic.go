@@ -13,4 +13,5 @@ type DiagnosticModel struct {
 	SecurityTable   table.Model
 	SecurityChecks  []security.SecurityCheck
 	CertificateInfo *security.CertificateInfos
+	SSHRootInfo     *security.SSHRootInfos
 }

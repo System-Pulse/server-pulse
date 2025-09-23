@@ -30,6 +30,8 @@ func (m Model) renderMainContent() string {
 		currentView = m.renderDignostics()
 	case model.StateCertificateDetails:
 		currentView = m.renderCertificateDetails()
+	case model.StateSSHRootDetails:
+		currentView = m.renderSSHRootDetails()
 	case model.StateReporting:
 		currentView = m.renderReporting()
 	default:

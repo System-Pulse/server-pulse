@@ -4,8 +4,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"os/exec"
-	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -34,28 +32,28 @@ type CertificateDisplayMsg CertificateInfos
 
 func (sm *SecurityManager) checkSSLCertificate() SecurityCheck {
 
-	cmd := exec.Command("curl", "-s", "https://api.ipify.org")
-	pubIp, err := cmd.Output()
-	if err != nil {
-		return SecurityCheck{
-			Name:    "SSL Certificate",
-			Status:  "Error",
-			Details: fmt.Sprintf("Failed to get public IP: %v", err),
-		}
-	}
-	// pubIp := "51.77.195.228"
+	// cmd := exec.Command("curl", "-s", "https://api.ipify.org")
+	// pubIp, err := cmd.Output()
+	// if err != nil {
+	// 	return SecurityCheck{
+	// 		Name:    "SSL Certificate",
+	// 		Status:  "Error",
+	// 		Details: fmt.Sprintf("Failed to get public IP: %v", err),
+	// 	}
+	// }
 
-	names, err := exec.Command("dig", "+short", "-x", string(pubIp)).Output()
-	if err != nil {
-		return SecurityCheck{
-			Name:    "SSL Certificate",
-			Status:  "Error",
-			Details: fmt.Sprintf("Failed to get domain name: %v", err),
-		}
-	}
+	// names, err := exec.Command("dig", "+short", "-x", string(pubIp)).Output()
+	// if err != nil {
+	// 	return SecurityCheck{
+	// 		Name:    "SSL Certificate",
+	// 		Status:  "Error",
+	// 		Details: fmt.Sprintf("Failed to get domain name: %v", err),
+	// 	}
+	// }
 
-	domaine := strings.TrimSpace(string(names))
-	domaine = strings.TrimSuffix(domaine, ".")
+	// domaine := strings.TrimSpace(string(names))
+	// domaine = strings.TrimSuffix(domaine, ".")
+	domaine := "arndofficiel.com"
 
 	port := "443"
 	conn, err := tls.Dial("tcp", domaine+":"+port, &tls.Config{
