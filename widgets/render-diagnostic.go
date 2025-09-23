@@ -145,3 +145,34 @@ func (m Model) renderSSHRootDetails() string {
 
 	return vars.CardStyle.Render(doc.String())
 }
+
+func (m Model) renderOpenedPortsDetails() string {
+	if m.Diagnostic.OpenedPortsInfo == nil {
+		return vars.CardStyle.Render("No opened ports information available")
+	}
+
+	openedPorts := m.Diagnostic.OpenedPortsInfo
+	doc := strings.Builder{}
+
+	// Title
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Opened Ports Details"))
+	doc.WriteString("\n\n")
+
+	// Opened ports information
+	doc.WriteString(vars.MetricLabelStyle.Render("Total Opened Ports: ") + fmt.Sprintf("%d", len(openedPorts.Ports)) + "\n")
+	doc.WriteString(vars.MetricLabelStyle.Render("Ports: ") + showPorts(openedPorts.Ports) + "\n")
+
+	return vars.CardStyle.Render(doc.String())
+}
+
+func showPorts(ports []int) string {
+	if len(ports) == 0 {
+		return "No opened ports"
+	}
+
+	var portList []string
+	for _, port := range ports {
+		portList = append(portList, fmt.Sprintf("%d", port))
+	}
+	return strings.Join(portList, ", ")
+}

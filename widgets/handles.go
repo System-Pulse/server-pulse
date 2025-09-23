@@ -208,6 +208,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleCertificateDetailsKeys(msg)
 	case model.StateSSHRootDetails:
 		return m.handleSSHRootDetailsKeys(msg)
+	case model.StateOpenedPortsDetails:
+		return m.handleOpenedPortsDetailsKeys(msg)
 	case model.StateReporting:
 		return m.handleReportingKeys(msg)
 	}
@@ -663,6 +665,8 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				return m, m.Diagnostic.SecurityManager.RunCertificateDisplay()
 			} else if len(selectedRow) > 0 && selectedRow[0] == "SSH Root Login" {
 				return m, m.Diagnostic.SecurityManager.DisplaySSHRootInfos()
+			} else if len(selectedRow) > 0 && selectedRow[0] == "Open Ports" {
+				return m, m.Diagnostic.SecurityManager.DisplayOpenedPortsInfos()
 			}
 		}
 		return m, nil
@@ -733,6 +737,43 @@ func (m Model) handleSSHRootDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleSSHRootDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
+	case "up", "k":
+		m.Ui.Viewport.ScrollUp(1)
+	case "down", "j":
+		m.Ui.Viewport.ScrollDown(1)
+	case "pageup":
+		m.Ui.Viewport.PageUp()
+	case "pagedown":
+		m.Ui.Viewport.PageDown()
+	case "home":
+		m.Ui.Viewport.GotoTop()
+	case "end":
+		m.Ui.Viewport.GotoBottom()
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+// ------------------------- handler for opened ports display messages -------------------------
+func (m Model) handleOpenedPortsDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case security.OpenedPortsMsg:
+		openedPortsInfo := security.OpenedPortsInfos(msg)
+		// Store opened ports info in model for display
+		m.Diagnostic.OpenedPortsInfo = &openedPortsInfo
+		// Switch to opened ports details view
+		m.setState(model.StateOpenedPortsDetails)
+		return m, nil
+	}
+	return m, nil
+}
+
+func (m Model) handleOpenedPortsDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "b", "esc":
 		m.goBack()

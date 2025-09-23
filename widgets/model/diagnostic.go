@@ -17,4 +17,5 @@ type DiagnosticModel struct {
 	SSHRootInfo     *security.SSHRootInfos
 	DomainInput     textinput.Model
 	DomainInputMode bool
+	OpenedPortsInfo *security.OpenedPortsInfos
 }

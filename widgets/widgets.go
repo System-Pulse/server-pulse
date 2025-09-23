@@ -42,6 +42,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleCertificateDisplayMsg(msg)
 	case security.SSHRootMsg:
 		return m.handleSSHRootDisplayMsg(msg)
+	case security.OpenedPortsMsg:
+		return m.handleOpenedPortsDisplayMsg(msg)
 	case system.ContainerLogsStreamMsg:
 		return m.handleLogsStreamMsg(msg)
 	case system.ContainerLogsStopMsg:

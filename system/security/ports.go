@@ -5,6 +5,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type OpenedPorts struct{}
@@ -168,4 +170,27 @@ func ShowOpenedPorts(ports map[int]bool) string {
 		portList = append(portList, fmt.Sprintf("%d", port))
 	}
 	return fmt.Sprintf("%s", strings.Join(portList, ", "))
+}
+
+func (sm *SecurityManager) DisplayOpenedPortsInfos() tea.Cmd {
+	o := NewOpenedPortsChecker()
+	var AllPorts []int
+	value, err := o.GetOpenedPorts()
+	if err != nil {
+		return nil
+	}
+	for port, b := range value {
+		if b {
+			AllPorts = append(AllPorts, port)
+		}
+	}
+
+	return func() tea.Msg {
+		openedPorts := sm.checkOpenPorts()
+		return OpenedPortsMsg(OpenedPortsInfos{
+			Ports:   AllPorts,
+			Details: openedPorts.Details,
+			Status:  openedPorts.Status,
+		})
+	}
 }
