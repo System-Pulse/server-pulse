@@ -768,7 +768,7 @@ func (m Model) handleOpenedPortsDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.OpenedPortsInfo = &openedPortsInfo
 		// Switch to opened ports details view
 		m.setState(model.StateOpenedPortsDetails)
-		return m, nil
+		return m, m.updatePortsTable()
 	}
 	return m, nil
 }
@@ -778,17 +778,17 @@ func (m Model) handleOpenedPortsDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 	case "b", "esc":
 		m.goBack()
 	case "up", "k":
-		m.Ui.Viewport.ScrollUp(1)
+		m.Diagnostic.PortsTable.MoveUp(1)
 	case "down", "j":
-		m.Ui.Viewport.ScrollDown(1)
+		m.Diagnostic.PortsTable.MoveDown(1)
 	case "pageup":
-		m.Ui.Viewport.PageUp()
+		m.Diagnostic.PortsTable.MoveUp(10)
 	case "pagedown":
-		m.Ui.Viewport.PageDown()
+		m.Diagnostic.PortsTable.MoveDown(10)
 	case "home":
-		m.Ui.Viewport.GotoTop()
+		m.Diagnostic.PortsTable.GotoTop()
 	case "end":
-		m.Ui.Viewport.GotoBottom()
+		m.Diagnostic.PortsTable.GotoBottom()
 	case "q", "ctrl+c":
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit

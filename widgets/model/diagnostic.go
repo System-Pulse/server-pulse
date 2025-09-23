@@ -18,4 +18,5 @@ type DiagnosticModel struct {
 	DomainInput     textinput.Model
 	DomainInputMode bool
 	OpenedPortsInfo *security.OpenedPortsInfos
+	PortsTable      table.Model
 }

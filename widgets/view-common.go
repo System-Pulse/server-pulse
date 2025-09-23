@@ -1,6 +1,8 @@
 package widgets
 
 import (
+	"fmt"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -121,7 +123,7 @@ func (m *Model) updateChartsWithStats(stats app.ContainerStatsMsg) {
 				MaxPoints: 60,
 				Points:    make([]model.DataPoint, 0),
 			},
-			PerCpuHistory: make(map[int]model.DataHistory), // Initialize empty map for per-core history
+			PerCpuHistory: make(map[int]model.DataHistory),
 			MemoryHistory: model.DataHistory{
 				MaxPoints: 60,
 				Points:    make([]model.DataPoint, 0),
@@ -240,6 +242,59 @@ func (m *Model) getSecurityStatusIcon(status string) string {
 	default:
 		return "●" // Neutral dot
 	}
+}
+
+func (m *Model) updatePortsTable() tea.Cmd {
+	var rows []table.Row
+
+	for _, port := range m.Diagnostic.OpenedPortsInfo.Ports {
+		cmd := exec.Command("sudo", "-n", "lsof", "-i", fmt.Sprintf(":%d", port))
+		output, err := cmd.Output()
+		if err != nil {
+			rows = append(rows, table.Row{
+				fmt.Sprintf("%d", port),
+				"Unknown",
+				"TCP",
+				"",
+			})
+			continue
+		}
+
+		service := "Unknown"
+		protocol := "TCP"
+		pid := ""
+
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			if strings.Contains(line, "LISTEN") {
+				fields := strings.Fields(line)
+				if len(fields) >= 2 {
+					service = fields[0]
+					pid = fields[1]
+
+					if len(fields) > 8 {
+						nameField := fields[8]
+						if strings.Contains(nameField, "TCP") {
+							protocol = "TCP"
+						} else if strings.Contains(nameField, "UDP") {
+							protocol = "UDP"
+						}
+					}
+				}
+				break
+			}
+		}
+
+		rows = append(rows, table.Row{
+			fmt.Sprintf("%d", port),
+			service,
+			protocol,
+			pid,
+		})
+	}
+
+	m.Diagnostic.PortsTable.SetRows(rows)
+	return nil
 }
 
 /*

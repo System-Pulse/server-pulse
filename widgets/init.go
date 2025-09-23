@@ -138,6 +138,20 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 
 	securityTable.SetStyles(tableStyle)
 
+	portsColumns := []table.Column{
+		{Title: "Port", Width: 10},
+		{Title: "Service", Width: 20},
+		{Title: "Protocol", Width: 10},
+		{Title: "PID", Width: 10},
+	}
+
+	portsTable := table.New(
+		table.WithColumns(portsColumns),
+		table.WithFocused(true),
+	)
+
+	portsTable.SetStyles(tableStyle)
+
 	logsViewport := viewport.New(100, 20)
 	m := Model{
 		LogsViewport: logsViewport,
@@ -152,6 +166,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			SelectedItem:    model.DiagnosticSecurityChecks,
 			SecurityManager: securityManager,
 			SecurityTable:   securityTable,
+			PortsTable:      portsTable,
 			DomainInput: func() textinput.Model {
 				ti := textinput.New()
 				ti.Placeholder = "Enter domain name (e.g., example.com)"
