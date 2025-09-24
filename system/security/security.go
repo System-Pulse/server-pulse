@@ -28,9 +28,13 @@ func (sm *SecurityManager) RunSecurityChecks(domain string) tea.Cmd {
 		checks := []SecurityCheck{
 			sm.checkSSLCertificate(domain),
 			sm.checkSSHRootLogin(),
+			sm.checkSSHPasswordAuthentication(),
+			sm.checkPasswordPolicy(),
 			sm.checkOpenPorts(),
 			sm.checkFirewallStatus(),
+			sm.checkAutoBan(),
 			sm.checkSystemUpdates(),
+			sm.checkSystemRestart(),
 		}
 		return SecurityMsg(checks)
 	}
