@@ -15,6 +15,7 @@ func (sm *SecurityManager) checkFirewallStatus() SecurityCheck {
 		{"UFW", []string{"ufw", "status"}},
 		{"firewalld", []string{"firewall-cmd", "--state"}},
 		{"iptables", []string{"iptables", "-L"}},
+		{"nftables", []string{"nft", "list ruleset"}},
 	}
 
 	for _, fw := range firewalls {
@@ -60,7 +61,17 @@ func (sm *SecurityManager) checkFirewallStatus() SecurityCheck {
 					Details: fmt.Sprintf("%s rules are configured", fw.name),
 				}
 			}
+		case "nftables":
+
+			if len(strings.Split(string(output), "\n")) > 10 {
+				return SecurityCheck{
+					Name:    "Firewall Status",
+					Status:  "Active",
+					Details: fmt.Sprintf("%s rules are configured", fw.name),
+				}
+			}
 		}
+
 	}
 
 	return SecurityCheck{
