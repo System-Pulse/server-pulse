@@ -8,7 +8,6 @@ import (
 )
 
 func (sm *SecurityManager) checkPasswordPolicy() SecurityCheck {
-	// Vérifier la configuration PAM pour les politiques de mots de passe
 	pamFiles := []string{
 		"/etc/pam.d/common-password",
 		"/etc/pam.d/system-auth",
@@ -22,13 +21,11 @@ func (sm *SecurityManager) checkPasswordPolicy() SecurityCheck {
 		if content, err := os.ReadFile(file); err == nil {
 			contentStr := string(content)
 
-			// Rechercher les règles de complexité
 			if strings.Contains(contentStr, "pam_pwquality") ||
 				strings.Contains(contentStr, "pam_cracklib") {
 				hasPolicy = true
 				details = append(details, fmt.Sprintf("Password policy found in %s", file))
 
-				// Analyser les paramètres spécifiques
 				if strings.Contains(contentStr, "minlen") {
 					re := regexp.MustCompile(`minlen=(\d+)`)
 					if matches := re.FindStringSubmatch(contentStr); len(matches) > 1 {
