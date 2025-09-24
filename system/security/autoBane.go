@@ -5,6 +5,6 @@ func (sm *SecurityManager) checkAutoBan() SecurityCheck {
 	return SecurityCheck{
 		Name:    "Auto Ban",
 		Status:  "Enabled",
-		Details: "Auto ban is enabled",
+		Details: ("Auto ban is enabled"),
 	}
 }
