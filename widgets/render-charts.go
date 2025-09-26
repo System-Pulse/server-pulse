@@ -3,8 +3,8 @@ package widgets
 import (
 	"fmt"
 	"math"
-	"sort"
-	"strings"
+	// "sort"
+	// "strings"
 
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	"github.com/charmbracelet/lipgloss"
@@ -311,7 +311,7 @@ func getOptimalMemoryScale(points []float64) ([]float64, float64, string) {
 	}
 }
 
-// renderPerCPUChart renders individual CPU core usage charts
+/*/ renderPerCPUChart renders individual CPU core usage charts
 func (m Model) renderPerCPUChart(width, height int) []string {
 	if m.Monitor.SelectedContainer == nil {
 		return []string{renderEmptyChart("Per-CPU Usage", height)}
@@ -391,3 +391,4 @@ func (m Model) renderAllPerCPUCharts(totalWidth, height int) string {
 
 	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }
+*/

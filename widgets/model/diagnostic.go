@@ -6,6 +6,16 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 )
 
+type AuthenticationState int
+
+const (
+	AuthNotRequired AuthenticationState = iota
+	AuthRequired
+	AuthInProgress
+	AuthSuccess
+	AuthFailed
+)
+
 type DiagnosticModel struct {
 	DiagnosticTable table.Model
 	Nav             []string
@@ -19,4 +29,10 @@ type DiagnosticModel struct {
 	DomainInputMode bool
 	OpenedPortsInfo *security.OpenedPortsInfos
 	PortsTable      table.Model
+	Password        textinput.Model
+	AuthState       AuthenticationState
+	AuthMessage     string
+	IsRoot          bool
+	SudoAvailable   bool
+	AuthTimer       int
 }

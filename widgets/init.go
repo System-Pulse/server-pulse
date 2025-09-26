@@ -2,6 +2,8 @@ package widgets
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
 	"time"
 
 	"github.com/System-Pulse/server-pulse/system/app"
@@ -110,6 +112,20 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	searchInput.CharLimit = 50
 	searchInput.Width = 30
 
+	passwordInput := textinput.New()
+	passwordInput.Placeholder = "Enter root password..."
+	passwordInput.EchoMode = textinput.EchoPassword
+	passwordInput.EchoCharacter = '•'
+	passwordInput.CharLimit = 50
+	passwordInput.Width = 30
+
+	// Initialize authentication state
+	isRoot := os.Geteuid() == 0
+	sudoAvailable := func() bool {
+		_, err := exec.LookPath("sudo")
+		return err == nil
+	}()
+
 	progOpts := []progress.Option{
 		progress.WithWidth(v.ProgressBarWidth),
 		progress.WithDefaultGradient(),
@@ -175,6 +191,12 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 				return ti
 			}(),
 			DomainInputMode: false,
+			Password:        passwordInput,
+			AuthState:       model.AuthNotRequired,
+			AuthMessage:     "",
+			IsRoot:          isRoot,
+			SudoAvailable:   sudoAvailable,
+			AuthTimer:       0,
 		},
 		Monitor: model.MonitorModel{
 			ProcessTable:       t,

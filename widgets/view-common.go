@@ -264,8 +264,8 @@ func (m *Model) updatePortsTable() tea.Cmd {
 		protocol := "TCP"
 		pid := ""
 
-		lines := strings.Split(string(output), "\n")
-		for _, line := range lines {
+		lines := strings.SplitSeq(string(output), "\n")
+		for line := range lines {
 			if strings.Contains(line, "LISTEN") {
 				fields := strings.Fields(line)
 				if len(fields) >= 2 {

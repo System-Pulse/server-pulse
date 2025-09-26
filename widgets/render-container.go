@@ -67,7 +67,7 @@ func (m Model) renderContainerSingleView() string {
 	case model.ContainerTabEnv:
 		content = m.renderContainerEnv()
 	default:
-		content = m.renderContainerGeneral()
+		content = "Not implemented"
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, tabsHeader, content)
@@ -152,11 +152,11 @@ func (m Model) renderContainerCPU() string {
 		doc.WriteString(chart)
 
 		// Display per-core CPU usage if available
-		doc.WriteString("\n\n")
-		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Per-Core Usage:"))
-		doc.WriteString("\n")
-		perCoreCharts := m.renderAllPerCPUCharts(50, 6)
-		doc.WriteString(perCoreCharts)
+		// doc.WriteString("\n\n")
+		// doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Per-Core Usage:"))
+		// doc.WriteString("\n")
+		// perCoreCharts := m.renderAllPerCPUCharts(50, 6)
+		// doc.WriteString(perCoreCharts)
 	} else {
 		doc.WriteString(v.MetricLabelStyle.Render("Loading CPU metrics..."))
 	}

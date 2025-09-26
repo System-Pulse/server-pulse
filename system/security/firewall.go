@@ -1,14 +1,33 @@
 package security
 
 import (
-	"fmt"
 	"os/exec"
 	"strings"
 )
 
 func (sm *SecurityManager) checkFirewallStatus() SecurityCheck {
+	firewalls := sm.getFirewallConfigs()
 
-	firewalls := []struct {
+	for _, fw := range firewalls {
+		output, err := sm.executeFirewallCommand(fw)
+		if err != nil {
+			continue
+		}
+
+		check := sm.analyzeFirewallOutput(fw.name, output)
+		if check != nil {
+			return *check
+		}
+	}
+
+	return sm.createInactiveFirewallCheck()
+}
+
+func (sm *SecurityManager) getFirewallConfigs() []struct {
+	name    string
+	command []string
+} {
+	return []struct {
 		name    string
 		command []string
 	}{
@@ -17,63 +36,84 @@ func (sm *SecurityManager) checkFirewallStatus() SecurityCheck {
 		{"iptables", []string{"iptables", "-L"}},
 		{"nftables", []string{"nft", "list ruleset"}},
 	}
+}
 
-	for _, fw := range firewalls {
-		cmd := exec.Command(fw.command[0], fw.command[1:]...)
-		output, err := cmd.Output()
-		if err != nil {
-			continue
-		}
+func (sm *SecurityManager) executeFirewallCommand(fw struct {
+	name    string
+	command []string
+}) ([]byte, error) {
+	cmd := exec.Command(fw.command[0], fw.command[1:]...)
+	return cmd.Output()
+}
 
-		outputStr := strings.ToLower(string(output))
+func (sm *SecurityManager) analyzeFirewallOutput(firewallName string, output []byte) *SecurityCheck {
+	outputStr := strings.ToLower(string(output))
 
-		switch fw.name {
-		case "UFW":
-			if strings.Contains(outputStr, "status: active") {
-				return SecurityCheck{
-					Name:    "Firewall Status",
-					Status:  "Active",
-					Details: fmt.Sprintf("%s is active and properly configured", fw.name),
-				}
-			} else if strings.Contains(outputStr, "status: inactive") {
-				return SecurityCheck{
-					Name:    "Firewall Status",
-					Status:  "Inactive",
-					Details: fmt.Sprintf("%s is installed but inactive", fw.name),
-				}
-			}
-
-		case "firewalld":
-			if strings.Contains(outputStr, "running") {
-				return SecurityCheck{
-					Name:    "Firewall Status",
-					Status:  "Active",
-					Details: fmt.Sprintf("%s is active and properly configured", fw.name),
-				}
-			}
-
-		case "iptables":
-
-			if len(strings.Split(string(output), "\n")) > 10 {
-				return SecurityCheck{
-					Name:    "Firewall Status",
-					Status:  "Active",
-					Details: fmt.Sprintf("%s rules are configured", fw.name),
-				}
-			}
-		case "nftables":
-
-			if len(strings.Split(string(output), "\n")) > 10 {
-				return SecurityCheck{
-					Name:    "Firewall Status",
-					Status:  "Active",
-					Details: fmt.Sprintf("%s rules are configured", fw.name),
-				}
-			}
-		}
-
+	switch firewallName {
+	case "UFW":
+		return sm.analyzeUFWStatus(outputStr)
+	case "firewalld":
+		return sm.analyzeFirewalldStatus(outputStr)
+	case "iptables":
+		return sm.analyzeIptablesStatus(output)
+	case "nftables":
+		return sm.analyzeNftablesStatus(output)
 	}
 
+	return nil
+}
+
+func (sm *SecurityManager) analyzeUFWStatus(outputStr string) *SecurityCheck {
+	if strings.Contains(outputStr, "status: active") {
+		return &SecurityCheck{
+			Name:    "Firewall Status",
+			Status:  "Active",
+			Details: "UFW is active and properly configured",
+		}
+	} else if strings.Contains(outputStr, "status: inactive") {
+		return &SecurityCheck{
+			Name:    "Firewall Status",
+			Status:  "Inactive",
+			Details: "UFW is installed but inactive",
+		}
+	}
+	return nil
+}
+
+func (sm *SecurityManager) analyzeFirewalldStatus(outputStr string) *SecurityCheck {
+	if strings.Contains(outputStr, "running") {
+		return &SecurityCheck{
+			Name:    "Firewall Status",
+			Status:  "Active",
+			Details: "firewalld is active and properly configured",
+		}
+	}
+	return nil
+}
+
+func (sm *SecurityManager) analyzeIptablesStatus(output []byte) *SecurityCheck {
+	if len(strings.Split(string(output), "\n")) > 10 {
+		return &SecurityCheck{
+			Name:    "Firewall Status",
+			Status:  "Active",
+			Details: "iptables rules are configured",
+		}
+	}
+	return nil
+}
+
+func (sm *SecurityManager) analyzeNftablesStatus(output []byte) *SecurityCheck {
+	if len(strings.Split(string(output), "\n")) > 10 {
+		return &SecurityCheck{
+			Name:    "Firewall Status",
+			Status:  "Active",
+			Details: "nftables rules are configured",
+		}
+	}
+	return nil
+}
+
+func (sm *SecurityManager) createInactiveFirewallCheck() SecurityCheck {
 	return SecurityCheck{
 		Name:    "Firewall Status",
 		Status:  "Inactive",

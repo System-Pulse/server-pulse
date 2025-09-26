@@ -9,7 +9,7 @@ const (
 	ContainerTabCPU
 	ContainerTabMemory
 	ContainerTabNetwork
-	ContainerTabDisk
+	// ContainerTabDisk
 	ContainerTabEnv
 	// "Interface", "Connectivity", "Configuration", "Protocol Analysis"
 	// ================================ //

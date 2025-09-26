@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"slices"
 	"fmt"
 	"os"
 	"sort"
@@ -405,10 +406,10 @@ func (m Model) handleContainerSingleKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "4":
 		m.ContainerTab = model.ContainerTabNetwork
 		return m, nil
+	// case "5":
+	// 	m.ContainerTab = model.ContainerTabDisk
+	// 	return m, nil
 	case "5":
-		m.ContainerTab = model.ContainerTabDisk
-		return m, nil
-	case "6":
 		m.ContainerTab = model.ContainerTabEnv
 		return m, nil
 	case "r":
@@ -535,7 +536,48 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	domain := m.Diagnostic.DomainInput.Value()
-	// Handle domain input mode first
+
+	// Handle authentication mode
+	if m.Diagnostic.AuthState == model.AuthRequired {
+		switch msg.String() {
+		case "enter":
+			if m.Diagnostic.Password.Value() != "" {
+				m.Diagnostic.AuthState = model.AuthInProgress
+				m.Diagnostic.AuthMessage = "Authenticating..."
+				// Try to authenticate
+				err := m.setRoot()
+				if err != nil {
+					m.Diagnostic.AuthState = model.AuthFailed
+					m.Diagnostic.AuthMessage = fmt.Sprintf("Authentication failed: %v", err)
+					if !m.isSudoAvailable() {
+						m.Diagnostic.AuthMessage += "\nSudo is not available. Please run as root."
+					}
+				} else {
+					m.Diagnostic.AuthState = model.AuthSuccess
+					m.Diagnostic.AuthMessage = "Authentication successful!"
+					m.Diagnostic.IsRoot = true
+					m.Diagnostic.AuthTimer = 2
+				}
+				m.Diagnostic.Password.SetValue("")
+				m.Diagnostic.Password.Blur()
+			}
+			return m, nil
+		case "esc":
+			// Cancel authentication
+			m.Diagnostic.AuthState = model.AuthNotRequired
+			m.Diagnostic.AuthMessage = ""
+			m.Diagnostic.Password.SetValue("")
+			m.Diagnostic.Password.Blur()
+			return m, nil
+		default:
+			// Update password input
+			var cmd tea.Cmd
+			m.Diagnostic.Password, cmd = m.Diagnostic.Password.Update(msg)
+			return m, cmd
+		}
+	}
+
+	// Handle domain input mode
 	if m.Diagnostic.DomainInputMode {
 		switch msg.String() {
 		case "enter":
@@ -646,6 +688,15 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
 			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 		}
+	case "a":
+		// Request authentication for admin checks
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && !m.isRoot() && !m.canRunSudo() {
+			m.Diagnostic.AuthState = model.AuthRequired
+			m.Diagnostic.AuthMessage = "Enter password for admin access:"
+			m.Diagnostic.Password.Focus()
+			m.Diagnostic.Password.SetValue("")
+		}
+		return m, nil
 	case "d":
 		// Enter domain input mode when on security tab
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
@@ -661,12 +712,27 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Check if we're on security checks tab and get selected security check
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityTable.SelectedRow()) > 0 {
 			selectedRow := m.Diagnostic.SecurityTable.SelectedRow()
-			if len(selectedRow) > 0 && selectedRow[0] == "SSL Certificate" {
-				return m, m.Diagnostic.SecurityManager.RunCertificateDisplay()
-			} else if len(selectedRow) > 0 && selectedRow[0] == "SSH Root Login" {
-				return m, m.Diagnostic.SecurityManager.DisplaySSHRootInfos()
-			} else if len(selectedRow) > 0 && selectedRow[0] == "Open Ports" {
-				return m, m.Diagnostic.SecurityManager.DisplayOpenedPortsInfos()
+			if len(selectedRow) > 0 {
+				checkName := selectedRow[0]
+
+				// Check if admin privileges are required for this diagnostic
+				if !m.canAccessDiagnostic(checkName) {
+					m.Diagnostic.AuthState = model.AuthRequired
+					m.Diagnostic.AuthMessage = fmt.Sprintf("Admin privileges required for: %s\nEnter password:", checkName)
+					m.Diagnostic.Password.Focus()
+					m.Diagnostic.Password.SetValue("")
+					return m, nil
+				}
+
+				// Execute the diagnostic check
+				switch checkName {
+				case "SSL Certificate":
+					return m, m.Diagnostic.SecurityManager.RunCertificateDisplay()
+				case "SSH Root Login":
+					return m, m.Diagnostic.SecurityManager.DisplaySSHRootInfos()
+				case "Open Ports":
+					return m, m.Diagnostic.SecurityManager.DisplayOpenedPortsInfos()
+				}
 			}
 		}
 		return m, nil
@@ -680,6 +746,26 @@ func (m Model) handleSecurityCheckMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case security.SecurityMsg:
 		checks := []security.SecurityCheck(msg)
 		m.Diagnostic.SecurityChecks = checks
+
+		// Update authentication state based on root/sudo availability
+		if !m.isRoot() && !m.canRunSudo() {
+			// Check if any admin-required checks are present
+			adminChecks := m.getAdminRequiredChecks()
+			hasAdminChecks := false
+			for _, check := range checks {
+				if slices.Contains(adminChecks, check.Name) {
+						hasAdminChecks = true
+					}
+				if hasAdminChecks {
+					break
+				}
+			}
+
+			if hasAdminChecks && m.Diagnostic.AuthState == model.AuthNotRequired {
+				m.Diagnostic.AuthMessage = "Some checks require admin privileges. Press 'a' to authenticate."
+			}
+		}
+
 		return m, m.updateSecurityTable()
 	}
 	return m, nil
@@ -1041,6 +1127,16 @@ func (m Model) handleTickMsg() (tea.Model, tea.Cmd) {
 		proc.UpdateProcesses(),
 		m.Monitor.App.UpdateApp(),
 	}
+
+	// Gestion du timer d'authentification
+	if m.Diagnostic.AuthState == model.AuthSuccess && m.Diagnostic.AuthTimer > 0 {
+		m.Diagnostic.AuthTimer--
+		if m.Diagnostic.AuthTimer == 0 {
+			m.Diagnostic.AuthState = model.AuthNotRequired
+			m.Diagnostic.AuthMessage = ""
+		}
+	}
+
 	m.updateCharts()
 	updateNetworkCmd := m.updateNetworkTable()
 	if updateNetworkCmd != nil {

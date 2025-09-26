@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/System-Pulse/server-pulse/widgets/auth"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	"github.com/System-Pulse/server-pulse/widgets/vars"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -23,15 +25,61 @@ func (m Model) renderDignostics() string {
 }
 
 func (m Model) renderDiagnosticSecurity() string {
-	if len(m.Diagnostic.SecurityChecks) == 0 {
-		return vars.CardStyle.Render("Loading security checks...")
-	}
-
 	doc := strings.Builder{}
 
 	// Title
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Security Checks"))
 	doc.WriteString("\n\n")
+
+	// Authentication section
+	if m.Diagnostic.AuthState == model.AuthRequired || m.Diagnostic.AuthState == model.AuthInProgress {
+		authMessage := auth.GetAuthMessage(int(m.Diagnostic.AuthState), m.Diagnostic.AuthMessage)
+		authStyle := auth.GetAuthStyle(int(m.Diagnostic.AuthState))
+
+		doc.WriteString(authStyle.Render(authMessage))
+		doc.WriteString("\n\n")
+		doc.WriteString(m.Diagnostic.AuthMessage)
+		doc.WriteString("\n\n")
+		if m.Diagnostic.AuthState == model.AuthRequired {
+			doc.WriteString(auth.AuthPromptStyle.Render("Enter Password:"))
+			doc.WriteString("\n")
+			doc.WriteString(m.Diagnostic.Password.View())
+			doc.WriteString("\n\n")
+			doc.WriteString(auth.AuthInfoStyle.Render(auth.AuthInstructions))
+		} else {
+			doc.WriteString(auth.AuthInProgressStyle.Render("⏳ " + m.Diagnostic.AuthMessage))
+		}
+		doc.WriteString("\n\n")
+		return vars.CardStyle.Render(doc.String())
+	}
+
+	if m.Diagnostic.AuthState == model.AuthFailed {
+		authMessage := auth.GetAuthMessage(int(m.Diagnostic.AuthState), m.Diagnostic.AuthMessage)
+		authStyle := auth.GetAuthStyle(int(m.Diagnostic.AuthState))
+
+		doc.WriteString(authStyle.Render(authMessage))
+		doc.WriteString("\n\n")
+		doc.WriteString(m.Diagnostic.AuthMessage)
+		doc.WriteString("\n\n")
+		doc.WriteString(auth.AuthInfoStyle.Render(auth.AuthRetryMessage))
+		doc.WriteString("\n\n")
+	}
+
+	if m.Diagnostic.AuthState == model.AuthSuccess && m.Diagnostic.AuthTimer > 0 {
+		authMessage := auth.GetAuthMessage(int(m.Diagnostic.AuthState), m.Diagnostic.AuthMessage)
+		authStyle := auth.GetAuthStyle(int(m.Diagnostic.AuthState))
+
+		doc.WriteString(authStyle.Render(authMessage))
+		doc.WriteString("\n\n")
+		doc.WriteString(auth.AuthInfoStyle.Render("Admin privileges granted"))
+		doc.WriteString("\n\n")
+	}
+
+	if len(m.Diagnostic.SecurityChecks) == 0 {
+		doc.WriteString("Loading security checks...")
+		doc.WriteString("\n\n")
+		return vars.CardStyle.Render(doc.String())
+	}
 
 	// Domain input section
 	if m.Diagnostic.DomainInputMode {
@@ -54,8 +102,40 @@ func (m Model) renderDiagnosticSecurity() string {
 		doc.WriteString("\n\n")
 	}
 
-	// Security table
+	// Security table with access indicators
+	var filteredRows []table.Row
+	for _, check := range m.Diagnostic.SecurityChecks {
+		// Check if user has access to this diagnostic
+		hasAccess := m.canAccessDiagnostic(check.Name)
+
+		// Add status icons based on status
+		statusWithIcon := m.getSecurityStatusIcon(check.Status) + " " + check.Status
+
+		// Add access indicator
+		accessIndicator := ""
+		if !hasAccess {
+			accessIndicator = " " + auth.LockedCheckIndicator
+			statusWithIcon = auth.LockedCheckIndicator + " " + check.Status
+		}
+
+		filteredRows = append(filteredRows, table.Row{
+			check.Name + accessIndicator,
+			statusWithIcon,
+			check.Details,
+		})
+	}
+
+	// Update table with filtered rows
+	m.Diagnostic.SecurityTable.SetRows(filteredRows)
 	doc.WriteString(m.Diagnostic.SecurityTable.View())
+
+	// Footer with authentication info
+	doc.WriteString("\n\n")
+	if !m.isRoot() && !m.canRunSudo() {
+		doc.WriteString(auth.AccessIndicatorStyle.Render(auth.AdminAccessRequired))
+	} else if m.Diagnostic.AuthState == model.AuthSuccess && m.Diagnostic.AuthTimer > 0 {
+		doc.WriteString(auth.AuthSuccessStyle.Render(auth.AdminAccessGranted))
+	}
 
 	doc.WriteString("\n\n")
 
