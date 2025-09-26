@@ -1,7 +1,10 @@
 package process
 
 import (
+	"os"
 	"sort"
+	"syscall"
+	"time"
 
 	"github.com/System-Pulse/server-pulse/utils"
 	tea "github.com/charmbracelet/bubbletea"
@@ -41,4 +44,29 @@ func UpdateProcesses() tea.Cmd {
 
 		return ProcessMsg(processList)
 	}
+}
+
+func StopProcess(pid int) error {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return err
+	}
+	if err := process.Signal(syscall.SIGTERM); err != nil {
+		return err
+	}
+	time.Sleep(5 * time.Second)
+
+	if processExists(pid) {
+		return process.Kill()
+	}
+
+	return nil
+}
+
+func processExists(pid int) bool {
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		return false
+	}
+	return process.Signal(syscall.Signal(0)) == nil
 }

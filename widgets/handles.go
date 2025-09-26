@@ -1,9 +1,8 @@
 package widgets
 
 import (
-	"slices"
 	"fmt"
-	"os"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -330,11 +329,10 @@ func (m Model) handleProcessKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "m":
 		sort.Slice(m.Monitor.Processes, func(i, j int) bool { return m.Monitor.Processes[i].Mem > m.Monitor.Processes[j].Mem })
 		return m, m.updateProcessTable()
-	case "k": // kill
+	case "k": // stop process
 		if len(m.Monitor.ProcessTable.SelectedRow()) > 0 {
 			pid, _ := strconv.Atoi(m.Monitor.ProcessTable.SelectedRow()[0])
-			if process, err := os.FindProcess(pid); err == nil {
-				_ = process.Kill()
+			if err := proc.StopProcess(pid); err == nil {
 			}
 			return m, proc.UpdateProcesses()
 		}
@@ -754,8 +752,8 @@ func (m Model) handleSecurityCheckMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 			hasAdminChecks := false
 			for _, check := range checks {
 				if slices.Contains(adminChecks, check.Name) {
-						hasAdminChecks = true
-					}
+					hasAdminChecks = true
+				}
 				if hasAdminChecks {
 					break
 				}
