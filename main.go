@@ -15,6 +15,7 @@ import (
 )
 
 var dockerManager *app.DockerManager
+var currentModel tea.Model
 
 func main() {
 	if ok, err := utils.CheckDockerPermissions(); !ok {
@@ -31,7 +32,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Main application loop
 	for {
 		if shouldExit := runTUI(); shouldExit {
 			break
@@ -42,7 +42,17 @@ func main() {
 func runTUI() bool {
 	lipgloss.SetHasDarkBackground(true)
 
-	m := widgets.InitialModelWithManager(dockerManager)
+	var m tea.Model
+	if currentModel != nil {
+		if model, ok := currentModel.(widgets.Model); ok {
+			model.ClearPendingShellExec()
+			m = model
+		} else {
+			m = widgets.InitialModelWithManager(dockerManager)
+		}
+	} else {
+		m = widgets.InitialModelWithManager(dockerManager)
+	}
 
 	p := tea.NewProgram(
 		m,
@@ -57,21 +67,20 @@ func runTUI() bool {
 		os.Exit(1)
 	}
 
+	currentModel = finalModel
+
 	// Check if we need to execute a shell
 	if model, ok := finalModel.(widgets.Model); ok {
 		if shellRequest := model.GetPendingShellExec(); shellRequest != nil {
 			time.Sleep(100 * time.Millisecond)
 
-			// Execute shell outside TUI
 			err := dockerManager.ExecInteractiveShellAlternative(shellRequest.ContainerID)
 			if err != nil {
 				fmt.Printf("Shell execution failed: %v\n", err)
 				fmt.Println("Press Enter to continue...")
 				bufio.NewScanner(os.Stdin).Scan()
 			}
-
 			time.Sleep(300 * time.Millisecond)
-
 			// Return false to restart TUI
 			return false
 		}

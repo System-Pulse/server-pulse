@@ -39,8 +39,8 @@ var (
 		{Key: "s", Label: "Stop/Start", Description: "Toggle container state", Action: "toggle_start"},
 		{Key: "p", Label: "Pause/Resume", Description: "Toggle pause state", Action: "toggle_pause"},
 		{Key: "e", Label: "Exec shell", Description: "Open interactive shell", Action: "exec"},
-		{Key: "t", Label: "Top/Stats", Description: "View real-time metrics", Action: "stats"},
-		{Key: "i", Label: "Inspect", Description: "Show container configuration", Action: "inspect"},
+		// {Key: "t", Label: "Top/Stats", Description: "View real-time metrics", Action: "stats"},
+		// {Key: "i", Label: "Inspect", Description: "Show container configuration", Action: "inspect"},
 		// {Key: "c", Label: "Commit", Description: "Create image from container", Action: "commit"},
 	}
 

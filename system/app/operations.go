@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/System-Pulse/server-pulse/utils"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/moby/moby/api/types/container"
 )
@@ -304,7 +303,6 @@ func (dm *DockerManager) ExecInteractiveShellAlternative(containerID string) err
 
 	dm.forceTerminalResetSimple()
 
-	fmt.Println("=== Container shell session ended ===")
 	if err != nil {
 		fmt.Printf("Shell session ended with error: %v\n", err)
 	}
@@ -439,18 +437,4 @@ func (dm *DockerManager) GetContainerStatsStream(containerID string) (chan Conta
 	}()
 
 	return statsChan, nil
-}
-
-func (dm *DockerManager) GetContainerStatsCmd(containerID string) tea.Cmd {
-	return func() tea.Msg {
-		statsChan, err := dm.GetContainerStatsStream(containerID)
-		if err != nil {
-			return utils.ErrMsg(err)
-		}
-
-		return ContainerStatsChanMsg{
-			ContainerID: containerID,
-			StatsChan:   statsChan,
-		}
-	}
 }

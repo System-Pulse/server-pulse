@@ -956,16 +956,6 @@ func (m Model) handleContainerMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Monitor.PendingShellExec = &model.ShellExecRequest{ContainerID: m.Monitor.SelectedContainer.ID}
 		m.Monitor.ShouldQuit = false
 		return m, tea.Quit
-	case "t":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
-		m.Monitor.ContainerViewState = v.ContainerViewSingle
-		m.ContainerTab = model.ContainerTabCPU
-		return m, m.Monitor.App.GetContainerStatsCmd(m.Monitor.SelectedContainer.ID)
-	case "i":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
-		m.Monitor.ContainerViewState = v.ContainerViewSingle
-		m.ContainerTab = model.ContainerTabGeneral
-		return m, m.loadContainerDetails(m.Monitor.SelectedContainer.ID)
 	case "c":
 		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
 		m.LastOperationMsg = "Commit functionality not yet implemented"
@@ -975,6 +965,7 @@ func (m Model) handleContainerMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Monitor.SelectedContainer = nil
 		return m, nil
 	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
 		return m, tea.Quit
 	}
 	return m, nil
@@ -1030,16 +1021,6 @@ func (m Model) executeContainerMenuAction() (tea.Model, tea.Cmd) {
 		m.Monitor.PendingShellExec = &model.ShellExecRequest{ContainerID: m.Monitor.SelectedContainer.ID}
 		m.Monitor.ShouldQuit = false
 		return m, tea.Quit
-	case "stats":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
-		m.Monitor.ContainerViewState = v.ContainerViewSingle
-		m.ContainerTab = model.ContainerTabCPU
-		return m, m.Monitor.App.GetContainerStatsCmd(m.Monitor.SelectedContainer.ID)
-	case "inspect":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
-		m.Monitor.ContainerViewState = v.ContainerViewSingle
-		m.ContainerTab = model.ContainerTabGeneral
-		return m, m.loadContainerDetails(m.Monitor.SelectedContainer.ID)
 	case "commit":
 		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
 		m.LastOperationMsg = "Commit functionality not yet implemented"
