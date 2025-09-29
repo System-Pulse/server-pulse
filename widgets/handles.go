@@ -550,14 +550,16 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					if !m.isSudoAvailable() {
 						m.Diagnostic.AuthMessage += "\nSudo is not available. Please run as root."
 					}
+					m.Diagnostic.Password.Reset()
 				} else {
 					m.Diagnostic.AuthState = model.AuthSuccess
 					m.Diagnostic.AuthMessage = "Authentication successful!"
 					m.Diagnostic.IsRoot = true
 					m.Diagnostic.AuthTimer = 2
+					m.Diagnostic.Password.SetValue("")
+					m.Diagnostic.Password.Blur()
+					return m, m.updateSecurityTable()
 				}
-				m.Diagnostic.Password.SetValue("")
-				m.Diagnostic.Password.Blur()
 			}
 			return m, nil
 		case "esc":

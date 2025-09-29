@@ -33,3 +33,5 @@ go.work.sum
 prompt.*
 docs/
 server-*
+commits.txt
+get-commit.py

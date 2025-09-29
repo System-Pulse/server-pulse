@@ -6,7 +6,6 @@ import (
 	"strings"
 )
 
-
 func (sm *SecurityManager) checkAutoBan() SecurityCheck {
 	// Vérifier d'abord les services systemd
 	if check := sm.checkSystemdServices(); check.Status != "" {
