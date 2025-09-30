@@ -9,22 +9,23 @@ import (
 )
 
 // check if as root
-func (m Model) isRoot() bool {
+func isRoot() bool {
 	return os.Geteuid() == 0
 }
 
 // check if sudo is available
-func (m Model) isSudoAvailable() bool {
+func isSudoAvailable() bool {
 	_, err := exec.LookPath("sudo")
 	return err == nil
 }
 
 // setRoot sets the root password
 func (m Model) setRoot() error {
-	if !m.isSudoAvailable() {
+	if !isSudoAvailable() {
 		return fmt.Errorf("sudo is not available on this system")
 	}
-
+	m.Diagnostic.SudoAvailable = true
+	m.Diagnostic.CanRunSudo = true
 	cm := exec.Command("sudo", "-S", "ls")
 	cm.Stdin = strings.NewReader(m.Diagnostic.Password.Value() + "\n")
 	cm.Stdout = nil
@@ -33,13 +34,13 @@ func (m Model) setRoot() error {
 	if err != nil {
 		return fmt.Errorf("failed to run command, invalid password or insufficient privileges")
 	}
-
+	m.Diagnostic.IsRoot = true
 	return nil
 }
 
 // check if user can run sudo
-func (m Model) canRunSudo() bool {
-	if !m.isSudoAvailable() {
+func canRunSudo() bool {
+	if !isSudoAvailable() {
 		return false
 	}
 
@@ -64,7 +65,7 @@ func (m Model) canAccessDiagnostic(checkName string) bool {
 
 	// Check if this diagnostic requires admin privileges
 	if slices.Contains(adminChecks, checkName) {
-		return m.isRoot() || m.canRunSudo()
+		return m.Diagnostic.IsRoot || m.Diagnostic.CanRunSudo
 	}
 
 	// Non-admin checks are always accessible

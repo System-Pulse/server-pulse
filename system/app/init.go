@@ -51,6 +51,7 @@ func (dm *DockerManager) RefreshContainers() ([]Container, error) {
 		containerName := "N/A"
 		if len(cont.Names) > 0 {
 			containerName = strings.TrimPrefix(cont.Names[0], "/")
+			containerName = strings.TrimPrefix(containerName, projectName+"-")
 		}
 
 		status := strings.Split(cont.Status, " ")[0]

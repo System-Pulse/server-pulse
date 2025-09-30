@@ -34,5 +34,6 @@ type DiagnosticModel struct {
 	AuthMessage     string
 	IsRoot          bool
 	SudoAvailable   bool
+	CanRunSudo      bool
 	AuthTimer       int
 }

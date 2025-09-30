@@ -547,7 +547,7 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				if err != nil {
 					m.Diagnostic.AuthState = model.AuthFailed
 					m.Diagnostic.AuthMessage = fmt.Sprintf("Authentication failed: %v", err)
-					if !m.isSudoAvailable() {
+					if !m.Diagnostic.SudoAvailable {
 						m.Diagnostic.AuthMessage += "\nSudo is not available. Please run as root."
 					}
 					m.Diagnostic.Password.Reset()
@@ -558,7 +558,8 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.Diagnostic.AuthTimer = 2
 					m.Diagnostic.Password.SetValue("")
 					m.Diagnostic.Password.Blur()
-					return m, m.updateSecurityTable()
+					domain := m.Diagnostic.DomainInput.Value()
+					return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 				}
 			}
 			return m, nil
@@ -690,7 +691,7 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	case "a":
 		// Request authentication for admin checks
-		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && !m.isRoot() && !m.canRunSudo() {
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && !m.Diagnostic.IsRoot && !m.Diagnostic.CanRunSudo {
 			m.Diagnostic.AuthState = model.AuthRequired
 			m.Diagnostic.AuthMessage = "Enter password for admin access:"
 			m.Diagnostic.Password.Focus()
@@ -748,7 +749,7 @@ func (m Model) handleSecurityCheckMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.SecurityChecks = checks
 
 		// Update authentication state based on root/sudo availability
-		if !m.isRoot() && !m.canRunSudo() {
+		if !m.Diagnostic.IsRoot && !m.Diagnostic.CanRunSudo {
 			// Check if any admin-required checks are present
 			adminChecks := m.getAdminRequiredChecks()
 			hasAdminChecks := false
