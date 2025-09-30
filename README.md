@@ -2,7 +2,7 @@
 
 # Server Pulse 🚀
 
-![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+![License: GPL-3.0](https://img.shields.io/badge/license-GPL-3.0-blue)
 ![release](https://img.shields.io/github/v/release/System-Pulse/server-pulse)
 
 
