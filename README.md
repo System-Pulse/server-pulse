@@ -29,13 +29,13 @@ sudo mv server-pulse /usr/local/bin/
 **curl :**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/System-Pulse/server-pulse/master/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/System-Pulse/server-pulse/main/scripts/install.sh | bash
 ```
 
 **wget :**
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/System-Pulse/server-pulse/master/scripts/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/System-Pulse/server-pulse/main/scripts/install.sh | bash
 ```
 
 ---
@@ -45,13 +45,13 @@ wget -qO- https://raw.githubusercontent.com/System-Pulse/server-pulse/master/scr
 **curl :**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/System-Pulse/server-pulse/master/scripts/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/System-Pulse/server-pulse/main/scripts/uninstall.sh | bash
 ```
 
 **wget :**
 
 ```bash
-wget -qO- https://raw.githubusercontent.com/System-Pulse/server-pulse/master/scripts/uninstall.sh | bash
+wget -qO- https://raw.githubusercontent.com/System-Pulse/server-pulse/main/scripts/uninstall.sh | bash
 ```
 
 
