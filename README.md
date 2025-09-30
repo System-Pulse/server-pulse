@@ -23,7 +23,7 @@ make build
 sudo mv server-pulse /usr/local/bin/
 ```
 
-### Pre-built Binaries (Linux/macOS)
+### Pre-built Binaries
 
 
 **curl :**
