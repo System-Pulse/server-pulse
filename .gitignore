@@ -31,7 +31,6 @@ go.work.sum
 # .idea/
 # .vscode/
 prompt.*
-docs/
 server-*
 commits.txt
 get-commit.py
