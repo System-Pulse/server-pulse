@@ -128,6 +128,10 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	}
 
 	securityManager := security.NewSecurityManager()
+	// Initialize SecurityManager with current auth state
+	securityManager.IsRoot = isRoot
+	securityManager.CanUseSudo = canRunSudo
+	securityManager.SudoPassword = "" // No password initially
 
 	securityColumns := []table.Column{
 		{Title: "Name", Width: 20},

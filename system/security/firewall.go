@@ -42,7 +42,19 @@ func (sm *SecurityManager) executeFirewallCommand(fw struct {
 	name    string
 	command []string
 }) ([]byte, error) {
-	cmd := exec.Command(fw.command[0], fw.command[1:]...)
+	var cmd *exec.Cmd
+
+	// Use sudo if authenticated and not running as root
+	if sm.CanUseSudo && !sm.IsRoot {
+		args := append([]string{"-S"}, fw.command...)
+		cmd = exec.Command("sudo", args...)
+		if sm.SudoPassword != "" {
+			cmd.Stdin = strings.NewReader(sm.SudoPassword + "\n")
+		}
+	} else {
+		cmd = exec.Command(fw.command[0], fw.command[1:]...)
+	}
+
 	return cmd.Output()
 }
 

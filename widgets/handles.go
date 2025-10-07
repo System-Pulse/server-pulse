@@ -556,6 +556,12 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.Diagnostic.AuthMessage = "Authentication successful!"
 					m.Diagnostic.IsRoot = true
 					m.Diagnostic.AuthTimer = 2
+
+					// Update SecurityManager with authentication context
+					m.Diagnostic.SecurityManager.IsRoot = false // User authenticated via sudo, not actual root
+					m.Diagnostic.SecurityManager.CanUseSudo = true
+					m.Diagnostic.SecurityManager.SudoPassword = m.Diagnostic.Password.Value()
+
 					m.Diagnostic.Password.SetValue("")
 					m.Diagnostic.Password.Blur()
 					domain := m.Diagnostic.DomainInput.Value()
