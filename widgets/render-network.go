@@ -139,7 +139,6 @@ func (m Model) renderProtocolAnalysis() string {
 func (m Model) renderConnectivityAnalysis() string {
 	content := strings.Builder{}
 
-	// Header
 	header := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(lipgloss.Color("62")).
@@ -147,7 +146,6 @@ func (m Model) renderConnectivityAnalysis() string {
 		Render("Network Connectivity Tools")
 	content.WriteString(header + "\n\n")
 
-	// Instructions
 	instructions := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
 		Render("Press 'p' to ping, 't' to traceroute, 'c' to clear results")
@@ -175,7 +173,6 @@ func (m Model) renderConnectivityAnalysis() string {
         content.WriteString(loadingText + "\n\n")
     }
 
-	// Ping results
 	if len(m.Network.PingResults) > 0 {
 		pingTitle := lipgloss.NewStyle().
 			Bold(true).
@@ -205,7 +202,6 @@ func (m Model) renderConnectivityAnalysis() string {
 		content.WriteString("\n")
 	}
 
-	// Traceroute results
 	if m.Network.TracerouteResult.Target != "" {
 		tracerouteTitle := lipgloss.NewStyle().
 			Bold(true).
@@ -271,7 +267,6 @@ func (m Model) getConnectionStats() connectionStats {
 func (m Model) renderNetworkConfiguration() string {
 	content := strings.Builder{}
 
-	// Afficher seulement un tableau à la fois
 	if m.Network.RoutesTable.Focused() {
 		routesTitle := lipgloss.NewStyle().
 			Bold(true).
@@ -302,7 +297,6 @@ func (m Model) renderNetworkConfiguration() string {
 		}
 	}
 
-	// Indicateur en bas pour montrer quel tableau est actif
 	footer := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("244")).
 		Render(fmt.Sprintf("\nCurrently viewing: %s | Press SPACE to switch", 

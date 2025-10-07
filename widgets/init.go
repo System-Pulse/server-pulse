@@ -273,7 +273,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			ContainerViewState: v.ContainerViewNone,
 			ContainerTabs:      v.ContainerTabs,
 			ContainerLogsPagination: model.ContainerLogsPagination{
-				PageSize:    100, // Initialiser avec une valeur par défaut
+				PageSize:    100,
 				CurrentPage: 1,
 				TotalPages:  1,
 				Lines:       []string{},

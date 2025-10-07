@@ -1380,7 +1380,6 @@ func (m Model) handleTickMsg() (tea.Model, tea.Cmd) {
 		}(),
 	}
 
-	// Gestion du timer d'authentification
 	if m.Diagnostic.AuthState == model.AuthSuccess && m.Diagnostic.AuthTimer > 0 {
 		m.Diagnostic.AuthTimer--
 		if m.Diagnostic.AuthTimer == 0 {
@@ -1389,7 +1388,6 @@ func (m Model) handleTickMsg() (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Gestion du timer d'authentification réseau
 	if m.Network.AuthState == model.AuthSuccess && m.Network.AuthTimer > 0 {
 		m.Network.AuthTimer--
 		if m.Network.AuthTimer == 0 {

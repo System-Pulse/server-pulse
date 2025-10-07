@@ -105,15 +105,12 @@ func (m Model) canAccessNetworkConnections() bool {
 	return m.Network.IsRoot || m.Network.CanRunSudo
 }
 
-// Fonction pour obtenir un spinner aléatoire
+
 func getRandomSpinner() spinner.Model {
-	// Initialiser le générateur de nombres aléatoires
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	// Choisir un spinner aléatoire
 	randomSpinner := v.Spinners[r.Intn(len(v.Spinners))]
 
-	// Choisir une couleur aléatoire parmi une palette
 	colors := []lipgloss.Color{
 		lipgloss.Color("205"), // Magenta
 		lipgloss.Color("39"),  // Blue
@@ -132,7 +129,6 @@ func getRandomSpinner() spinner.Model {
 	return spinnerModel
 }
 
-// Fonction pour réinitialiser le spinner avec un nouveau style aléatoire
 func (m *Model) resetSpinner() {
 	m.Ui.Spinner = getRandomSpinner()
 }

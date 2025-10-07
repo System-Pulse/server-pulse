@@ -150,13 +150,6 @@ func (m Model) renderContainerCPU() string {
 		doc.WriteString("\n")
 		chart := m.renderCPUChart(50, 10)
 		doc.WriteString(chart)
-
-		// Display per-core CPU usage if available
-		// doc.WriteString("\n\n")
-		// doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Per-Core Usage:"))
-		// doc.WriteString("\n")
-		// perCoreCharts := m.renderAllPerCPUCharts(50, 6)
-		// doc.WriteString(perCoreCharts)
 	} else {
 		doc.WriteString(v.MetricLabelStyle.Render("Loading CPU metrics..."))
 	}
@@ -203,11 +196,8 @@ func (m Model) renderContainerNetwork() string {
 		rxBytes := m.Monitor.ContainerDetails.Stats.NetworkRx
 		txBytes := m.Monitor.ContainerDetails.Stats.NetworkTx
 
-		// doc.WriteString(fmt.Sprintf("RX: %s/s\n", utils.FormatBytes(rxBytes)))
-		// doc.WriteString(fmt.Sprintf("TX: %s/s\n\n", utils.FormatBytes(txBytes)))
 		doc.WriteString(fmt.Sprintf("RX Total: %s\n", utils.FormatBytes(rxBytes)))
 		doc.WriteString(fmt.Sprintf("TX Total: %s\n\n", utils.FormatBytes(txBytes)))
-		// doc.WriteString("\n")
 		rxChart := m.renderNetworkRXChart(50, 6)
 		doc.WriteString(rxChart)
 

@@ -40,20 +40,12 @@ func (m Model) renderMainContent() string {
 		currentView = fmt.Sprintf("Unknown state: %v", m.Ui.State)
 	}
 
-	// Utilise le viewport pour le contenu scrollable
-	// switch m.Ui.State {
-	// case model.StateSystem, model.StateContainerLogs, model.StateHome, model.StateMonitor:
-	// m.Ui.Viewport.SetContent(currentView)
-	// return m.Ui.Viewport.View()
-	// }
 	switch m.Ui.State {
 	case model.StateSystem, model.StateContainerLogs, model.StateCertificateDetails,
 		model.StateSSHRootDetails, model.StateHome, model.StateMonitor:
 		m.Ui.Viewport.SetContent(currentView)
 		return m.Ui.Viewport.View()
 	default:
-		// Pour les tableaux, retourner directement le contenu
 		return currentView
 	}
-	// return currentView
 }

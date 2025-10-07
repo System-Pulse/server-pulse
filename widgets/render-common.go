@@ -55,8 +55,7 @@ func (m Model) getAvailableHeight() int {
 func (m Model) getContentHeight() int {
 	availableHeight := m.getAvailableHeight()
 
-	// Réserver de l'espace pour les marges/paddings
-	contentHeight := availableHeight - 2 // 2 lignes pour les marges
+	contentHeight := availableHeight - 2
 	return max(1, contentHeight)
 }
 
