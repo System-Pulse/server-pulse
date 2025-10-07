@@ -300,3 +300,68 @@ func (m Model) renderFirewallDetails() string {
 
 	return vars.CardStyle.Render(doc.String())
 }
+
+func (m Model) renderAutoBanDetails() string {
+	if m.Diagnostic.AutoBanInfo == nil {
+		return vars.CardStyle.Render("No auto-ban information available")
+	}
+
+	doc := strings.Builder{}
+
+	// Title
+	title := fmt.Sprintf("Auto Ban Details - %s", m.Diagnostic.AutoBanInfo.ServiceType)
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render(title))
+	doc.WriteString("\n\n")
+
+	// Status and details
+	statusStyle := lipgloss.NewStyle().Bold(true)
+	if m.Diagnostic.AutoBanInfo.Status == "Active" {
+		statusStyle = statusStyle.Foreground(lipgloss.Color("46")) // Green
+	} else {
+		statusStyle = statusStyle.Foreground(lipgloss.Color("196")) // Red
+	}
+
+	doc.WriteString(vars.MetricLabelStyle.Render("Status: "))
+	doc.WriteString(statusStyle.Render(m.Diagnostic.AutoBanInfo.Status))
+	doc.WriteString("\n")
+
+	if m.Diagnostic.AutoBanInfo.Version != "" {
+		doc.WriteString(vars.MetricLabelStyle.Render("Version: "))
+		doc.WriteString(m.Diagnostic.AutoBanInfo.Version)
+		doc.WriteString("\n")
+	}
+
+	doc.WriteString(vars.MetricLabelStyle.Render("Details: "))
+	doc.WriteString(m.Diagnostic.AutoBanInfo.Details)
+	doc.WriteString("\n\n")
+
+	// Jails/Services table
+	if len(m.Diagnostic.AutoBanInfo.Jails) > 0 {
+		doc.WriteString(lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("Jails/Services (%d total)", len(m.Diagnostic.AutoBanInfo.Jails))))
+		doc.WriteString("\n\n")
+		doc.WriteString(m.Diagnostic.AutoBanTable.View())
+		doc.WriteString("\n\n")
+	} else {
+		doc.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render("No jails/services configured"))
+		doc.WriteString("\n\n")
+	}
+
+	// Raw output section
+	if m.Diagnostic.AutoBanInfo.RawOutput != "" {
+		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Complete Configuration:"))
+		doc.WriteString("\n")
+		doc.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render("(Full raw output from service)"))
+		doc.WriteString("\n\n")
+
+		rawOutputStyle := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			Padding(1).
+			MaxWidth(100)
+
+		doc.WriteString(rawOutputStyle.Render(m.Diagnostic.AutoBanInfo.RawOutput))
+		doc.WriteString("\n")
+	}
+
+	return vars.CardStyle.Render(doc.String())
+}

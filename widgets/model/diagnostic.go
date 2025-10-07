@@ -31,6 +31,8 @@ type DiagnosticModel struct {
 	PortsTable      table.Model
 	FirewallInfo    *security.FirewallInfos
 	FirewallTable   table.Model
+	AutoBanInfo     *security.AutoBanInfos
+	AutoBanTable    table.Model
 	Password        textinput.Model
 	AuthState       AuthenticationState
 	AuthMessage     string

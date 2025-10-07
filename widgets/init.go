@@ -179,6 +179,17 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 
 	firewallTable.SetStyles(tableStyle)
 
+	autoBanColumns := []table.Column{
+		{Title: "Jail/Service Details", Width: 100},
+	}
+
+	autoBanTable := table.New(
+		table.WithColumns(autoBanColumns),
+		table.WithFocused(true),
+	)
+
+	autoBanTable.SetStyles(tableStyle)
+
 	logsViewport := viewport.New(100, 20)
 	m := Model{
 		LogsViewport: logsViewport,
@@ -195,6 +206,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			SecurityTable:   securityTable,
 			PortsTable:      portsTable,
 			FirewallTable:   firewallTable,
+			AutoBanTable:    autoBanTable,
 			DomainInput: func() textinput.Model {
 				ti := textinput.New()
 				ti.Placeholder = "Enter domain name (e.g., google.com)"

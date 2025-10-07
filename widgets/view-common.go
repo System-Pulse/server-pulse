@@ -257,6 +257,21 @@ func (m *Model) updateFirewallTable() tea.Cmd {
 	return nil
 }
 
+func (m *Model) updateAutoBanTable() tea.Cmd {
+	var rows []table.Row
+
+	for _, jail := range m.Diagnostic.AutoBanInfo.Jails {
+		description := fmt.Sprintf("[%s] %s | Filter: %s | Currently: %d | Total: %d | %s",
+			jail.Name, jail.Status, jail.Filter, jail.CurrentBans, jail.TotalBans, jail.Details)
+		rows = append(rows, table.Row{
+			description,
+		})
+	}
+
+	m.Diagnostic.AutoBanTable.SetRows(rows)
+	return nil
+}
+
 func (m *Model) updatePortsTable() tea.Cmd {
 	var rows []table.Row
 

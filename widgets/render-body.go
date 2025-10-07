@@ -36,6 +36,8 @@ func (m Model) renderMainContent() string {
 		currentView = m.renderOpenedPortsDetails()
 	case model.StateFirewallDetails:
 		currentView = m.renderFirewallDetails()
+	case model.StateAutoBanDetails:
+		currentView = m.renderAutoBanDetails()
 	case model.StateReporting:
 		currentView = m.renderReporting()
 	default:

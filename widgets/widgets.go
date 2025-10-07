@@ -46,6 +46,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleOpenedPortsDisplayMsg(msg)
 	case security.FirewallMsg:
 		return m.handleFirewallDisplayMsg(msg)
+	case security.AutoBanMsg:
+		return m.handleAutoBanDisplayMsg(msg)
 	case system.ContainerLogsStreamMsg:
 		return m.handleLogsStreamMsg(msg)
 	case system.ContainerLogsStopMsg:

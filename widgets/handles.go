@@ -212,6 +212,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleOpenedPortsDetailsKeys(msg)
 	case model.StateFirewallDetails:
 		return m.handleFirewallDetailsKeys(msg)
+	case model.StateAutoBanDetails:
+		return m.handleAutoBanDetailsKeys(msg)
 	case model.StateReporting:
 		return m.handleReportingKeys(msg)
 	}
@@ -743,6 +745,8 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					return m, m.Diagnostic.SecurityManager.DisplayOpenedPortsInfos()
 				case "Firewall Status":
 					return m, m.Diagnostic.SecurityManager.DisplayFirewallInfos()
+				case "Auto Ban":
+					return m, m.Diagnostic.SecurityManager.DisplayAutoBanInfos()
 				}
 			}
 		}
@@ -884,6 +888,20 @@ func (m Model) handleFirewallDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// ------------------------- handler for autoban display messages -------------------------
+func (m Model) handleAutoBanDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case security.AutoBanMsg:
+		autoBanInfo := security.AutoBanInfos(msg)
+		// Store auto-ban info in model for display
+		m.Diagnostic.AutoBanInfo = &autoBanInfo
+		// Switch to auto-ban details view
+		m.setState(model.StateAutoBanDetails)
+		return m, m.updateAutoBanTable()
+	}
+	return m, nil
+}
+
 func (m Model) handleOpenedPortsDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "b", "esc":
@@ -923,6 +941,29 @@ func (m Model) handleFirewallDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.FirewallTable.GotoTop()
 	case "end":
 		m.Diagnostic.FirewallTable.GotoBottom()
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) handleAutoBanDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
+	case "up", "k":
+		m.Diagnostic.AutoBanTable.MoveUp(1)
+	case "down", "j":
+		m.Diagnostic.AutoBanTable.MoveDown(1)
+	case "pageup":
+		m.Diagnostic.AutoBanTable.MoveUp(10)
+	case "pagedown":
+		m.Diagnostic.AutoBanTable.MoveDown(10)
+	case "home":
+		m.Diagnostic.AutoBanTable.GotoTop()
+	case "end":
+		m.Diagnostic.AutoBanTable.GotoBottom()
 	case "q", "ctrl+c":
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit
