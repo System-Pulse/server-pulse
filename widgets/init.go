@@ -168,6 +168,17 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 
 	portsTable.SetStyles(tableStyle)
 
+	firewallColumns := []table.Column{
+		{Title: "Firewall Rule", Width: 100},
+	}
+
+	firewallTable := table.New(
+		table.WithColumns(firewallColumns),
+		table.WithFocused(true),
+	)
+
+	firewallTable.SetStyles(tableStyle)
+
 	logsViewport := viewport.New(100, 20)
 	m := Model{
 		LogsViewport: logsViewport,
@@ -183,9 +194,10 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			SecurityManager: securityManager,
 			SecurityTable:   securityTable,
 			PortsTable:      portsTable,
+			FirewallTable:   firewallTable,
 			DomainInput: func() textinput.Model {
 				ti := textinput.New()
-				ti.Placeholder = "Enter domain name (e.g., example.com)"
+				ti.Placeholder = "Enter domain name (e.g., google.com)"
 				ti.CharLimit = 100
 				ti.Width = 40
 				return ti

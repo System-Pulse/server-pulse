@@ -241,3 +241,62 @@ func (m Model) renderOpenedPortsDetails() string {
 
 	return vars.CardStyle.Render(doc.String())
 }
+
+func (m Model) renderFirewallDetails() string {
+	if m.Diagnostic.FirewallInfo == nil {
+		return vars.CardStyle.Render("No firewall information available")
+	}
+
+	doc := strings.Builder{}
+
+	// Title
+	title := fmt.Sprintf("Firewall Details - %s", m.Diagnostic.FirewallInfo.FirewallType)
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render(title))
+	doc.WriteString("\n\n")
+
+	// Status and details
+	statusStyle := lipgloss.NewStyle().Bold(true)
+	if m.Diagnostic.FirewallInfo.Status == "Active" {
+		statusStyle = statusStyle.Foreground(lipgloss.Color("46")) // Green
+	} else {
+		statusStyle = statusStyle.Foreground(lipgloss.Color("196")) // Red
+	}
+
+	doc.WriteString(vars.MetricLabelStyle.Render("Status: "))
+	doc.WriteString(statusStyle.Render(m.Diagnostic.FirewallInfo.Status))
+	doc.WriteString("\n")
+	doc.WriteString(vars.MetricLabelStyle.Render("Details: "))
+	doc.WriteString(m.Diagnostic.FirewallInfo.Details)
+	doc.WriteString("\n\n")
+
+	// Rules summary
+	if len(m.Diagnostic.FirewallInfo.Rules) > 0 {
+		doc.WriteString(lipgloss.NewStyle().Bold(true).Render(fmt.Sprintf("Firewall Rules (%d total)", len(m.Diagnostic.FirewallInfo.Rules))))
+		doc.WriteString("\n\n")
+		doc.WriteString(m.Diagnostic.FirewallTable.View())
+		doc.WriteString("\n\n")
+	} else {
+		doc.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render("No firewall rules configured"))
+		doc.WriteString("\n\n")
+	}
+
+	// Raw output section (collapsible view)
+	if m.Diagnostic.FirewallInfo.RawOutput != "" {
+		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Complete Firewall Configuration:"))
+		doc.WriteString("\n")
+		doc.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render("(Full raw output from firewall command)"))
+		doc.WriteString("\n\n")
+
+		// Show raw output in a bordered box
+		rawOutputStyle := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			Padding(1).
+			MaxWidth(100)
+
+		doc.WriteString(rawOutputStyle.Render(m.Diagnostic.FirewallInfo.RawOutput))
+		doc.WriteString("\n")
+	}
+
+	return vars.CardStyle.Render(doc.String())
+}

@@ -244,6 +244,19 @@ func (m *Model) getSecurityStatusIcon(status string) string {
 	}
 }
 
+func (m *Model) updateFirewallTable() tea.Cmd {
+	var rows []table.Row
+
+	for _, rule := range m.Diagnostic.FirewallInfo.Rules {
+		rows = append(rows, table.Row{
+			rule.Description,
+		})
+	}
+
+	m.Diagnostic.FirewallTable.SetRows(rows)
+	return nil
+}
+
 func (m *Model) updatePortsTable() tea.Cmd {
 	var rows []table.Row
 

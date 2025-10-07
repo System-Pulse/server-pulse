@@ -20,6 +20,7 @@ const (
 	StateCertificateDetails AppState = "diagnostics.certificate"
 	StateSSHRootDetails     AppState = "diagnostics.sshroot"
 	StateOpenedPortsDetails AppState = "diagnostics.openedports"
+	StateFirewallDetails    AppState = "diagnostics.firewall"
 	StateNetwork            AppState = "network"
 	StateInterfaces         AppState = "network.interfaces"
 	StateConnectivity       AppState = "network.connectivity"

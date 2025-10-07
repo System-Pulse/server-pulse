@@ -29,6 +29,8 @@ type DiagnosticModel struct {
 	DomainInputMode bool
 	OpenedPortsInfo *security.OpenedPortsInfos
 	PortsTable      table.Model
+	FirewallInfo    *security.FirewallInfos
+	FirewallTable   table.Model
 	Password        textinput.Model
 	AuthState       AuthenticationState
 	AuthMessage     string

@@ -34,13 +34,14 @@ func (m Model) renderMainContent() string {
 		currentView = m.renderSSHRootDetails()
 	case model.StateOpenedPortsDetails:
 		currentView = m.renderOpenedPortsDetails()
+	case model.StateFirewallDetails:
+		currentView = m.renderFirewallDetails()
 	case model.StateReporting:
 		currentView = m.renderReporting()
 	default:
 		currentView = fmt.Sprintf("Unknown state: %v", m.Ui.State)
 	}
 
-	// Utilise le viewport pour le contenu scrollable
 	// switch m.Ui.State {
 	// case model.StateSystem, model.StateContainerLogs, model.StateHome, model.StateMonitor:
 	m.Ui.Viewport.SetContent(currentView)

@@ -210,6 +210,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleSSHRootDetailsKeys(msg)
 	case model.StateOpenedPortsDetails:
 		return m.handleOpenedPortsDetailsKeys(msg)
+	case model.StateFirewallDetails:
+		return m.handleFirewallDetailsKeys(msg)
 	case model.StateReporting:
 		return m.handleReportingKeys(msg)
 	}
@@ -739,6 +741,8 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					return m, m.Diagnostic.SecurityManager.DisplaySSHRootInfos()
 				case "Open Ports":
 					return m, m.Diagnostic.SecurityManager.DisplayOpenedPortsInfos()
+				case "Firewall Status":
+					return m, m.Diagnostic.SecurityManager.DisplayFirewallInfos()
 				}
 			}
 		}
@@ -866,6 +870,20 @@ func (m Model) handleOpenedPortsDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// ------------------------- handler for firewall display messages -------------------------
+func (m Model) handleFirewallDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case security.FirewallMsg:
+		firewallInfo := security.FirewallInfos(msg)
+		// Store firewall info in model for display
+		m.Diagnostic.FirewallInfo = &firewallInfo
+		// Switch to firewall details view
+		m.setState(model.StateFirewallDetails)
+		return m, m.updateFirewallTable()
+	}
+	return m, nil
+}
+
 func (m Model) handleOpenedPortsDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "b", "esc":
@@ -882,6 +900,29 @@ func (m Model) handleOpenedPortsDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		m.Diagnostic.PortsTable.GotoTop()
 	case "end":
 		m.Diagnostic.PortsTable.GotoBottom()
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) handleFirewallDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
+	case "up", "k":
+		m.Diagnostic.FirewallTable.MoveUp(1)
+	case "down", "j":
+		m.Diagnostic.FirewallTable.MoveDown(1)
+	case "pageup":
+		m.Diagnostic.FirewallTable.MoveUp(10)
+	case "pagedown":
+		m.Diagnostic.FirewallTable.MoveDown(10)
+	case "home":
+		m.Diagnostic.FirewallTable.GotoTop()
+	case "end":
+		m.Diagnostic.FirewallTable.GotoBottom()
 	case "q", "ctrl+c":
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit
