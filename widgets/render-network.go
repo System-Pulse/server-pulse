@@ -3,7 +3,8 @@ package widgets
 import (
 	"fmt"
 	"strings"
-
+	
+	"github.com/System-Pulse/server-pulse/widgets/auth"
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
 
 	"github.com/System-Pulse/server-pulse/widgets/model"
@@ -46,11 +47,275 @@ func (m Model) renderNetwork() string {
 	case model.NetworkTabInterface:
 		currentView = m.interfaces()
 	case model.NetworkTabConnectivity:
-		currentView = renderNotImplemented("Connectivity Analysis")
+		currentView = m.renderConnectivityAnalysis()
 	case model.NetworkTabConfiguration:
-		currentView = renderNotImplemented("Network Configuration")
+		currentView = m.renderNetworkConfiguration()
 	case model.NetworkTabProtocol:
-		currentView = renderNotImplemented("Protocol Analysis")
+		currentView = m.renderProtocolAnalysis()
 	}
 	return currentView
+}
+
+func (m Model) renderProtocolAnalysis() string {
+	content := strings.Builder{}
+	
+	// Authentication section
+	if m.Network.AuthState == model.AuthRequired || m.Network.AuthState == model.AuthInProgress {
+		authMessage := auth.GetAuthMessage(int(m.Network.AuthState), m.Network.AuthMessage)
+		authStyle := auth.GetAuthStyle(int(m.Network.AuthState))
+
+		content.WriteString(authStyle.Render(authMessage))
+		content.WriteString("\n\n")
+		content.WriteString(m.Network.AuthMessage)
+		content.WriteString("\n\n")
+		if m.Network.AuthState == model.AuthRequired {
+			content.WriteString(auth.AuthPromptStyle.Render("Enter Password:"))
+			content.WriteString("\n")
+			content.WriteString(m.Diagnostic.Password.View())
+			content.WriteString("\n\n")
+			content.WriteString(auth.AuthInfoStyle.Render(auth.AuthInstructions))
+		} else {
+			content.WriteString(auth.AuthInProgressStyle.Render("⏳ " + m.Network.AuthMessage))
+		}
+		content.WriteString("\n\n")
+		return v.CardNetworkStyle.Render(content.String())
+	}
+
+	if m.Network.AuthState == model.AuthFailed {
+		authMessage := auth.GetAuthMessage(int(m.Network.AuthState), m.Network.AuthMessage)
+		authStyle := auth.GetAuthStyle(int(m.Network.AuthState))
+
+		content.WriteString(authStyle.Render(authMessage))
+		content.WriteString("\n\n")
+		content.WriteString(m.Network.AuthMessage)
+		content.WriteString("\n\n")
+		content.WriteString(auth.AuthInfoStyle.Render(auth.AuthRetryMessage))
+	}
+
+	if m.Network.AuthState == model.AuthSuccess && m.Network.AuthTimer > 0 {
+		authMessage := auth.GetAuthMessage(int(m.Network.AuthState), m.Network.AuthMessage)
+		authStyle := auth.GetAuthStyle(int(m.Network.AuthState))
+
+		content.WriteString(authStyle.Render(authMessage))
+		content.WriteString("\n\n")
+		content.WriteString(auth.AuthInfoStyle.Render("Admin privileges granted"))
+	}
+
+	// Header with connection count
+	connectionCount := len(m.Network.Connections)
+
+	// Connection statistics
+	if connectionCount > 0 {
+		stats := m.getConnectionStats()
+		statsText := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("229")).
+			Render(fmt.Sprintf("TCP: %d | UDP: %d | Listening: %d | Established: %d",
+				stats.tcp, stats.udp, stats.listening, stats.established))
+		content.WriteString(statsText + "\n")
+	}
+	
+	// Check if user has access to detailed network connections
+	hasAccess := m.canAccessNetworkConnections()
+
+	if !hasAccess {
+		accessInfo := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214")).
+			Render("🔒 Limited information available without admin privileges")
+		content.WriteString(accessInfo + "\n")
+		content.WriteString(lipgloss.NewStyle().
+			Foreground(lipgloss.Color("244")).
+			Render("Press 'a' to authenticate for detailed connection information"))
+	}
+
+	tableContent := m.renderTable(m.Network.ConnectionsTable, "No active connections")
+	content.WriteString(tableContent)
+
+	return v.CardNetworkStyle.
+		Margin(0, 0, 0, 0).
+		Padding(0, 1).
+		Render(content.String())
+}
+
+func (m Model) renderConnectivityAnalysis() string {
+	content := strings.Builder{}
+
+	// Header
+	header := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("62")).
+		MarginBottom(1).
+		Render("Network Connectivity Tools")
+	content.WriteString(header + "\n\n")
+
+	// Instructions
+	instructions := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Render("Press 'p' to ping, 't' to traceroute, 'c' to clear results")
+	content.WriteString(instructions + "\n\n")
+
+	// Input modes
+	switch m.Network.ConnectivityMode {
+	case model.ConnectivityModePing:
+		content.WriteString("🔍 Ping: " + m.Network.PingInput.View() + "\n\n")
+	case model.ConnectivityModeTraceroute:
+		content.WriteString("🛣️  Traceroute: " + m.Network.TracerouteInput.View() + "\n\n")
+	}
+	
+	if m.Network.PingLoading {
+        loadingText := lipgloss.NewStyle().
+            Foreground(lipgloss.Color("214")).
+            Render(fmt.Sprintf("%s Pinging...", m.Ui.Spinner.View()))
+        content.WriteString(loadingText + "\n\n")
+    }
+
+    if m.Network.TracerouteLoading {
+        loadingText := lipgloss.NewStyle().
+            Foreground(lipgloss.Color("214")).
+            Render(fmt.Sprintf("%s Running traceroute...", m.Ui.Spinner.View()))
+        content.WriteString(loadingText + "\n\n")
+    }
+
+	// Ping results
+	if len(m.Network.PingResults) > 0 {
+		pingTitle := lipgloss.NewStyle().
+			Bold(true).
+			Underline(true).
+			Foreground(lipgloss.Color("39")).
+			Render("Ping Results")
+		content.WriteString(pingTitle + "\n")
+
+		for _, result := range m.Network.PingResults {
+			statusIcon := "❌"
+			statusColor := v.ErrorColor
+			if result.Success {
+				statusIcon = "✅"
+				statusColor = v.SuccessColor
+			}
+
+			statusLine := fmt.Sprintf("%s %s - ", statusIcon, result.Target)
+			if result.Success {
+				statusLine += fmt.Sprintf("Latency: %v, Packet Loss: %.1f%%",
+					result.Latency, result.PacketLoss)
+			} else {
+				statusLine += fmt.Sprintf("Error: %s", result.Error)
+			}
+
+			content.WriteString(lipgloss.NewStyle().Foreground(statusColor).Render(statusLine) + "\n")
+		}
+		content.WriteString("\n")
+	}
+
+	// Traceroute results
+	if m.Network.TracerouteResult.Target != "" {
+		tracerouteTitle := lipgloss.NewStyle().
+			Bold(true).
+			Underline(true).
+			Foreground(lipgloss.Color("208")).
+			Render(fmt.Sprintf("Traceroute to %s", m.Network.TracerouteResult.Target))
+		content.WriteString(tracerouteTitle + "\n")
+
+		if m.Network.TracerouteResult.Error != "" {
+			content.WriteString(lipgloss.NewStyle().Foreground(v.ErrorColor).Render("Error: "+m.Network.TracerouteResult.Error) + "\n")
+		} else if len(m.Network.TracerouteResult.Hops) > 0 {
+			for _, hop := range m.Network.TracerouteResult.Hops {
+				hopLine := fmt.Sprintf("%2d. ", hop.HopNumber)
+
+				if hop.IP != "" {
+					hopLine += hop.IP
+					if hop.Hostname != "" {
+						hopLine += fmt.Sprintf(" (%s)", hop.Hostname)
+					}
+				} else {
+					hopLine += "*"
+				}
+
+				if hop.Latency1 > 0 {
+					hopLine += fmt.Sprintf("  %v", hop.Latency1)
+				}
+
+				content.WriteString(hopLine + "\n")
+			}
+		} else {
+			content.WriteString("No route found\n")
+		}
+	}
+
+	return v.CardNetworkStyle.
+		Margin(0, 0, 0, 0).
+		Padding(0, 1).
+		Render(content.String())
+}
+
+func (m Model) getConnectionStats() connectionStats {
+	var stats connectionStats
+
+	for _, conn := range m.Network.Connections {
+		switch conn.Proto {
+		case "tcp", "tcp6":
+			stats.tcp++
+		case "udp", "udp6":
+			stats.udp++
+		}
+
+		switch conn.State {
+		case "LISTEN":
+			stats.listening++
+		case "ESTAB":
+			stats.established++
+		}
+	}
+
+	return stats
+}
+
+func (m Model) renderNetworkConfiguration() string {
+	content := strings.Builder{}
+
+	// Afficher seulement un tableau à la fois
+	if m.Network.RoutesTable.Focused() {
+		routesTitle := lipgloss.NewStyle().
+			Bold(true).
+			Underline(true).
+			Foreground(lipgloss.Color("208")).
+			MarginBottom(1).
+			Render(fmt.Sprintf("▶ Routing Table (%d routes)", len(m.Network.Routes)))
+		content.WriteString(routesTitle + "\n")
+
+		if len(m.Network.Routes) > 0 {
+			content.WriteString(m.Network.RoutesTable.View())
+		} else {
+			content.WriteString("No routing table entries found")
+		}
+	} else {
+		dnsTitle := lipgloss.NewStyle().
+			Bold(true).
+			Underline(true).
+			Foreground(lipgloss.Color("39")).
+			MarginBottom(1).
+			Render(fmt.Sprintf("▶ DNS Servers (%d servers)", len(m.Network.DNS)))
+		content.WriteString(dnsTitle + "\n")
+
+		if len(m.Network.DNS) > 0 {
+			content.WriteString(m.Network.DNSTable.View())
+		} else {
+			content.WriteString("No DNS servers configured")
+		}
+	}
+
+	// Indicateur en bas pour montrer quel tableau est actif
+	footer := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("244")).
+		Render(fmt.Sprintf("\nCurrently viewing: %s | Press SPACE to switch", 
+			func() string {
+				if m.Network.RoutesTable.Focused() {
+					return "Routing Table"
+				}
+				return "DNS Servers"
+			}()))
+	content.WriteString(footer)
+
+	return v.CardNetworkStyle.
+		Margin(0, 0, 0, 0).
+		Padding(1, 2).
+		Render(content.String())
 }

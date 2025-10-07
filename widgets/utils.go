@@ -2,10 +2,16 @@ package widgets
 
 import (
 	"fmt"
+	"math/rand"
 	"os"
 	"os/exec"
 	"slices"
 	"strings"
+	"time"
+	v "github.com/System-Pulse/server-pulse/widgets/vars"
+
+	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // check if as root
@@ -26,6 +32,8 @@ func (m Model) setRoot() error {
 	}
 	m.Diagnostic.SudoAvailable = true
 	m.Diagnostic.CanRunSudo = true
+	m.Network.SudoAvailable = true
+	m.Network.CanRunSudo = true
 	cm := exec.Command("sudo", "-S", "ls")
 	cm.Stdin = strings.NewReader(m.Diagnostic.Password.Value() + "\n")
 	cm.Stdout = nil
@@ -35,6 +43,26 @@ func (m Model) setRoot() error {
 		return fmt.Errorf("failed to run command, invalid password or insufficient privileges")
 	}
 	m.Diagnostic.IsRoot = true
+	m.Network.IsRoot = true
+	return nil
+}
+
+// setNetworkRoot sets the root password for network operations
+func (m Model) setNetworkRoot() error {
+	if !isSudoAvailable() {
+		return fmt.Errorf("sudo is not available on this system")
+	}
+	m.Network.SudoAvailable = true
+	m.Network.CanRunSudo = true
+	cm := exec.Command("sudo", "-S", "ls")
+	cm.Stdin = strings.NewReader(m.Diagnostic.Password.Value() + "\n")
+	cm.Stdout = nil
+	cm.Stderr = nil
+	err := cm.Run()
+	if err != nil {
+		return fmt.Errorf("failed to run command, invalid password or insufficient privileges")
+	}
+	m.Network.IsRoot = true
 	return nil
 }
 
@@ -70,4 +98,41 @@ func (m Model) canAccessDiagnostic(checkName string) bool {
 
 	// Non-admin checks are always accessible
 	return true
+}
+
+// canAccessNetworkConnections checks if user can access detailed network connections
+func (m Model) canAccessNetworkConnections() bool {
+	return m.Network.IsRoot || m.Network.CanRunSudo
+}
+
+// Fonction pour obtenir un spinner aléatoire
+func getRandomSpinner() spinner.Model {
+	// Initialiser le générateur de nombres aléatoires
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	// Choisir un spinner aléatoire
+	randomSpinner := v.Spinners[r.Intn(len(v.Spinners))]
+
+	// Choisir une couleur aléatoire parmi une palette
+	colors := []lipgloss.Color{
+		lipgloss.Color("205"), // Magenta
+		lipgloss.Color("39"),  // Blue
+		lipgloss.Color("46"),  // Green
+		lipgloss.Color("214"), // Orange
+		lipgloss.Color("198"), // Pink
+		lipgloss.Color("51"),  // Cyan
+		lipgloss.Color("226"), // Yellow
+	}
+	randomColor := colors[r.Intn(len(colors))]
+
+	spinnerModel := spinner.New()
+	spinnerModel.Spinner = randomSpinner
+	spinnerModel.Style = lipgloss.NewStyle().Foreground(randomColor)
+
+	return spinnerModel
+}
+
+// Fonction pour réinitialiser le spinner avec un nouveau style aléatoire
+func (m *Model) resetSpinner() {
+	m.Ui.Spinner = getRandomSpinner()
 }

@@ -14,6 +14,7 @@ import (
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
 
+	"github.com/System-Pulse/server-pulse/system/network"
 	"github.com/System-Pulse/server-pulse/system/resource"
 	"github.com/System-Pulse/server-pulse/system/security"
 	"github.com/System-Pulse/server-pulse/utils"
@@ -478,6 +479,54 @@ func (m Model) handleContainerLogsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle authentication mode for network
+	if m.Network.AuthState == model.AuthRequired {
+		switch msg.String() {
+		case "enter":
+			if m.Diagnostic.Password.Value() != "" {
+				m.Network.AuthState = model.AuthInProgress
+				m.Network.AuthMessage = "Authenticating..."
+				// Try to authenticate
+				err := m.setNetworkRoot()
+				if err != nil {
+					m.Network.AuthState = model.AuthFailed
+					m.Network.AuthMessage = fmt.Sprintf("Authentication failed: %v", err)
+					if !m.Network.SudoAvailable {
+						m.Network.AuthMessage += "\nSudo is not available. Please run as root."
+					}
+					m.Diagnostic.Password.Reset()
+				} else {
+					m.Network.AuthState = model.AuthSuccess
+					m.Network.AuthMessage = "Authentication successful!"
+					m.Network.IsRoot = true
+					m.Network.AuthTimer = 2
+					m.Diagnostic.Password.SetValue("")
+					m.Diagnostic.Password.Blur()
+					// Refresh connections with admin privileges
+					return m, network.GetConnections()
+				}
+			}
+			return m, nil
+		case "esc":
+			// Cancel authentication
+			m.Network.AuthState = model.AuthNotRequired
+			m.Network.AuthMessage = ""
+			m.Diagnostic.Password.SetValue("")
+			m.Diagnostic.Password.Blur()
+			return m, nil
+		default:
+			// Update password input
+			var cmd tea.Cmd
+			m.Diagnostic.Password, cmd = m.Diagnostic.Password.Update(msg)
+			return m, cmd
+		}
+	}
+
+	// Handle connectivity mode inputs first
+	if m.Network.ConnectivityMode != model.ConnectivityModeNone {
+		return m.handleConnectivityInput(msg)
+	}
+
 	switch msg.String() {
 	case "b", "esc":
 		m.goBack()
@@ -487,6 +536,25 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			newTab = 0
 		}
 		m.Network.SelectedItem = model.ContainerTab(newTab)
+		// Set appropriate focus for the new tab
+		switch m.Network.SelectedItem {
+		case model.NetworkTabInterface:
+			m.Network.NetworkTable.Focus()
+		case model.NetworkTabConnectivity:
+			// Clear focus for connectivity tools
+			m.Network.NetworkTable.Blur()
+			m.Network.ConnectionsTable.Blur()
+			m.Network.RoutesTable.Blur()
+			m.Network.DNSTable.Blur()
+		case model.NetworkTabConfiguration:
+			m.Network.RoutesTable.Focus()
+			m.Network.DNSTable.Blur()
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable.Focus()
+		}
+		if m.Network.SelectedItem == model.NetworkTabProtocol && len(m.Network.Connections) == 0 {
+			return m, network.GetConnections()
+		}
 		return m, nil
 	case "shift+tab", "left", "h":
 		newTab := int(m.Network.SelectedItem) - 1
@@ -494,40 +562,230 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			newTab = len(m.Network.Nav) - 1
 		}
 		m.Network.SelectedItem = model.ContainerTab(newTab)
+		// Set appropriate focus for the new tab
+		switch m.Network.SelectedItem {
+		case model.NetworkTabInterface:
+			m.Network.NetworkTable.Focus()
+		case model.NetworkTabConnectivity:
+			// Clear focus for connectivity tools
+			m.Network.NetworkTable.Blur()
+			m.Network.ConnectionsTable.Blur()
+			m.Network.RoutesTable.Blur()
+			m.Network.DNSTable.Blur()
+		case model.NetworkTabConfiguration:
+			m.Network.RoutesTable.Focus()
+			m.Network.DNSTable.Blur()
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable.Focus()
+		}
+		if m.Network.SelectedItem == model.NetworkTabProtocol && len(m.Network.Connections) == 0 {
+			return m, network.GetConnections()
+		}
 		return m, nil
 	case "1":
 		m.Network.SelectedItem = model.NetworkTabInterface
+		// Set focus to network interfaces table
+		m.Network.NetworkTable.Focus()
 		return m, nil
 	case "2":
 		m.Network.SelectedItem = model.NetworkTabConnectivity
+		// Clear any existing focus from tables
+		m.Network.NetworkTable.Blur()
+		m.Network.ConnectionsTable.Blur()
+		m.Network.RoutesTable.Blur()
+		m.Network.DNSTable.Blur()
 		return m, nil
+	case "p":
+		if m.Network.SelectedItem == model.NetworkTabConnectivity {
+			m.Network.ConnectivityMode = model.ConnectivityModePing
+			m.Network.PingInput.Focus()
+			return m, nil
+		}
+	case "t":
+		if m.Network.SelectedItem == model.NetworkTabConnectivity {
+			m.Network.ConnectivityMode = model.ConnectivityModeTraceroute
+			m.Network.TracerouteInput.Focus()
+			return m, nil
+		}
+	case "c":
+		if m.Network.SelectedItem == model.NetworkTabConnectivity {
+			m.Network.PingResults = nil
+			m.Network.TracerouteResult = network.TracerouteResult{}
+			return m, nil
+		}
 	case "3":
 		m.Network.SelectedItem = model.NetworkTabConfiguration
+		// Set focus to routes table by default
+		m.Network.RoutesTable.Focus()
+		m.Network.DNSTable.Blur()
+		if len(m.Network.Routes) == 0 && len(m.Network.DNS) == 0 {
+			return m, tea.Batch(network.GetRoutes(), network.GetDNS())
+		}
 		return m, nil
 	case "4":
 		m.Network.SelectedItem = model.NetworkTabProtocol
+		// Set focus to connections table
+		m.Network.ConnectionsTable.Focus()
+		return m, network.GetConnections()
+	case "a":
+		// Request authentication for detailed network information
+		if m.Network.SelectedItem == model.NetworkTabProtocol && !m.Network.IsRoot && !m.Network.CanRunSudo {
+			m.Network.AuthState = model.AuthRequired
+			m.Diagnostic.Password.Focus()
+			m.Diagnostic.Password.SetValue("")
+		}
 		return m, nil
 	case "up", "k":
-		m.Network.NetworkTable.MoveUp(1)
+		switch m.Network.SelectedItem {
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable.MoveUp(1)
+		case model.NetworkTabConfiguration:
+			if m.Network.RoutesTable.Focused() {
+				m.Network.RoutesTable.MoveUp(1)
+			} else {
+				m.Network.DNSTable.MoveUp(1)
+			}
+		default:
+			m.Network.NetworkTable.MoveUp(1)
+		}
 		return m, nil
 	case "down", "j":
-		m.Network.NetworkTable.MoveDown(1)
+		switch m.Network.SelectedItem {
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable.MoveDown(1)
+		case model.NetworkTabConfiguration:
+			if m.Network.RoutesTable.Focused() {
+				m.Network.RoutesTable.MoveDown(1)
+			} else {
+				m.Network.DNSTable.MoveDown(1)
+			}
+		default:
+			m.Network.NetworkTable.MoveDown(1)
+		}
 		return m, nil
 	case "pageup":
-		m.Network.NetworkTable.MoveUp(10)
+		switch m.Network.SelectedItem {
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable.MoveUp(10)
+		case model.NetworkTabConfiguration:
+			if m.Network.RoutesTable.Focused() {
+				m.Network.RoutesTable.MoveUp(10)
+			} else {
+				m.Network.DNSTable.MoveUp(10)
+			}
+		default:
+			m.Network.NetworkTable.MoveUp(10)
+		}
 		return m, nil
 	case "pagedown":
-		m.Network.NetworkTable.MoveDown(10)
+		switch m.Network.SelectedItem {
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable.MoveDown(10)
+		case model.NetworkTabConfiguration:
+			if m.Network.RoutesTable.Focused() {
+				m.Network.RoutesTable.MoveDown(10)
+			} else {
+				m.Network.DNSTable.MoveDown(10)
+			}
+		default:
+			m.Network.NetworkTable.MoveDown(10)
+		}
 		return m, nil
 	case "home":
-		m.Network.NetworkTable.GotoTop()
+		switch m.Network.SelectedItem {
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable.GotoTop()
+		case model.NetworkTabConfiguration:
+			if m.Network.RoutesTable.Focused() {
+				m.Network.RoutesTable.GotoTop()
+			} else {
+				m.Network.DNSTable.GotoTop()
+			}
+		default:
+			m.Network.NetworkTable.GotoTop()
+		}
 		return m, nil
 	case "end":
-		m.Network.NetworkTable.GotoBottom()
+		switch m.Network.SelectedItem {
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable.GotoBottom()
+		case model.NetworkTabConfiguration:
+			if m.Network.RoutesTable.Focused() {
+				m.Network.RoutesTable.GotoBottom()
+			} else {
+				m.Network.DNSTable.GotoBottom()
+			}
+		default:
+			m.Network.NetworkTable.GotoBottom()
+		}
+		return m, nil
+	case " ":
+		if m.Network.SelectedItem == model.NetworkTabConfiguration {
+			if m.Network.RoutesTable.Focused() {
+				m.Network.RoutesTable.Blur()
+				m.Network.DNSTable.Focus()
+			} else {
+				m.Network.DNSTable.Blur()
+				m.Network.RoutesTable.Focus()
+			}
+		}
 		return m, nil
 	case "q", "ctrl+c":
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) handleConnectivityInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		switch m.Network.ConnectivityMode {
+		case model.ConnectivityModePing:
+			target := m.Network.PingInput.Value()
+			if target != "" {
+				m.Network.PingInput.SetValue("")
+				m.Network.ConnectivityMode = model.ConnectivityModeNone
+				m.Network.PingLoading = true
+				m.resetSpinner()
+				spinnerCmd := m.Ui.Spinner.Tick
+				// Force UI refresh by returning a command that will trigger update
+				return m, tea.Batch(
+                    network.Ping(target, 3), 
+                    spinnerCmd,
+                    func() tea.Msg { return model.ForceRefreshMsg{} },
+                )
+			}
+		case model.ConnectivityModeTraceroute:
+			target := m.Network.TracerouteInput.Value()
+			if target != "" {
+				m.Network.TracerouteInput.SetValue("")
+				m.Network.ConnectivityMode = model.ConnectivityModeNone
+				m.Network.TracerouteLoading = true
+				m.resetSpinner()
+				spinnerCmd := m.Ui.Spinner.Tick
+				// Force UI refresh by returning a command that will trigger update
+				return m, tea.Batch(
+                    network.Traceroute(target), 
+                    spinnerCmd,
+                    func() tea.Msg { return model.ForceRefreshMsg{} },
+                )
+			}
+		}
+	case "esc":
+		m.Network.ConnectivityMode = model.ConnectivityModeNone
+		m.Network.PingInput.SetValue("")
+		m.Network.TracerouteInput.SetValue("")
+		m.Network.PingLoading = false
+        m.Network.TracerouteLoading = false
+		return m, nil
+	default:
+		switch m.Network.ConnectivityMode {
+		case model.ConnectivityModePing:
+			m.Network.PingInput, _ = m.Network.PingInput.Update(msg)
+		case model.ConnectivityModeTraceroute:
+			m.Network.TracerouteInput, _ = m.Network.TracerouteInput.Update(msg)
+		}
 	}
 	return m, nil
 }
@@ -1108,6 +1366,18 @@ func (m Model) handleTickMsg() (tea.Model, tea.Cmd) {
 		resource.UpdateNetworkInfo(),
 		proc.UpdateProcesses(),
 		m.Monitor.App.UpdateApp(),
+		// Refresh network connectivity data when in network view
+		func() tea.Cmd {
+			if m.Ui.State == model.StateNetwork {
+				switch m.Network.SelectedItem {
+				case model.NetworkTabProtocol:
+					return network.GetConnections()
+				case model.NetworkTabConfiguration:
+					return tea.Batch(network.GetRoutes(), network.GetDNS())
+				}
+			}
+			return nil
+		}(),
 	}
 
 	// Gestion du timer d'authentification
@@ -1116,6 +1386,15 @@ func (m Model) handleTickMsg() (tea.Model, tea.Cmd) {
 		if m.Diagnostic.AuthTimer == 0 {
 			m.Diagnostic.AuthState = model.AuthNotRequired
 			m.Diagnostic.AuthMessage = ""
+		}
+	}
+
+	// Gestion du timer d'authentification réseau
+	if m.Network.AuthState == model.AuthSuccess && m.Network.AuthTimer > 0 {
+		m.Network.AuthTimer--
+		if m.Network.AuthTimer == 0 {
+			m.Network.AuthState = model.AuthNotRequired
+			m.Network.AuthMessage = ""
 		}
 	}
 
@@ -1189,7 +1468,18 @@ func (m Model) handleScrollUp() (tea.Model, tea.Cmd) {
 	case model.StateContainers:
 		m.Monitor.Container.MoveUp(m.ScrollSensitivity)
 	case model.StateNetwork:
-		m.Network.NetworkTable.MoveUp(m.ScrollSensitivity)
+		switch m.Network.SelectedItem {
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable.MoveUp(m.ScrollSensitivity)
+		case model.NetworkTabConfiguration:
+			if m.Network.RoutesTable.Focused() {
+				m.Network.RoutesTable.MoveUp(m.ScrollSensitivity)
+			} else {
+				m.Network.DNSTable.MoveUp(m.ScrollSensitivity)
+			}
+		default:
+			m.Network.NetworkTable.MoveUp(m.ScrollSensitivity)
+		}
 	}
 	return m, nil
 }
@@ -1203,7 +1493,41 @@ func (m Model) handleScrollDown() (tea.Model, tea.Cmd) {
 	case model.StateContainers:
 		m.Monitor.Container.MoveDown(m.ScrollSensitivity)
 	case model.StateNetwork:
-		m.Network.NetworkTable.MoveDown(m.ScrollSensitivity)
+		switch m.Network.SelectedItem {
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable.MoveDown(m.ScrollSensitivity)
+		case model.NetworkTabConfiguration:
+			if m.Network.RoutesTable.Focused() {
+				m.Network.RoutesTable.MoveDown(m.ScrollSensitivity)
+			} else {
+				m.Network.DNSTable.MoveDown(m.ScrollSensitivity)
+			}
+		default:
+			m.Network.NetworkTable.MoveDown(m.ScrollSensitivity)
+		}
+	}
+	return m, nil
+}
+
+func (m Model) handleNetworkMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case network.ConnectionsMsg:
+		m.Network.Connections = msg
+		return m, m.updateConnectionsTable()
+	case network.RoutesMsg:
+		m.Network.Routes = msg
+		return m, m.updateRoutesTable()
+	case network.DNSMsg:
+		m.Network.DNS = msg
+		return m, m.updateDNSTable()
+	case network.PingMsg:
+		m.Network.PingResults = append(m.Network.PingResults, network.PingResult(msg))
+		m.Network.PingLoading = false
+		return m, nil
+	case network.TracerouteMsg:
+		m.Network.TracerouteResult = network.TracerouteResult(msg)
+		m.Network.TracerouteLoading = false
+		return m, nil
 	}
 	return m, nil
 }
