@@ -96,7 +96,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 		{Title: "Proto", Width: 6},
 		{Title: "Recv-Q", Width: 8},
 		{Title: "Send-Q", Width: 8},
-		{Title: "Local Address", Width: 20},
+		{Title: "Local Address", Width: 22},
 		{Title: "Foreign Address", Width: 20},
 		{Title: "State", Width: 12},
 		{Title: "PID/Program", Width: 18},
@@ -111,9 +111,9 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	routesColumns := []table.Column{
 		{Title: "Destination", Width: 18},
 		{Title: "Gateway", Width: 12},
-		{Title: "Genmask", Width: 12},
+		{Title: "Genmask", Width: 16},
 		{Title: "Flags", Width: 8},
-		{Title: "Iface", Width: 12},
+		{Title: "Iface", Width: 16},
 	}
 	routesTable := table.New(
 		table.WithColumns(routesColumns),
@@ -128,6 +128,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	dnsTable := table.New(
 		table.WithColumns(dnsColumns),
 		table.WithFocused(true),
+		table.WithHeight(11),
 	)
 	dnsTable.SetStyles(networkStyle)
 

@@ -215,8 +215,8 @@ func GetOperationIcon(operation string) string {
 	return "⚙️"
 }
 
-// hexToIP convert hex (little-endian) to IP
-func HexToIP(hexStr string) string {
+// hexToIPv4 convert hex (little-endian) to IPv4
+func HexToIPv4(hexStr string) string {
 	if len(hexStr) != 8 {
 		return "0.0.0.0"
 	}
@@ -281,6 +281,69 @@ func ParseRouteFlags(flagsStr string) string {
 	}
 	if flags&RTF_REJECT != 0 {
 		flagChars = append(flagChars, '!')
+	}
+
+	return string(flagChars)
+}
+
+func HexToIPv6(hexStr string) (string, error) {
+	if len(hexStr) != 32 {
+		return "", fmt.Errorf("invalid IPv6 hex string length")
+	}
+
+	var ipBytes []byte
+	for i := 0; i < 32; i += 2 {
+		var b byte
+		_, err := fmt.Sscanf(hexStr[i:i+2], "%02x", &b)
+		if err != nil {
+			return "", err
+		}
+		ipBytes = append(ipBytes, b)
+	}
+
+	ip := net.IP(ipBytes)
+	return ip.String(), nil
+}
+
+func ParseIPv6RouteFlags(flagsStr string) string {
+	var flags uint32
+	_, err := fmt.Sscanf(flagsStr, "%x", &flags)
+	if err != nil {
+		return ""
+	}
+
+	const (
+		RTF_UP        = 0x0001
+		RTF_GATEWAY   = 0x0002
+		RTF_HOST      = 0x0004
+		RTF_REJECT    = 0x0200
+		RTF_DYNAMIC   = 0x0010
+		RTF_MODIFIED  = 0x0020
+		RTF_DEFAULT   = 0x10000
+	)
+
+	var flagChars []byte
+	
+	if flags&RTF_UP != 0 {
+		flagChars = append(flagChars, 'U')
+	}
+	if flags&RTF_GATEWAY != 0 {
+		flagChars = append(flagChars, 'G')
+	}
+	if flags&RTF_HOST != 0 {
+		flagChars = append(flagChars, 'H')
+	}
+	if flags&RTF_REJECT != 0 {
+		flagChars = append(flagChars, '!')
+	}
+	if flags&RTF_DYNAMIC != 0 {
+		flagChars = append(flagChars, 'D')
+	}
+	if flags&RTF_MODIFIED != 0 {
+		flagChars = append(flagChars, 'M')
+	}
+	if flags&RTF_DEFAULT != 0 {
+		flagChars = append(flagChars, 'd')
 	}
 
 	return string(flagChars)
