@@ -135,17 +135,12 @@ func (lm *LogManager) GetSystemLogs(filters LogFilters) tea.Cmd {
 func (lm *LogManager) getJournalLogs(filters LogFilters) ([]LogEntry, error) {
 	args := []string{}
 
-	// Add sudo if needed
-	useSudo := lm.CanUseSudo && lm.SudoPassword != ""
-	if useSudo {
-		args = append(args, "-S", "journalctl")
-	} else {
-		args = []string{"journalctl"}
-	}
-
-	// Time range
+	// Time range - convert shorthand to journalctl format
 	if filters.TimeRange != "" && filters.TimeRange != "custom" {
-		args = append(args, "--since", filters.TimeRange)
+		timeArg := convertTimeRange(filters.TimeRange)
+		if timeArg != "" {
+			args = append(args, "--since", timeArg)
+		}
 	} else if !filters.TimeStart.IsZero() {
 		args = append(args, "--since", filters.TimeStart.Format("2006-01-02 15:04:05"))
 		if !filters.TimeEnd.IsZero() {
@@ -174,16 +169,16 @@ func (lm *LogManager) getJournalLogs(filters LogFilters) ([]LogEntry, error) {
 	args = append(args, "-o", "json", "--no-pager")
 
 	var cmd *exec.Cmd
+	useSudo := lm.CanUseSudo && lm.SudoPassword != ""
 	if useSudo {
-		cmd = exec.Command("sudo", args...)
-		if lm.SudoPassword != "" {
-			cmd.Stdin = strings.NewReader(lm.SudoPassword + "\n")
-		}
+		sudoArgs := append([]string{"-S", "journalctl"}, args...)
+		cmd = exec.Command("sudo", sudoArgs...)
+		cmd.Stdin = strings.NewReader(lm.SudoPassword + "\n")
 	} else {
-		cmd = exec.Command(args[0], args[1:]...)
+		cmd = exec.Command("journalctl", args...)
 	}
 
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Fallback to simple format if JSON fails
 		return lm.getJournalLogsSimple(filters)
@@ -252,15 +247,11 @@ func (lm *LogManager) parseJournalJSON(output []byte, filters LogFilters) ([]Log
 func (lm *LogManager) getJournalLogsSimple(filters LogFilters) ([]LogEntry, error) {
 	args := []string{}
 
-	useSudo := lm.CanUseSudo && lm.SudoPassword != ""
-	if useSudo {
-		args = append(args, "-S", "journalctl")
-	} else {
-		args = []string{"journalctl"}
-	}
-
 	if filters.TimeRange != "" && filters.TimeRange != "custom" {
-		args = append(args, "--since", filters.TimeRange)
+		timeArg := convertTimeRange(filters.TimeRange)
+		if timeArg != "" {
+			args = append(args, "--since", timeArg)
+		}
 	}
 
 	if filters.Level != LogLevelAll {
@@ -280,18 +271,18 @@ func (lm *LogManager) getJournalLogsSimple(filters LogFilters) ([]LogEntry, erro
 	args = append(args, "--no-pager")
 
 	var cmd *exec.Cmd
+	useSudo := lm.CanUseSudo && lm.SudoPassword != ""
 	if useSudo {
-		cmd = exec.Command("sudo", args...)
-		if lm.SudoPassword != "" {
-			cmd.Stdin = strings.NewReader(lm.SudoPassword + "\n")
-		}
+		sudoArgs := append([]string{"-S", "journalctl"}, args...)
+		cmd = exec.Command("sudo", sudoArgs...)
+		cmd.Stdin = strings.NewReader(lm.SudoPassword + "\n")
 	} else {
-		cmd = exec.Command(args[0], args[1:]...)
+		cmd = exec.Command("journalctl", args...)
 	}
 
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("journalctl failed: %v, output: %s", err, string(output))
 	}
 
 	return lm.parseSimpleLogFormat(output, filters), nil
@@ -438,4 +429,20 @@ func parseLogLine(line string) LogEntry {
 	}
 
 	return entry
+}
+
+// convertTimeRange converts shorthand time ranges to journalctl format
+func convertTimeRange(timeRange string) string {
+	switch timeRange {
+	case "1h":
+		return "1 hour ago"
+	case "24h":
+		return "1 day ago"
+	case "7d":
+		return "7 days ago"
+	case "30d":
+		return "30 days ago"
+	default:
+		return ""
+	}
 }
