@@ -335,7 +335,10 @@ func (m Model) updateLogsTable() tea.Cmd {
 	rows := []table.Row{}
 	for _, entry := range m.Diagnostic.LogsInfo.Entries {
 		// Format timestamp
-		timestamp := entry.Timestamp.Format("2006-01-02 15:04:05")
+		timestamp := "N/A"
+		if !entry.Timestamp.IsZero() {
+			timestamp = entry.Timestamp.Format("2006-01-02 15:04:05")
+		}
 
 		// Truncate message if too long
 		message := entry.Message
@@ -343,10 +346,21 @@ func (m Model) updateLogsTable() tea.Cmd {
 			message = message[:67] + "..."
 		}
 
+		// Default empty values if missing
+		level := entry.Level
+		if level == "" {
+			level = "INFO"
+		}
+
+		service := entry.Service
+		if service == "" {
+			service = "-"
+		}
+
 		rows = append(rows, table.Row{
 			timestamp,
-			entry.Level,
-			entry.Service,
+			level,
+			service,
 			message,
 		})
 	}

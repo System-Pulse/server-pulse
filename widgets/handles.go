@@ -664,7 +664,8 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "b", "esc":
 		m.goBack()
-	case "tab", "right", "l":
+	case "tab":
+		// Tab always switches diagnostic tabs
 		newTab := int(m.Diagnostic.SelectedItem) + 1
 		if newTab >= len(m.Diagnostic.Nav) {
 			newTab = 0
@@ -672,11 +673,15 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
 		// Auto-load security checks if switching to security tab and not loaded
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
-			// domain := m.Diagnostic.DomainInput.Value()
 			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 		}
+		// Auto-load logs if switching to logs tab
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogsInfo == nil {
+			return m, m.loadLogs()
+		}
 		return m, nil
-	case "shift+tab", "left", "h":
+	case "shift+tab":
+		// Shift+Tab always switches diagnostic tabs backwards
 		newTab := int(m.Diagnostic.SelectedItem) - 1
 		if newTab < 0 {
 			newTab = len(m.Diagnostic.Nav) - 1
@@ -685,6 +690,76 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Auto-load security checks if switching to security tab and not loaded
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
 			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
+		}
+		// Auto-load logs if switching to logs tab
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogsInfo == nil {
+			return m, m.loadLogs()
+		}
+		return m, nil
+	case "right", "l":
+		// On logs tab, right navigates time range filters
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			timeRanges := []string{"All", "1h", "24h", "7d", "Custom"}
+			if m.Diagnostic.LogTimeSelected < len(timeRanges)-1 {
+				m.Diagnostic.LogTimeSelected++
+				m.applyTimeRangeSelection()
+			}
+			return m, nil
+		}
+		// Otherwise switch tabs
+		newTab := int(m.Diagnostic.SelectedItem) + 1
+		if newTab >= len(m.Diagnostic.Nav) {
+			newTab = 0
+		}
+		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
+		}
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogsInfo == nil {
+			return m, m.loadLogs()
+		}
+		return m, nil
+	case "left", "h":
+		// On logs tab, left navigates time range filters
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			if m.Diagnostic.LogTimeSelected > 0 {
+				m.Diagnostic.LogTimeSelected--
+				m.applyTimeRangeSelection()
+			}
+			return m, nil
+		}
+		// Otherwise switch tabs
+		newTab := int(m.Diagnostic.SelectedItem) - 1
+		if newTab < 0 {
+			newTab = len(m.Diagnostic.Nav) - 1
+		}
+		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
+		}
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogsInfo == nil {
+			return m, m.loadLogs()
+		}
+		return m, nil
+	case "shift+right", "shift+l":
+		// On logs tab, shift+right navigates log level
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			levels := []string{"All", "Error", "Warn", "Info", "Debug"}
+			if m.Diagnostic.LogLevelSelected < len(levels)-1 {
+				m.Diagnostic.LogLevelSelected++
+				m.applyLogLevelSelection()
+			}
+			return m, nil
+		}
+		return m, nil
+	case "shift+left", "shift+h":
+		// On logs tab, shift+left navigates log level
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			if m.Diagnostic.LogLevelSelected > 0 {
+				m.Diagnostic.LogLevelSelected--
+				m.applyLogLevelSelection()
+			}
+			return m, nil
 		}
 		return m, nil
 	case "1":
@@ -807,6 +882,10 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit
 	case "enter":
+		// On logs tab, reload logs with current filters
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			return m, m.loadLogs()
+		}
 		// Check if we're on security checks tab and get selected security check
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityTable.SelectedRow()) > 0 {
 			selectedRow := m.Diagnostic.SecurityTable.SelectedRow()
