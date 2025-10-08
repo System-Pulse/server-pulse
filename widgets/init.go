@@ -93,6 +93,46 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	networkStyle.Selected = s.Selected.Foreground(lipgloss.Color("229")).Background(lipgloss.Color("57")).Bold(false)
 	networkTable.SetStyles(networkStyle)
 
+	connectionsColumns := []table.Column{
+		{Title: "Proto", Width: 6},
+		{Title: "Recv-Q", Width: 8},
+		{Title: "Send-Q", Width: 8},
+		{Title: "Local Address", Width: 22},
+		{Title: "Foreign Address", Width: 20},
+		{Title: "State", Width: 12},
+		{Title: "PID/Program", Width: 18},
+	}
+	connectionsTable := table.New(
+		table.WithColumns(connectionsColumns),
+		table.WithFocused(true),
+		table.WithHeight(11),
+	)
+	connectionsTable.SetStyles(networkStyle)
+
+	routesColumns := []table.Column{
+		{Title: "Destination", Width: 18},
+		{Title: "Gateway", Width: 12},
+		{Title: "Genmask", Width: 16},
+		{Title: "Flags", Width: 8},
+		{Title: "Iface", Width: 16},
+	}
+	routesTable := table.New(
+		table.WithColumns(routesColumns),
+		table.WithFocused(true),
+		table.WithHeight(11),
+	)
+	routesTable.SetStyles(networkStyle)
+
+	dnsColumns := []table.Column{
+		{Title: "", Width: 20},
+	}
+	dnsTable := table.New(
+		table.WithColumns(dnsColumns),
+		table.WithFocused(true),
+		table.WithHeight(11),
+	)
+	dnsTable.SetStyles(networkStyle)
+
 	diagnosticColumns := []table.Column{
 		{Title: "Security Check", Width: 30},
 		{Title: "Performances", Width: 12},
@@ -168,6 +208,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	)
 
 	portsTable.SetStyles(tableStyle)
+	spinnerModel := getRandomSpinner()
 
 	firewallColumns := []table.Column{
 		{Title: "Firewall Rule", Width: 100},
@@ -237,9 +278,32 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	m := Model{
 		LogsViewport: logsViewport,
 		Network: model.NetworkModel{
-			NetworkTable: networkTable,
-			Nav:          v.NetworkNav,
-			SelectedItem: model.NetworkTabInterface,
+			NetworkTable:     networkTable,
+			ConnectionsTable: connectionsTable,
+			RoutesTable:      routesTable,
+			DNSTable:         dnsTable,
+			Nav:              v.NetworkNav,
+			SelectedItem:     model.NetworkTabInterface,
+			PingInput: func() textinput.Model {
+				ti := textinput.New()
+				ti.Placeholder = "Enter host or IP to ping (e.g., 8.8.8.8)"
+				ti.CharLimit = 100
+				ti.Width = 40
+				return ti
+			}(),
+			TracerouteInput: func() textinput.Model {
+				ti := textinput.New()
+				ti.Placeholder = "Enter host or IP to trace (e.g., google.com)"
+				ti.CharLimit = 100
+				ti.Width = 40
+				return ti
+			}(),
+			ConnectivityMode: model.ConnectivityModeNone,
+			AuthState:        model.AuthNotRequired,
+			AuthMessage:      "",
+			IsRoot:           isRoot,
+			SudoAvailable:    sudoAvailable,
+			CanRunSudo:       canRunSudo,
 		},
 		Diagnostic: model.DiagnosticModel{
 			DiagnosticTable:     diagnosticTable,
@@ -289,7 +353,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			ContainerViewState: v.ContainerViewNone,
 			ContainerTabs:      v.ContainerTabs,
 			ContainerLogsPagination: model.ContainerLogsPagination{
-				PageSize:    100, // Initialiser avec une valeur par défaut
+				PageSize:    100,
 				CurrentPage: 1,
 				TotalPages:  1,
 				Lines:       []string{},
@@ -329,6 +393,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			SearchMode:    false,
 			Viewport:      viewport.New(100, 20),
 			ContentHeight: 20,
+			Spinner:       spinnerModel,
 		},
 		LastChartUpdate:   time.Now(),
 		ScrollSensitivity: 3,

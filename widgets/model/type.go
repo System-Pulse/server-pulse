@@ -73,3 +73,5 @@ type Menu struct {
 }
 
 type ClearOperationMsg struct{}
+
+type ForceRefreshMsg struct{}

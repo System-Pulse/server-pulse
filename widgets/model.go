@@ -35,6 +35,13 @@ type Model struct {
 	SecurityManager     *security.SecurityManager
 }
 
+type connectionStats struct {
+	tcp         int
+	udp         int
+	listening   int
+	established int
+}
+
 func (m *Model) setState(newState model.AppState) {
 	if m.Ui.State != newState {
 		m.Ui.PreviousState = m.Ui.State

@@ -65,7 +65,16 @@ func (m Model) renderFooter() string {
 		}
 		hints = fmt.Sprintf("[↑↓] Scroll • [r] Refresh • [home/end] Navigate%s • [b] Back • [q] Quit", streamingHint)
 	case model.StateNetwork:
-		hints = "[Tab/←→] Switch tabs • [b] Back • [q] Quit"
+		switch m.Network.SelectedItem {
+		case model.NetworkTabConnectivity:
+			hints = "[Tab/←→] Switch tabs • [p] Ping • [t] Trace route • [c] Clear • [b] Back • [q] Quit"
+		case model.NetworkTabConfiguration:
+			hints = "[Tab/←→] Switch tabs • [space] Switch between Routes/DNS • [↑↓] Navigate • [b] Back • [q] Quit"
+		case model.NetworkTabProtocol:
+			hints = "[Tab/←→] Switch tabs • [↑↓] Navigate • [b] Back • [q] Quit"
+		default:
+			hints = "[Tab/←→] Switch tabs • [↑↓] Navigate • [b] Back • [q] Quit"
+		}
 	case model.StateDiagnostics:
 		// Check if we're on the logs tab
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {

@@ -3,8 +3,6 @@ package widgets
 import (
 	"fmt"
 	"math"
-	// "sort"
-	// "strings"
 
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	"github.com/charmbracelet/lipgloss"
@@ -310,85 +308,3 @@ func getOptimalMemoryScale(points []float64) ([]float64, float64, string) {
 		return points, maxValue, caption
 	}
 }
-
-/*/ renderPerCPUChart renders individual CPU core usage charts
-func (m Model) renderPerCPUChart(width, height int) []string {
-	if m.Monitor.SelectedContainer == nil {
-		return []string{renderEmptyChart("Per-CPU Usage", height)}
-	}
-
-	var charts []string
-	containerID := m.Monitor.SelectedContainer.ID
-
-	// Get container-specific history
-	if containerHistory, exists := m.Monitor.ContainerHistories[containerID]; exists {
-		if len(containerHistory.PerCpuHistory) == 0 {
-			return []string{renderEmptyChart("Per-CPU Usage (No data)", height)}
-		}
-
-		// Get sorted core indices for consistent ordering
-		coreIndices := make([]int, 0, len(containerHistory.PerCpuHistory))
-		for coreIndex := range containerHistory.PerCpuHistory {
-			coreIndices = append(coreIndices, coreIndex)
-		}
-		sort.Ints(coreIndices)
-
-		for _, coreIndex := range coreIndices {
-			coreHistory := containerHistory.PerCpuHistory[coreIndex]
-			points := extractValues(coreHistory.Points)
-
-			if len(points) < 1 {
-				charts = append(charts, renderEmptyChart(fmt.Sprintf("CPU %d", coreIndex), height))
-				continue
-			}
-
-			// Get optimal scale for per-core CPU usage
-			scaledPoints, maxValue, caption := getOptimalCPUScale(points)
-			coreCaption := fmt.Sprintf("CPU %d %s", coreIndex, strings.TrimPrefix(caption, "CPU Usage"))
-
-			graph := asciigraph.Plot(
-				scaledPoints,
-				asciigraph.Width(width/2-2),
-				asciigraph.Height(height-2),
-				asciigraph.LowerBound(0),
-				asciigraph.UpperBound(maxValue),
-				asciigraph.Caption(coreCaption),
-				asciigraph.SeriesColors(asciigraph.Cyan),
-			)
-			charts = append(charts, graph)
-		}
-	} else {
-		charts = append(charts, renderEmptyChart("Per-CPU Usage", height))
-	}
-
-	return charts
-}
-
-// renderAllPerCPUCharts renders all CPU core charts in a grid layout
-func (m Model) renderAllPerCPUCharts(totalWidth, height int) string {
-	charts := m.renderPerCPUChart(totalWidth/2, height)
-
-	if len(charts) == 0 {
-		return renderEmptyChart("Per-CPU Usage", height)
-	}
-
-	// Create a grid layout (2 charts per row)
-	var rows []string
-	for i := 0; i < len(charts); i += 2 {
-		var rowCharts []string
-		if i < len(charts) {
-			rowCharts = append(rowCharts, charts[i])
-		}
-		if i+1 < len(charts) {
-			rowCharts = append(rowCharts, charts[i+1])
-		}
-
-		if len(rowCharts) > 0 {
-			row := lipgloss.JoinHorizontal(lipgloss.Top, rowCharts...)
-			rows = append(rows, row)
-		}
-	}
-
-	return lipgloss.JoinVertical(lipgloss.Left, rows...)
-}
-*/

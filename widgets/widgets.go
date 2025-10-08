@@ -8,6 +8,7 @@ import (
 	system "github.com/System-Pulse/server-pulse/system/app"
 	info "github.com/System-Pulse/server-pulse/system/informations"
 	"github.com/System-Pulse/server-pulse/system/logs"
+	"github.com/System-Pulse/server-pulse/system/network"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	"github.com/System-Pulse/server-pulse/system/resource"
 	"github.com/System-Pulse/server-pulse/system/security"
@@ -24,6 +25,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd  tea.Cmd
 		cmds []tea.Cmd
 	)
+	if m.Network.PingLoading || m.Network.TracerouteLoading {
+        m.Ui.Spinner, cmd = m.Ui.Spinner.Update(msg)
+        cmds = append(cmds, cmd)
+    }
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -51,6 +56,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleAutoBanDisplayMsg(msg)
 	case logs.LogsMsg:
 		return m.handleLogsDisplayMsg(msg)
+	case network.ConnectionsMsg, network.RoutesMsg, network.DNSMsg, network.PingMsg, network.TracerouteMsg:
+		return m.handleNetworkMsgs(msg)
 	case system.ContainerLogsStreamMsg:
 		return m.handleLogsStreamMsg(msg)
 	case system.ContainerLogsStopMsg:
@@ -65,6 +72,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleTickMsg()
 	case progress.FrameMsg:
 		return m.handleProgressFrame(msg)
+	case model.ForceRefreshMsg:
+		// Force UI refresh
+		return m, nil
 	}
 
 	switch m.Ui.State {
@@ -84,6 +94,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case model.StateNetwork:
 		m.Network.NetworkTable, cmd = m.Network.NetworkTable.Update(msg)
 		cmds = append(cmds, cmd)
+
+		// Update other network tables based on selected tab
+		switch m.Network.SelectedItem {
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable, cmd = m.Network.ConnectionsTable.Update(msg)
+			cmds = append(cmds, cmd)
+		case model.NetworkTabConfiguration:
+			m.Network.RoutesTable, cmd = m.Network.RoutesTable.Update(msg)
+			cmds = append(cmds, cmd)
+			m.Network.DNSTable, cmd = m.Network.DNSTable.Update(msg)
+			cmds = append(cmds, cmd)
+		}
+
+		// Update connectivity input fields when in connectivity mode
+		if m.Network.ConnectivityMode != model.ConnectivityModeNone {
+			switch m.Network.ConnectivityMode {
+			case model.ConnectivityModePing:
+				m.Network.PingInput, cmd = m.Network.PingInput.Update(msg)
+				cmds = append(cmds, cmd)
+			case model.ConnectivityModeTraceroute:
+				m.Network.TracerouteInput, cmd = m.Network.TracerouteInput.Update(msg)
+				cmds = append(cmds, cmd)
+			}
+		}
 	}
 
 	m.Ui.Viewport, cmd = m.Ui.Viewport.Update(msg)
@@ -172,5 +206,51 @@ func (m *Model) updateContainerTable(containers []app.Container) tea.Cmd {
 		})
 	}
 	m.Monitor.Container.SetRows(rows)
+	return nil
+}
+
+func (m *Model) updateConnectionsTable() tea.Cmd {
+	var rows []table.Row
+
+	for _, c := range m.Network.Connections {
+		rows = append(rows, table.Row{
+			c.Proto,
+			c.RecvQ,
+			c.SendQ,
+			utils.Ellipsis(c.LocalAddr, 25),
+			utils.Ellipsis(c.ForeignAddr, 25),
+			c.State,
+			utils.Ellipsis(c.PID, 20),
+		})
+	}
+	m.Network.ConnectionsTable.SetRows(rows)
+	return nil
+}
+
+func (m *Model) updateRoutesTable() tea.Cmd {
+	var rows []table.Row
+
+	for _, r := range m.Network.Routes {
+		rows = append(rows, table.Row{
+			r.Destination,
+			r.Gateway,
+			r.Genmask,
+			r.Flags,
+			r.Iface,
+		})
+	}
+	m.Network.RoutesTable.SetRows(rows)
+	return nil
+}
+
+func (m *Model) updateDNSTable() tea.Cmd {
+	var rows []table.Row
+
+	for _, d := range m.Network.DNS {
+		rows = append(rows, table.Row{
+			d.Server,
+		})
+	}
+	m.Network.DNSTable.SetRows(rows)
 	return nil
 }

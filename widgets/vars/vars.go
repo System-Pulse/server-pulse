@@ -2,6 +2,7 @@ package vars
 
 import (
 	model "github.com/System-Pulse/server-pulse/widgets/model"
+	"github.com/charmbracelet/bubbles/spinner"
 )
 
 const (
@@ -45,4 +46,16 @@ var (
 	}
 
 	ContainerTabs = []string{"General", "CPU", "MEM", "NET", "ENV"} // disk remove
+
+	Spinners = []spinner.Spinner{
+		spinner.Line,
+		spinner.Dot,
+		spinner.MiniDot,
+		spinner.Jump,
+		spinner.Pulse,
+		spinner.Points,
+		spinner.Globe,
+		spinner.Moon,
+		spinner.Monkey,
+	}
 )
