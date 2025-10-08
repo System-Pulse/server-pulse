@@ -33,6 +33,7 @@ type Model struct {
 	MouseEnabled        bool
 	Diagnostic          model.DiagnosticModel
 	SecurityManager     *security.SecurityManager
+	HelpSystem          HelpSystem
 }
 
 type connectionStats struct {

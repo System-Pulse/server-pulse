@@ -278,6 +278,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	logsViewport := viewport.New(100, 20)
 	m := Model{
 		LogsViewport: logsViewport,
+		HelpSystem:   NewHelpSystem(),
 		Network: model.NetworkModel{
 			NetworkTable:     networkTable,
 			ConnectionsTable: connectionsTable,

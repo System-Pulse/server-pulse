@@ -137,6 +137,9 @@ func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	}
 	m.Ui.Ready = true
 
+	// Set help system width to match window width
+	m.HelpSystem.SetWidth(msg.Width)
+
 	headerHeight := lipgloss.Height(m.renderHeader())
 	navHeight := lipgloss.Height(m.renderCurrentNav())
 	footerHeight := lipgloss.Height(m.renderFooter())
@@ -225,6 +228,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleHomeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		m.HelpSystem.ToggleHelp()
 	case "1", "2", "3", "4":
 		tabIndex, _ := strconv.Atoi(msg.String())
 		m.Ui.SelectedTab = tabIndex - 1
@@ -261,6 +266,8 @@ func (m Model) handleHomeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleGeneralKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		m.HelpSystem.ToggleHelp()
 	case "1", "2", "3":
 		monitorIndex, _ := strconv.Atoi(msg.String())
 		m.Ui.SelectedMonitor = monitorIndex - 1
@@ -310,6 +317,8 @@ func (m Model) handleMonitorKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleSystemKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		m.HelpSystem.ToggleHelp()
 	case "up", "k":
 		m.Ui.Viewport.ScrollUp(1)
 	case "down", "j":
@@ -322,6 +331,8 @@ func (m Model) handleSystemKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleProcessKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		m.HelpSystem.ToggleHelp()
 	case "/":
 		m.Ui.SearchMode = true
 		m.Ui.SearchInput.Focus()
@@ -350,6 +361,8 @@ func (m Model) handleProcessKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleContainersKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		m.HelpSystem.ToggleHelp()
 	case "/":
 		m.Ui.SearchMode = true
 		m.Ui.SearchInput.Focus()
@@ -384,6 +397,8 @@ func (m Model) handleContainersKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleContainerSingleKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		m.HelpSystem.ToggleHelp()
 	case "b", "esc":
 		m.Monitor.SelectedContainer = nil
 		m.goBack()
@@ -429,6 +444,8 @@ func (m Model) handleContainerSingleKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleContainerLogsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		m.HelpSystem.ToggleHelp()
 	case "b", "esc":
 		m.Monitor.ContainerLogs = ""
 		m.cleanupLogsStream() // 🔥
@@ -533,6 +550,8 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg.String() {
+	case "?":
+		m.HelpSystem.ToggleHelp()
 	case "b", "esc":
 		m.goBack()
 	case "tab", "right", "l":
@@ -940,6 +959,8 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg.String() {
+	case "?":
+		m.HelpSystem.ToggleHelp()
 	case "b", "esc":
 		m.goBack()
 	case "tab":
@@ -1059,65 +1080,72 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "up", "k":
 		// Handle navigation based on current diagnostic tab
-		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+		switch m.Diagnostic.SelectedItem {
+		case model.DiagnosticSecurityChecks:
 			m.Diagnostic.SecurityTable.MoveUp(1)
-		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+		case model.DiagnosticTabLogs:
 			m.Diagnostic.LogsTable.MoveUp(1)
-		} else {
+		default:
 			m.Diagnostic.DiagnosticTable.MoveUp(1)
 		}
 		return m, nil
 	case "down", "j":
 		// Handle navigation based on current diagnostic tab
-		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+		switch m.Diagnostic.SelectedItem {
+		case model.DiagnosticSecurityChecks:
 			m.Diagnostic.SecurityTable.MoveDown(1)
-		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+		case model.DiagnosticTabLogs:
 			m.Diagnostic.LogsTable.MoveDown(1)
-		} else {
+		default:
 			m.Diagnostic.DiagnosticTable.MoveDown(1)
 		}
 		return m, nil
 	case "pageup":
-		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+		switch m.Diagnostic.SelectedItem {
+		case model.DiagnosticSecurityChecks:
 			m.Diagnostic.SecurityTable.MoveUp(10)
-		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+		case model.DiagnosticTabLogs:
 			m.Diagnostic.LogsTable.MoveUp(10)
-		} else {
+		default:
 			m.Diagnostic.DiagnosticTable.MoveUp(10)
 		}
 		return m, nil
 	case "pagedown":
-		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+		switch m.Diagnostic.SelectedItem {
+		case model.DiagnosticSecurityChecks:
 			m.Diagnostic.SecurityTable.MoveDown(10)
-		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+		case model.DiagnosticTabLogs:
 			m.Diagnostic.LogsTable.MoveDown(10)
-		} else {
+		default:
 			m.Diagnostic.DiagnosticTable.MoveDown(10)
 		}
 		return m, nil
 	case "home":
-		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+		switch m.Diagnostic.SelectedItem {
+		case model.DiagnosticSecurityChecks:
 			m.Diagnostic.SecurityTable.GotoTop()
-		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+		case model.DiagnosticTabLogs:
 			m.Diagnostic.LogsTable.GotoTop()
-		} else {
+		default:
 			m.Diagnostic.DiagnosticTable.GotoTop()
 		}
 		return m, nil
 	case "end":
-		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+		switch m.Diagnostic.SelectedItem {
+		case model.DiagnosticSecurityChecks:
 			m.Diagnostic.SecurityTable.GotoBottom()
-		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+		case model.DiagnosticTabLogs:
 			m.Diagnostic.LogsTable.GotoBottom()
-		} else {
+		default:
 			m.Diagnostic.DiagnosticTable.GotoBottom()
 		}
 		return m, nil
 	case "r":
 		// Refresh based on current tab
-		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
+		switch m.Diagnostic.SelectedItem {
+		case model.DiagnosticSecurityChecks:
 			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
-		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+		case model.DiagnosticTabLogs:
 			// Reload logs
 			return m, m.loadLogs()
 		}
@@ -1433,6 +1461,8 @@ func (m Model) handleReportingKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleContainerMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		m.HelpSystem.ToggleHelp()
 	case "up", "k":
 		if m.Monitor.SelectedMenuItem > 0 {
 			m.Monitor.SelectedMenuItem--
@@ -1570,6 +1600,8 @@ func (m Model) executeContainerMenuAction() (tea.Model, tea.Cmd) {
 
 func (m Model) handleConfirmationKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
+	case "?":
+		m.HelpSystem.ToggleHelp()
 	case "y", "Y":
 		m.ConfirmationVisible = false
 		switch m.ConfirmationAction {

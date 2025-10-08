@@ -1,7 +1,6 @@
 package widgets
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/System-Pulse/server-pulse/widgets/model"
@@ -37,68 +36,13 @@ func (m Model) renderFooter() string {
 	}
 
 	var hints string
-	switch m.Ui.State {
-	case model.StateHome:
-		hints = "[Enter] Select • [Tab/←→] Navigate • [1-4] Quick select • [q] Quit"
-	case model.StateMonitor:
-		hints = "[Enter] Select • [Tab/←→] Navigate • [1-3] Quick select • [b] Back • [q] Quit"
-	case model.StateSystem:
-		hints = "[↑↓] Scroll • [b] Back • [q] Quit"
-	case model.StateProcess:
-		hints = "[↑↓] Navigate • [/] Search • [k] Kill • [s/m] Sort • [b] Back • [q] Quit"
-	case model.StateContainers:
-		hints = "[↑↓] Navigate • [Enter] Menu • [/] Search • [b] Back • [q] Quit"
-	case model.StateContainer:
-		hints = "[Tab/←→] Switch tabs • [b] Back • [q] Quit"
-	case model.StateContainerLogs:
-		streamingHint := ""
-		if m.Monitor.SelectedContainer != nil {
-			if strings.ToLower(m.Monitor.SelectedContainer.Status) == "up" {
-				if m.Monitor.ContainerLogsStreaming {
-					streamingHint = " | [s] Stop streaming"
-				} else {
-					streamingHint = " | [s] Start streaming"
-				}
-			} else {
-				streamingHint = ""
-			}
-		}
-		hints = fmt.Sprintf("[↑↓] Scroll • [r] Refresh • [home/end] Navigate%s • [b] Back • [q] Quit", streamingHint)
-	case model.StateNetwork:
-		switch m.Network.SelectedItem {
-		case model.NetworkTabConnectivity:
-			hints = "[Tab/←→] Switch tabs • [p] Ping • [t] Trace route • [c] Clear • [b] Back • [q] Quit"
-		case model.NetworkTabConfiguration:
-			hints = "[Tab/←→] Switch tabs • [space] Switch between Routes/DNS • [↑↓] Navigate • [b] Back • [q] Quit"
-		case model.NetworkTabProtocol:
-			hints = "[Tab/←→] Switch tabs • [↑↓] Navigate • [b] Back • [q] Quit"
-		default:
-			hints = "[Tab/←→] Switch tabs • [↑↓] Navigate • [b] Back • [q] Quit"
-		}
-	case model.StateDiagnostics:
-		// Check if we're on the logs tab
-		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
-			// Check if any input is focused
-			if m.Diagnostic.LogSearchInput.Focused() {
-				hints = "[ESC] Cancel • [Enter] Apply search • [Type] Search text"
-			} else if m.Diagnostic.LogServiceInput.Focused() {
-				hints = "[ESC] Cancel • [Enter] Apply filter • [Type] Service name"
-			} else if m.Diagnostic.LogTimeRangeInput.Focused() {
-				hints = "[ESC] Cancel • [Enter] Apply • [Type] Time range (e.g., '2 hours ago')"
-			} else {
-				hints = "[←→] Time range • [Shift+←→] Level • [Enter/r] Reload • [/] Search • [s] Service • [↑↓] Navigate • [b] Back • [1] Security checks • [2] Performances • [3] Logs • [q] Quit"
-			}
-		} else {
-			hints = "[b] Back • [enter] Details • [q] Quit"
-		}
-	case model.StateCertificateDetails, model.StateSSHRootDetails, model.StateReporting:
-		hints = "[b] Back • [q] Quit"
-	}
-
+	// Use help system for hints, except in special cases
 	if m.ConfirmationVisible {
-		hints = "[y] Confirm • [n/ESC] Cancel"
+		hints = m.HelpSystem.View(model.StateHome) // Use base keymap for confirmation
 	} else if m.Monitor.ContainerMenuState == v.ContainerMenuVisible {
-		hints = "[↑↓] Navigate • [Enter] Select • [ESC/b] Close • [o/l/...] Actions"
+		hints = m.HelpSystem.View(model.StateHome) // Use base keymap for container menu
+	} else {
+		hints = m.HelpSystem.View(m.Ui.State)
 	}
 
 	return statusLine + "\n" + hints
