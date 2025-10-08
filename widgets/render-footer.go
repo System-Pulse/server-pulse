@@ -86,7 +86,7 @@ func (m Model) renderFooter() string {
 			} else if m.Diagnostic.LogTimeRangeInput.Focused() {
 				hints = "[ESC] Cancel • [Enter] Apply • [Type] Time range (e.g., '2 hours ago')"
 			} else {
-				hints = "[←→] Time range • [Shift+←→] Level • [Enter/r] Reload • [/] Search • [s] Service • [↑↓] Navigate • [b] Back"
+				hints = "[←→] Time range • [Shift+←→] Level • [Enter/r] Reload • [/] Search • [s] Service • [↑↓] Navigate • [b] Back • [1] Security checks • [2] Performances • [3] Logs • [q] Quit"
 			}
 		} else {
 			hints = "[b] Back • [enter] Details • [q] Quit"

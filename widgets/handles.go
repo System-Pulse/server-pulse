@@ -756,10 +756,10 @@ func (m Model) handleConnectivityInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				spinnerCmd := m.Ui.Spinner.Tick
 				// Force UI refresh by returning a command that will trigger update
 				return m, tea.Batch(
-                    network.Ping(target, 3), 
-                    spinnerCmd,
-                    func() tea.Msg { return model.ForceRefreshMsg{} },
-                )
+					network.Ping(target, 3),
+					spinnerCmd,
+					func() tea.Msg { return model.ForceRefreshMsg{} },
+				)
 			}
 		case model.ConnectivityModeTraceroute:
 			target := m.Network.TracerouteInput.Value()
@@ -771,10 +771,10 @@ func (m Model) handleConnectivityInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				spinnerCmd := m.Ui.Spinner.Tick
 				// Force UI refresh by returning a command that will trigger update
 				return m, tea.Batch(
-                    network.Traceroute(target), 
-                    spinnerCmd,
-                    func() tea.Msg { return model.ForceRefreshMsg{} },
-                )
+					network.Traceroute(target),
+					spinnerCmd,
+					func() tea.Msg { return model.ForceRefreshMsg{} },
+				)
 			}
 		}
 	case "esc":
@@ -782,7 +782,7 @@ func (m Model) handleConnectivityInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Network.PingInput.SetValue("")
 		m.Network.TracerouteInput.SetValue("")
 		m.Network.PingLoading = false
-        m.Network.TracerouteLoading = false
+		m.Network.TracerouteLoading = false
 		return m, nil
 	default:
 		switch m.Network.ConnectivityMode {

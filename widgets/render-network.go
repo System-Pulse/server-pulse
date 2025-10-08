@@ -3,7 +3,7 @@ package widgets
 import (
 	"fmt"
 	"strings"
-	
+
 	"github.com/System-Pulse/server-pulse/widgets/auth"
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
 
@@ -58,7 +58,7 @@ func (m Model) renderNetwork() string {
 
 func (m Model) renderProtocolAnalysis() string {
 	content := strings.Builder{}
-	
+
 	// Authentication section
 	if m.Network.AuthState == model.AuthRequired || m.Network.AuthState == model.AuthInProgress {
 		authMessage := auth.GetAuthMessage(int(m.Network.AuthState), m.Network.AuthMessage)
@@ -113,7 +113,7 @@ func (m Model) renderProtocolAnalysis() string {
 				stats.tcp, stats.udp, stats.listening, stats.established))
 		content.WriteString(statsText + "\n")
 	}
-	
+
 	// Check if user has access to detailed network connections
 	hasAccess := m.canAccessNetworkConnections()
 
@@ -158,20 +158,20 @@ func (m Model) renderConnectivityAnalysis() string {
 	case model.ConnectivityModeTraceroute:
 		content.WriteString("🛣️  Traceroute: " + m.Network.TracerouteInput.View() + "\n\n")
 	}
-	
-	if m.Network.PingLoading {
-        loadingText := lipgloss.NewStyle().
-            Foreground(lipgloss.Color("214")).
-            Render(fmt.Sprintf("%s Pinging...", m.Ui.Spinner.View()))
-        content.WriteString(loadingText + "\n\n")
-    }
 
-    if m.Network.TracerouteLoading {
-        loadingText := lipgloss.NewStyle().
-            Foreground(lipgloss.Color("214")).
-            Render(fmt.Sprintf("%s Running traceroute...", m.Ui.Spinner.View()))
-        content.WriteString(loadingText + "\n\n")
-    }
+	if m.Network.PingLoading {
+		loadingText := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214")).
+			Render(fmt.Sprintf("%s Pinging...", m.Ui.Spinner.View()))
+		content.WriteString(loadingText + "\n\n")
+	}
+
+	if m.Network.TracerouteLoading {
+		loadingText := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214")).
+			Render(fmt.Sprintf("%s Running traceroute...", m.Ui.Spinner.View()))
+		content.WriteString(loadingText + "\n\n")
+	}
 
 	if len(m.Network.PingResults) > 0 {
 		pingTitle := lipgloss.NewStyle().
@@ -299,7 +299,7 @@ func (m Model) renderNetworkConfiguration() string {
 
 	footer := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("244")).
-		Render(fmt.Sprintf("\nCurrently viewing: %s | Press SPACE to switch", 
+		Render(fmt.Sprintf("\nCurrently viewing: %s | Press SPACE to switch",
 			func() string {
 				if m.Network.RoutesTable.Focused() {
 					return "Routing Table"

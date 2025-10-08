@@ -87,60 +87,60 @@ func readIPv4Routes() ([]RouteInfo, error) {
 
 func readIPv6Routes() ([]RouteInfo, error) {
 	file, err := os.Open("/proc/net/ipv6_route")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var routes []RouteInfo
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+		fields := strings.Fields(line)
+
+		if len(fields) < 10 {
+			continue
+		}
+
+		destHex := fields[0]
+		destPrefix := fields[1]
+		gatewayHex := fields[4]
+		metric := fields[5]
+		refCnt := fields[6]
+		use := fields[7]
+		flags := fields[8]
+		iface := fields[9]
+
+		destination, err := utils.HexToIPv6(destHex)
 		if err != nil {
-			return nil, err
-		}
-		defer file.Close()
-
-		var routes []RouteInfo
-		scanner := bufio.NewScanner(file)
-
-		for scanner.Scan() {
-			line := scanner.Text()
-			fields := strings.Fields(line)
-			
-			if len(fields) < 10 {
-				continue
-			}
-
-			destHex := fields[0]
-			destPrefix := fields[1]
-			gatewayHex := fields[4]
-			metric := fields[5]
-			refCnt := fields[6]
-			use := fields[7]
-			flags := fields[8]
-			iface := fields[9]
-
-			destination, err := utils.HexToIPv6(destHex)
-			if err != nil {
-				continue
-			}
-
-			destination = fmt.Sprintf("%s/%s", destination, destPrefix)
-
-			gateway, err := utils.HexToIPv6(gatewayHex)
-			if err != nil {
-				gateway = ""
-			}
-
-			flagsStr := utils.ParseIPv6RouteFlags(flags)
-
-			routes = append(routes, RouteInfo{
-				Destination: destination,
-				Gateway:     gateway,
-				Genmask:     destPrefix,
-				Flags:       flagsStr,
-				Metric:      metric,
-				Ref:         refCnt,
-				Use:         use,
-				Iface:       iface,
-			})
+			continue
 		}
 
-		if err := scanner.Err(); err != nil {
-			return nil, err
+		destination = fmt.Sprintf("%s/%s", destination, destPrefix)
+
+		gateway, err := utils.HexToIPv6(gatewayHex)
+		if err != nil {
+			gateway = ""
 		}
 
-		return routes, nil
+		flagsStr := utils.ParseIPv6RouteFlags(flags)
+
+		routes = append(routes, RouteInfo{
+			Destination: destination,
+			Gateway:     gateway,
+			Genmask:     destPrefix,
+			Flags:       flagsStr,
+			Metric:      metric,
+			Ref:         refCnt,
+			Use:         use,
+			Iface:       iface,
+		})
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	return routes, nil
 }

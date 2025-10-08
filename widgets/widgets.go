@@ -26,9 +26,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds []tea.Cmd
 	)
 	if m.Network.PingLoading || m.Network.TracerouteLoading {
-        m.Ui.Spinner, cmd = m.Ui.Spinner.Update(msg)
-        cmds = append(cmds, cmd)
-    }
+		m.Ui.Spinner, cmd = m.Ui.Spinner.Update(msg)
+		cmds = append(cmds, cmd)
+	}
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:

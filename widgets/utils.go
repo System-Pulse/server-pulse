@@ -2,13 +2,13 @@ package widgets
 
 import (
 	"fmt"
+	v "github.com/System-Pulse/server-pulse/widgets/vars"
 	"math/rand"
 	"os"
 	"os/exec"
 	"slices"
 	"strings"
 	"time"
-	v "github.com/System-Pulse/server-pulse/widgets/vars"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/lipgloss"
@@ -104,7 +104,6 @@ func (m Model) canAccessDiagnostic(checkName string) bool {
 func (m Model) canAccessNetworkConnections() bool {
 	return m.Network.IsRoot || m.Network.CanRunSudo
 }
-
 
 func getRandomSpinner() spinner.Model {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))

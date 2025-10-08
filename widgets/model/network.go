@@ -8,29 +8,29 @@ import (
 )
 
 type NetworkModel struct {
-	NetworkTable     table.Model
-	NetworkResource  resource.NetworkInfo
-	ConnectionsTable table.Model
-	Connections      []network.ConnectionInfo
-	RoutesTable      table.Model
-	DNSTable         table.Model
-	Routes           []network.RouteInfo
-	DNS              []network.DNSInfo
-	Nav              []string
-	SelectedItem     ContainerTab
-	PingInput        textinput.Model
-	TracerouteInput  textinput.Model
-	PingResults      []network.PingResult
-	TracerouteResult network.TracerouteResult
-	ConnectivityMode ConnectivityMode
-	AuthState        AuthenticationState
-	AuthMessage      string
-	IsRoot           bool
-	SudoAvailable    bool
-	CanRunSudo       bool
-	AuthTimer        int
-	PingLoading      bool
-    TracerouteLoading bool
+	NetworkTable      table.Model
+	NetworkResource   resource.NetworkInfo
+	ConnectionsTable  table.Model
+	Connections       []network.ConnectionInfo
+	RoutesTable       table.Model
+	DNSTable          table.Model
+	Routes            []network.RouteInfo
+	DNS               []network.DNSInfo
+	Nav               []string
+	SelectedItem      ContainerTab
+	PingInput         textinput.Model
+	TracerouteInput   textinput.Model
+	PingResults       []network.PingResult
+	TracerouteResult  network.TracerouteResult
+	ConnectivityMode  ConnectivityMode
+	AuthState         AuthenticationState
+	AuthMessage       string
+	IsRoot            bool
+	SudoAvailable     bool
+	CanRunSudo        bool
+	AuthTimer         int
+	PingLoading       bool
+	TracerouteLoading bool
 }
 
 type ConnectivityMode int

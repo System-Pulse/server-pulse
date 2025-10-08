@@ -228,10 +228,8 @@ func HexToIPv4(hexStr string) string {
 		return "0.0.0.0"
 	}
 
-	
 	ipBytes := make([]byte, 4)
 	binary.LittleEndian.PutUint32(ipBytes, ipInt)
-
 
 	ip := net.IPv4(ipBytes[0], ipBytes[1], ipBytes[2], ipBytes[3])
 
@@ -250,13 +248,13 @@ func ParseRouteFlags(flagsStr string) string {
 	}
 
 	const (
-		RTF_UP        = 0x0001 
-		RTF_GATEWAY   = 0x0002 
-		RTF_HOST      = 0x0004 
-		RTF_REINSTATE = 0x0008 
-		RTF_DYNAMIC   = 0x0010 
-		RTF_MODIFIED  = 0x0020 
-		RTF_REJECT    = 0x0200 
+		RTF_UP        = 0x0001
+		RTF_GATEWAY   = 0x0002
+		RTF_HOST      = 0x0004
+		RTF_REINSTATE = 0x0008
+		RTF_DYNAMIC   = 0x0010
+		RTF_MODIFIED  = 0x0020
+		RTF_REJECT    = 0x0200
 	)
 
 	var flagChars []byte
@@ -313,17 +311,17 @@ func ParseIPv6RouteFlags(flagsStr string) string {
 	}
 
 	const (
-		RTF_UP        = 0x0001
-		RTF_GATEWAY   = 0x0002
-		RTF_HOST      = 0x0004
-		RTF_REJECT    = 0x0200
-		RTF_DYNAMIC   = 0x0010
-		RTF_MODIFIED  = 0x0020
-		RTF_DEFAULT   = 0x10000
+		RTF_UP       = 0x0001
+		RTF_GATEWAY  = 0x0002
+		RTF_HOST     = 0x0004
+		RTF_REJECT   = 0x0200
+		RTF_DYNAMIC  = 0x0010
+		RTF_MODIFIED = 0x0020
+		RTF_DEFAULT  = 0x10000
 	)
 
 	var flagChars []byte
-	
+
 	if flags&RTF_UP != 0 {
 		flagChars = append(flagChars, 'U')
 	}
