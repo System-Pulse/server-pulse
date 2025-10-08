@@ -10,6 +10,7 @@ import (
 
 	system "github.com/System-Pulse/server-pulse/system/app"
 	info "github.com/System-Pulse/server-pulse/system/informations"
+	"github.com/System-Pulse/server-pulse/system/logs"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
@@ -211,6 +212,10 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleSSHRootDetailsKeys(msg)
 	case model.StateOpenedPortsDetails:
 		return m.handleOpenedPortsDetailsKeys(msg)
+	case model.StateFirewallDetails:
+		return m.handleFirewallDetailsKeys(msg)
+	case model.StateAutoBanDetails:
+		return m.handleAutoBanDetailsKeys(msg)
 	case model.StateReporting:
 		return m.handleReportingKeys(msg)
 	}
@@ -814,6 +819,12 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					m.Diagnostic.AuthMessage = "Authentication successful!"
 					m.Diagnostic.IsRoot = true
 					m.Diagnostic.AuthTimer = 2
+
+					// Update SecurityManager with authentication context
+					m.Diagnostic.SecurityManager.IsRoot = false // User authenticated via sudo, not actual root
+					m.Diagnostic.SecurityManager.CanUseSudo = true
+					m.Diagnostic.SecurityManager.SudoPassword = m.Diagnostic.Password.Value()
+
 					m.Diagnostic.Password.SetValue("")
 					m.Diagnostic.Password.Blur()
 					domain := m.Diagnostic.DomainInput.Value()
@@ -859,10 +870,80 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Handle custom time input mode
+	if m.Diagnostic.CustomTimeInputMode {
+		switch msg.String() {
+		case "enter":
+			customTime := m.Diagnostic.LogTimeRangeInput.Value()
+			if customTime != "" {
+				// Validate the custom time input
+				if err := m.validateCustomTimeInput(customTime); err != nil {
+					m.Diagnostic.CustomTimeInputError = err.Error()
+					return m, nil
+				}
+				// Valid input - apply and load logs
+				m.Diagnostic.CustomTimeInputMode = false
+				m.Diagnostic.CustomTimeInputError = ""
+				m.Diagnostic.LogTimeRangeInput.Blur()
+				m.Diagnostic.LogFilters.TimeRange = customTime
+				return m, m.loadLogs()
+			}
+		case "esc":
+			// Cancel custom time input
+			m.Diagnostic.CustomTimeInputMode = false
+			m.Diagnostic.CustomTimeInputError = ""
+			m.Diagnostic.LogTimeRangeInput.Blur()
+			m.Diagnostic.LogTimeRangeInput.SetValue("")
+			return m, nil
+		default:
+			// Clear error when typing
+			m.Diagnostic.CustomTimeInputError = ""
+			// Update text input
+			var cmd tea.Cmd
+			m.Diagnostic.LogTimeRangeInput, cmd = m.Diagnostic.LogTimeRangeInput.Update(msg)
+			return m, cmd
+		}
+		return m, nil
+	}
+
+	// Handle logs filter input modes
+	if m.Diagnostic.LogSearchInput.Focused() {
+		switch msg.String() {
+		case "esc":
+			m.Diagnostic.LogSearchInput.Blur()
+			return m, nil
+		case "enter":
+			m.Diagnostic.LogSearchInput.Blur()
+			m.Diagnostic.LogFilters.SearchText = m.Diagnostic.LogSearchInput.Value()
+			return m, m.loadLogs()
+		default:
+			var cmd tea.Cmd
+			m.Diagnostic.LogSearchInput, cmd = m.Diagnostic.LogSearchInput.Update(msg)
+			return m, cmd
+		}
+	}
+
+	if m.Diagnostic.LogServiceInput.Focused() {
+		switch msg.String() {
+		case "esc":
+			m.Diagnostic.LogServiceInput.Blur()
+			return m, nil
+		case "enter":
+			m.Diagnostic.LogServiceInput.Blur()
+			m.Diagnostic.LogFilters.Service = m.Diagnostic.LogServiceInput.Value()
+			return m, m.loadLogs()
+		default:
+			var cmd tea.Cmd
+			m.Diagnostic.LogServiceInput, cmd = m.Diagnostic.LogServiceInput.Update(msg)
+			return m, cmd
+		}
+	}
+
 	switch msg.String() {
 	case "b", "esc":
 		m.goBack()
-	case "tab", "right", "l":
+	case "tab":
+		// Tab always switches diagnostic tabs
 		newTab := int(m.Diagnostic.SelectedItem) + 1
 		if newTab >= len(m.Diagnostic.Nav) {
 			newTab = 0
@@ -870,11 +951,15 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
 		// Auto-load security checks if switching to security tab and not loaded
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
-			// domain := m.Diagnostic.DomainInput.Value()
 			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 		}
+		// Auto-load logs if switching to logs tab
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogsInfo == nil {
+			return m, m.loadLogs()
+		}
 		return m, nil
-	case "shift+tab", "left", "h":
+	case "shift+tab":
+		// Shift+Tab always switches diagnostic tabs backwards
 		newTab := int(m.Diagnostic.SelectedItem) - 1
 		if newTab < 0 {
 			newTab = len(m.Diagnostic.Nav) - 1
@@ -883,6 +968,76 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Auto-load security checks if switching to security tab and not loaded
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
 			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
+		}
+		// Auto-load logs if switching to logs tab
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogsInfo == nil {
+			return m, m.loadLogs()
+		}
+		return m, nil
+	case "right", "l":
+		// On logs tab, right navigates time range filters
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			timeRanges := []string{"All", "5m", "1h", "24h", "7d", "Custom"}
+			if m.Diagnostic.LogTimeSelected < len(timeRanges)-1 {
+				m.Diagnostic.LogTimeSelected++
+				m.applyTimeRangeSelection()
+			}
+			return m, nil
+		}
+		// Otherwise switch tabs
+		newTab := int(m.Diagnostic.SelectedItem) + 1
+		if newTab >= len(m.Diagnostic.Nav) {
+			newTab = 0
+		}
+		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
+		}
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogsInfo == nil {
+			return m, m.loadLogs()
+		}
+		return m, nil
+	case "left", "h":
+		// On logs tab, left navigates time range filters
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			if m.Diagnostic.LogTimeSelected > 0 {
+				m.Diagnostic.LogTimeSelected--
+				m.applyTimeRangeSelection()
+			}
+			return m, nil
+		}
+		// Otherwise switch tabs
+		newTab := int(m.Diagnostic.SelectedItem) - 1
+		if newTab < 0 {
+			newTab = len(m.Diagnostic.Nav) - 1
+		}
+		m.Diagnostic.SelectedItem = model.ContainerTab(newTab)
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityChecks) == 0 {
+			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
+		}
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogsInfo == nil {
+			return m, m.loadLogs()
+		}
+		return m, nil
+	case "shift+right", "shift+l":
+		// On logs tab, shift+right navigates log level
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			levels := []string{"All", "Error", "Warn", "Info", "Debug"}
+			if m.Diagnostic.LogLevelSelected < len(levels)-1 {
+				m.Diagnostic.LogLevelSelected++
+				m.applyLogLevelSelection()
+			}
+			return m, nil
+		}
+		return m, nil
+	case "shift+left", "shift+h":
+		// On logs tab, shift+left navigates log level
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			if m.Diagnostic.LogLevelSelected > 0 {
+				m.Diagnostic.LogLevelSelected--
+				m.applyLogLevelSelection()
+			}
+			return m, nil
 		}
 		return m, nil
 	case "1":
@@ -897,11 +1052,17 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "3":
 		m.Diagnostic.SelectedItem = model.DiagnosticTabLogs
+		// Auto-load logs when switching to logs tab
+		if m.Diagnostic.LogsInfo == nil {
+			return m, m.loadLogs()
+		}
 		return m, nil
 	case "up", "k":
 		// Handle navigation based on current diagnostic tab
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
 			m.Diagnostic.SecurityTable.MoveUp(1)
+		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			m.Diagnostic.LogsTable.MoveUp(1)
 		} else {
 			m.Diagnostic.DiagnosticTable.MoveUp(1)
 		}
@@ -910,6 +1071,8 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Handle navigation based on current diagnostic tab
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
 			m.Diagnostic.SecurityTable.MoveDown(1)
+		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			m.Diagnostic.LogsTable.MoveDown(1)
 		} else {
 			m.Diagnostic.DiagnosticTable.MoveDown(1)
 		}
@@ -917,6 +1080,8 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "pageup":
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
 			m.Diagnostic.SecurityTable.MoveUp(10)
+		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			m.Diagnostic.LogsTable.MoveUp(10)
 		} else {
 			m.Diagnostic.DiagnosticTable.MoveUp(10)
 		}
@@ -924,6 +1089,8 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "pagedown":
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
 			m.Diagnostic.SecurityTable.MoveDown(10)
+		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			m.Diagnostic.LogsTable.MoveDown(10)
 		} else {
 			m.Diagnostic.DiagnosticTable.MoveDown(10)
 		}
@@ -931,6 +1098,8 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "home":
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
 			m.Diagnostic.SecurityTable.GotoTop()
+		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			m.Diagnostic.LogsTable.GotoTop()
 		} else {
 			m.Diagnostic.DiagnosticTable.GotoTop()
 		}
@@ -938,14 +1107,19 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "end":
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
 			m.Diagnostic.SecurityTable.GotoBottom()
+		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			m.Diagnostic.LogsTable.GotoBottom()
 		} else {
 			m.Diagnostic.DiagnosticTable.GotoBottom()
 		}
 		return m, nil
 	case "r":
-		// Refresh security checks when on security tab
+		// Refresh based on current tab
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks {
 			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
+		} else if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			// Reload logs
+			return m, m.loadLogs()
 		}
 	case "a":
 		// Request authentication for admin checks
@@ -964,10 +1138,34 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, nil
+	case "/":
+		// Focus search input when on logs tab
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			m.Diagnostic.LogSearchInput.Focus()
+			return m, nil
+		}
+	case "s":
+		// Focus service filter when on logs tab
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && !m.Diagnostic.LogSearchInput.Focused() {
+			m.Diagnostic.LogServiceInput.Focus()
+			return m, nil
+		}
 	case "q", "ctrl+c":
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit
 	case "enter":
+		// On logs tab, check if Custom time range is selected
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			// If "Custom" is selected, enter custom time input mode
+			if m.Diagnostic.LogTimeSelected == 5 { // Custom is at index 5
+				m.Diagnostic.CustomTimeInputMode = true
+				m.Diagnostic.LogTimeRangeInput.Focus()
+				m.Diagnostic.LogTimeRangeInput.SetValue("")
+				return m, nil
+			}
+			// Otherwise, reload logs with current filters
+			return m, m.loadLogs()
+		}
 		// Check if we're on security checks tab and get selected security check
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && len(m.Diagnostic.SecurityTable.SelectedRow()) > 0 {
 			selectedRow := m.Diagnostic.SecurityTable.SelectedRow()
@@ -991,6 +1189,10 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					return m, m.Diagnostic.SecurityManager.DisplaySSHRootInfos()
 				case "Open Ports":
 					return m, m.Diagnostic.SecurityManager.DisplayOpenedPortsInfos()
+				case "Firewall Status":
+					return m, m.Diagnostic.SecurityManager.DisplayFirewallInfos()
+				case "Auto Ban":
+					return m, m.Diagnostic.SecurityManager.DisplayAutoBanInfos()
 				}
 			}
 		}
@@ -1118,6 +1320,34 @@ func (m Model) handleOpenedPortsDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// ------------------------- handler for firewall display messages -------------------------
+func (m Model) handleFirewallDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case security.FirewallMsg:
+		firewallInfo := security.FirewallInfos(msg)
+		// Store firewall info in model for display
+		m.Diagnostic.FirewallInfo = &firewallInfo
+		// Switch to firewall details view
+		m.setState(model.StateFirewallDetails)
+		return m, m.updateFirewallTable()
+	}
+	return m, nil
+}
+
+// ------------------------- handler for autoban display messages -------------------------
+func (m Model) handleAutoBanDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case security.AutoBanMsg:
+		autoBanInfo := security.AutoBanInfos(msg)
+		// Store auto-ban info in model for display
+		m.Diagnostic.AutoBanInfo = &autoBanInfo
+		// Switch to auto-ban details view
+		m.setState(model.StateAutoBanDetails)
+		return m, m.updateAutoBanTable()
+	}
+	return m, nil
+}
+
 func (m Model) handleOpenedPortsDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "b", "esc":
@@ -1134,6 +1364,52 @@ func (m Model) handleOpenedPortsDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 		m.Diagnostic.PortsTable.GotoTop()
 	case "end":
 		m.Diagnostic.PortsTable.GotoBottom()
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) handleFirewallDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
+	case "up", "k":
+		m.Diagnostic.FirewallTable.MoveUp(1)
+	case "down", "j":
+		m.Diagnostic.FirewallTable.MoveDown(1)
+	case "pageup":
+		m.Diagnostic.FirewallTable.MoveUp(10)
+	case "pagedown":
+		m.Diagnostic.FirewallTable.MoveDown(10)
+	case "home":
+		m.Diagnostic.FirewallTable.GotoTop()
+	case "end":
+		m.Diagnostic.FirewallTable.GotoBottom()
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+	return m, nil
+}
+
+func (m Model) handleAutoBanDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
+	case "up", "k":
+		m.Diagnostic.AutoBanTable.MoveUp(1)
+	case "down", "j":
+		m.Diagnostic.AutoBanTable.MoveDown(1)
+	case "pageup":
+		m.Diagnostic.AutoBanTable.MoveUp(10)
+	case "pagedown":
+		m.Diagnostic.AutoBanTable.MoveDown(10)
+	case "home":
+		m.Diagnostic.AutoBanTable.GotoTop()
+	case "end":
+		m.Diagnostic.AutoBanTable.GotoBottom()
 	case "q", "ctrl+c":
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit
@@ -1528,4 +1804,210 @@ func (m Model) handleNetworkMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	return m, nil
+}
+
+// ------------------------- handler for logs display messages -------------------------
+func (m Model) handleLogsDisplayMsg(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case logs.LogsMsg:
+		logsInfo := logs.LogsInfos(msg)
+		// Store logs info in model for display
+		m.Diagnostic.LogsInfo = &logsInfo
+		return m, m.updateLogsTable()
+	}
+	return m, nil
+}
+
+func (m Model) handleDiagnosticLogsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// If search input is focused
+	if m.Diagnostic.LogSearchInput.Focused() {
+		switch msg.String() {
+		case "esc":
+			m.Diagnostic.LogSearchInput.Blur()
+			return m, nil
+		case "enter":
+			m.Diagnostic.LogSearchInput.Blur()
+			// Update filters with search text
+			m.Diagnostic.LogFilters.SearchText = m.Diagnostic.LogSearchInput.Value()
+			// Reload logs with new filter
+			return m, m.loadLogs()
+		default:
+			var cmd tea.Cmd
+			m.Diagnostic.LogSearchInput, cmd = m.Diagnostic.LogSearchInput.Update(msg)
+			return m, cmd
+		}
+	}
+
+	// If service filter input is focused
+	if m.Diagnostic.LogServiceInput.Focused() {
+		switch msg.String() {
+		case "esc":
+			m.Diagnostic.LogServiceInput.Blur()
+			return m, nil
+		case "enter":
+			m.Diagnostic.LogServiceInput.Blur()
+			// Update filters with service
+			m.Diagnostic.LogFilters.Service = m.Diagnostic.LogServiceInput.Value()
+			// Reload logs with new filter
+			return m, m.loadLogs()
+		default:
+			var cmd tea.Cmd
+			m.Diagnostic.LogServiceInput, cmd = m.Diagnostic.LogServiceInput.Update(msg)
+			return m, cmd
+		}
+	}
+
+	// If custom time range input is focused
+	if m.Diagnostic.LogTimeRangeInput.Focused() {
+		switch msg.String() {
+		case "esc":
+			m.Diagnostic.LogTimeRangeInput.Blur()
+			return m, nil
+		case "enter":
+			m.Diagnostic.LogTimeRangeInput.Blur()
+			// Update filters with custom time range
+			m.Diagnostic.LogFilters.TimeRange = m.Diagnostic.LogTimeRangeInput.Value()
+			// Reload logs with new filter
+			return m, m.loadLogs()
+		default:
+			var cmd tea.Cmd
+			m.Diagnostic.LogTimeRangeInput, cmd = m.Diagnostic.LogTimeRangeInput.Update(msg)
+			return m, cmd
+		}
+	}
+
+	// Handle navigation and controls
+	switch msg.String() {
+	case "b", "esc":
+		m.goBack()
+		return m, nil
+	case "left", "h":
+		// Navigate time range selector
+		if m.Diagnostic.LogTimeSelected > 0 {
+			m.Diagnostic.LogTimeSelected--
+			m.applyTimeRangeSelection()
+		}
+		return m, nil
+	case "right", "l":
+		// Navigate time range selector
+		timeRanges := []string{"All", "5m", "1h", "24h", "7d", "Custom"}
+		if m.Diagnostic.LogTimeSelected < len(timeRanges)-1 {
+			m.Diagnostic.LogTimeSelected++
+			m.applyTimeRangeSelection()
+		}
+		return m, nil
+	case "shift+left", "shift+h":
+		// Navigate log level selector
+		if m.Diagnostic.LogLevelSelected > 0 {
+			m.Diagnostic.LogLevelSelected--
+			m.applyLogLevelSelection()
+		}
+		return m, nil
+	case "shift+right", "shift+l":
+		// Navigate log level selector
+		levels := []string{"All", "Error", "Warn", "Info", "Debug"}
+		if m.Diagnostic.LogLevelSelected < len(levels)-1 {
+			m.Diagnostic.LogLevelSelected++
+			m.applyLogLevelSelection()
+		}
+		return m, nil
+	case "enter":
+		// Apply current filters and reload logs
+		return m, m.loadLogs()
+	case "r":
+		// Reload logs with current filters
+		return m, m.loadLogs()
+	case "/":
+		// Focus search input
+		m.Diagnostic.LogSearchInput.Focus()
+		return m, nil
+	case "s":
+		// Focus service filter input
+		m.Diagnostic.LogServiceInput.Focus()
+		return m, nil
+	case "t":
+		// Focus custom time range input (only if "Custom" is selected)
+		if m.Diagnostic.LogTimeSelected == 5 { // Custom is at index 5
+			m.Diagnostic.LogTimeRangeInput.Focus()
+		}
+		return m, nil
+	case "up", "k":
+		m.Diagnostic.LogsTable.MoveUp(1)
+		return m, nil
+	case "down", "j":
+		m.Diagnostic.LogsTable.MoveDown(1)
+		return m, nil
+	case "pageup":
+		m.Diagnostic.LogsTable.MoveUp(10)
+		return m, nil
+	case "pagedown":
+		m.Diagnostic.LogsTable.MoveDown(10)
+		return m, nil
+	case "home":
+		m.Diagnostic.LogsTable.GotoTop()
+		return m, nil
+	case "end":
+		m.Diagnostic.LogsTable.GotoBottom()
+		return m, nil
+	case "q", "ctrl+c":
+		m.Monitor.ShouldQuit = true
+		return m, tea.Quit
+	}
+
+	return m, nil
+}
+
+// validateCustomTimeInput validates user input for custom time ranges
+func (m Model) validateCustomTimeInput(input string) error {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return fmt.Errorf("time range cannot be empty")
+	}
+
+	// Check for common patterns that journalctl accepts
+	validPatterns := []string{
+		// Relative time with "ago"
+		"ago", "minute", "hour", "day", "week", "month", "year",
+		// Absolute dates (basic check for digits and dashes/colons)
+		"-", ":", // Date separators
+	}
+
+	inputLower := strings.ToLower(input)
+
+	// Check if input contains at least one valid pattern or looks like a date
+	hasValidPattern := false
+	for _, pattern := range validPatterns {
+		if strings.Contains(inputLower, pattern) {
+			hasValidPattern = true
+			break
+		}
+	}
+
+	// Also accept if it looks like a date (contains digits)
+	hasDigits := false
+	for _, char := range input {
+		if char >= '0' && char <= '9' {
+			hasDigits = true
+			break
+		}
+	}
+
+	if !hasValidPattern && !hasDigits {
+		return fmt.Errorf("invalid time format. Examples:\n  • '5 minutes ago', '2 hours ago', '3 days ago'\n  • '2025-01-08' or '2025-01-08 14:30:00'\n  • 'today', 'yesterday'")
+	}
+
+	// Additional validation: if it contains "ago", it should have a number before it
+	if strings.Contains(inputLower, "ago") {
+		words := strings.Fields(input)
+		if len(words) < 2 {
+			return fmt.Errorf("invalid format with 'ago'. Use: '<number> <unit> ago'\n  Examples: '5 minutes ago', '2 hours ago'")
+		}
+		// Check if first word is a number
+		_, err := strconv.Atoi(words[0])
+		if err != nil {
+			return fmt.Errorf("expected a number before time unit.\n  Examples: '5 minutes ago', '2 hours ago'")
+		}
+	}
+
+	return nil
 }

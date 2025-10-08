@@ -80,7 +80,19 @@ func (sm *SecurityManager) runPackageManagerCommand(mgr struct {
 	command   []string
 	parseFunc func(string) (int, error)
 }) ([]byte, error) {
-	cmd := exec.Command(mgr.command[0], mgr.command[1:]...)
+	var cmd *exec.Cmd
+
+	// Use sudo if authenticated and not running as root
+	if sm.CanUseSudo && !sm.IsRoot {
+		args := append([]string{"-S"}, mgr.command...)
+		cmd = exec.Command("sudo", args...)
+		if sm.SudoPassword != "" {
+			cmd.Stdin = strings.NewReader(sm.SudoPassword + "\n")
+		}
+	} else {
+		cmd = exec.Command(mgr.command[0], mgr.command[1:]...)
+	}
+
 	return cmd.Output()
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/System-Pulse/server-pulse/system/app"
+	"github.com/System-Pulse/server-pulse/system/logs"
 	"github.com/System-Pulse/server-pulse/utils"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	"github.com/charmbracelet/bubbles/table"
@@ -244,6 +245,34 @@ func (m *Model) getSecurityStatusIcon(status string) string {
 	}
 }
 
+func (m *Model) updateFirewallTable() tea.Cmd {
+	var rows []table.Row
+
+	for _, rule := range m.Diagnostic.FirewallInfo.Rules {
+		rows = append(rows, table.Row{
+			rule.Description,
+		})
+	}
+
+	m.Diagnostic.FirewallTable.SetRows(rows)
+	return nil
+}
+
+func (m *Model) updateAutoBanTable() tea.Cmd {
+	var rows []table.Row
+
+	for _, jail := range m.Diagnostic.AutoBanInfo.Jails {
+		description := fmt.Sprintf("[%s] %s | Filter: %s | Currently: %d | Total: %d | %s",
+			jail.Name, jail.Status, jail.Filter, jail.CurrentBans, jail.TotalBans, jail.Details)
+		rows = append(rows, table.Row{
+			description,
+		})
+	}
+
+	m.Diagnostic.AutoBanTable.SetRows(rows)
+	return nil
+}
+
 func (m *Model) updatePortsTable() tea.Cmd {
 	var rows []table.Row
 
@@ -295,6 +324,81 @@ func (m *Model) updatePortsTable() tea.Cmd {
 
 	m.Diagnostic.PortsTable.SetRows(rows)
 	return nil
+}
+
+// updateLogsTable updates the logs table with current log entries
+func (m *Model) updateLogsTable() tea.Cmd {
+	if m.Diagnostic.LogsInfo == nil {
+		return nil
+	}
+
+	rows := []table.Row{}
+	for _, entry := range m.Diagnostic.LogsInfo.Entries {
+		// Format timestamp
+		timestamp := "N/A"
+		if !entry.Timestamp.IsZero() {
+			timestamp = entry.Timestamp.Format("2006-01-02 15:04:05")
+		}
+
+		// Truncate message if too long
+		message := entry.Message
+		if len(message) > 70 {
+			message = message[:67] + "..."
+		}
+
+		// Default empty values if missing
+		level := entry.Level
+		if level == "" {
+			level = "INFO"
+		}
+
+		service := entry.Service
+		if service == "" {
+			service = "-"
+		}
+
+		rows = append(rows, table.Row{
+			timestamp,
+			level,
+			service,
+			message,
+		})
+	}
+
+	m.Diagnostic.LogsTable.SetRows(rows)
+
+	return nil
+}
+
+// loadLogs loads system logs with current filters
+func (m Model) loadLogs() tea.Cmd {
+	// Update LogManager with current auth state
+	m.Diagnostic.LogManager.CanUseSudo = m.Diagnostic.CanRunSudo
+	m.Diagnostic.LogManager.SudoPassword = m.Diagnostic.SecurityManager.SudoPassword
+
+	return m.Diagnostic.LogManager.GetSystemLogs(m.Diagnostic.LogFilters)
+}
+
+// applyTimeRangeSelection updates the time range filter based on selection
+func (m *Model) applyTimeRangeSelection() {
+	timeRanges := []string{"", "5m", "1h", "24h", "7d", ""}
+	if m.Diagnostic.LogTimeSelected < len(timeRanges) {
+		m.Diagnostic.LogFilters.TimeRange = timeRanges[m.Diagnostic.LogTimeSelected]
+	}
+}
+
+// applyLogLevelSelection updates the log level filter based on selection
+func (m *Model) applyLogLevelSelection() {
+	levels := []logs.LogLevel{
+		logs.LogLevelAll,
+		logs.LogLevelError,
+		logs.LogLevelWarning,
+		logs.LogLevelInfo,
+		logs.LogLevelDebug,
+	}
+	if m.Diagnostic.LogLevelSelected < len(levels) {
+		m.Diagnostic.LogFilters.Level = levels[m.Diagnostic.LogLevelSelected]
+	}
 }
 
 /*

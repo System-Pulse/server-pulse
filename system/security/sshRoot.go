@@ -22,18 +22,29 @@ func NewSSHSystemChecker() *SSHSystemChecker {
 	return &SSHSystemChecker{}
 }
 
-func (s *SSHSystemChecker) GetActiveConfig() (map[string]string, error) {
-	// First, try running `sshd -T` without sudo.
-	cmd := exec.Command("sshd", "-T")
-	output, err := cmd.Output()
+func (s *SSHSystemChecker) GetActiveConfig(sm *SecurityManager) (map[string]string, error) {
+	var cmd *exec.Cmd
+	var output []byte
+	var err error
 
-	// If the command fails, try again with `sudo -n`.
-	if err != nil {
-		cmd = exec.Command("sudo", "-n", "sshd", "-T")
-		var errSudo error
-		output, errSudo = cmd.Output()
-		if errSudo != nil {
-			return nil, fmt.Errorf("failed to execute 'sshd -T' (err: %v) and 'sudo -n sshd -T' (err: %v)", err, errSudo)
+	// Use sudo with password if authenticated
+	if sm != nil && sm.CanUseSudo && !sm.IsRoot && sm.SudoPassword != "" {
+		cmd = exec.Command("sudo", "-S", "sshd", "-T")
+		cmd.Stdin = strings.NewReader(sm.SudoPassword + "\n")
+		output, err = cmd.Output()
+	} else {
+		// First, try running `sshd -T` without sudo.
+		cmd = exec.Command("sshd", "-T")
+		output, err = cmd.Output()
+
+		// If the command fails, try again with `sudo -n`.
+		if err != nil {
+			cmd = exec.Command("sudo", "-n", "sshd", "-T")
+			var errSudo error
+			output, errSudo = cmd.Output()
+			if errSudo != nil {
+				return nil, fmt.Errorf("failed to execute 'sshd -T' (err: %v) and 'sudo -n sshd -T' (err: %v)", err, errSudo)
+			}
 		}
 	}
 
@@ -58,7 +69,7 @@ func (s *SSHSystemChecker) GetActiveConfig() (map[string]string, error) {
 func (sm *SecurityManager) checkSSHRootLogin() SecurityCheck {
 	s := NewSSHSystemChecker()
 
-	config, err := s.GetActiveConfig()
+	config, err := s.GetActiveConfig(sm)
 	if err != nil {
 		return SecurityCheck{
 			Name:    "SSH Root Login",

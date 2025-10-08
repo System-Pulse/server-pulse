@@ -6,6 +6,7 @@ import (
 
 	"github.com/System-Pulse/server-pulse/system/app"
 	info "github.com/System-Pulse/server-pulse/system/informations"
+	"github.com/System-Pulse/server-pulse/system/logs"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	resource "github.com/System-Pulse/server-pulse/system/resource"
 	"github.com/System-Pulse/server-pulse/system/security"
@@ -168,6 +169,10 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	}
 
 	securityManager := security.NewSecurityManager()
+	// Initialize SecurityManager with current auth state
+	securityManager.IsRoot = isRoot
+	securityManager.CanUseSudo = canRunSudo
+	securityManager.SudoPassword = "" // No password initially
 
 	securityColumns := []table.Column{
 		{Title: "Name", Width: 20},
@@ -205,6 +210,70 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	portsTable.SetStyles(tableStyle)
 	spinnerModel := getRandomSpinner()
 
+	firewallColumns := []table.Column{
+		{Title: "Firewall Rule", Width: 100},
+	}
+
+	firewallTable := table.New(
+		table.WithColumns(firewallColumns),
+		table.WithFocused(true),
+	)
+
+	firewallTable.SetStyles(tableStyle)
+
+	autoBanColumns := []table.Column{
+		{Title: "Jail/Service Details", Width: 100},
+	}
+
+	autoBanTable := table.New(
+		table.WithColumns(autoBanColumns),
+		table.WithFocused(true),
+	)
+
+	autoBanTable.SetStyles(tableStyle)
+
+	// Logs table
+	logsColumns := []table.Column{
+		{Title: "Time", Width: 20},
+		{Title: "Level", Width: 8},
+		{Title: "Service", Width: 20},
+		{Title: "Message", Width: 70},
+	}
+
+	logsTable := table.New(
+		table.WithColumns(logsColumns),
+		table.WithFocused(true),
+		table.WithHeight(15),
+	)
+
+	logsTable.SetStyles(tableStyle)
+
+	// Log filter inputs
+	logSearchInput := textinput.New()
+	logSearchInput.Placeholder = "Search logs..."
+	logSearchInput.CharLimit = 100
+	logSearchInput.Width = 30
+
+	logServiceInput := textinput.New()
+	logServiceInput.Placeholder = "Filter by service..."
+	logServiceInput.CharLimit = 50
+	logServiceInput.Width = 25
+
+	logTimeRangeInput := textinput.New()
+	logTimeRangeInput.Placeholder = "e.g., '2 hours ago', '2025-01-08', '3 days ago'"
+	logTimeRangeInput.CharLimit = 50
+	logTimeRangeInput.Width = 50
+
+	// Initialize log manager
+	logManager := logs.NewLogManager()
+
+	// Default log filters
+	defaultLogFilters := logs.LogFilters{
+		TimeRange: "24h",
+		Level:     logs.LogLevelAll,
+		Limit:     100,
+	}
+
 	logsViewport := viewport.New(100, 20)
 	m := Model{
 		LogsViewport: logsViewport,
@@ -237,15 +306,26 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			CanRunSudo:       canRunSudo,
 		},
 		Diagnostic: model.DiagnosticModel{
-			DiagnosticTable: diagnosticTable,
-			Nav:             v.DiagnosticNav,
-			SelectedItem:    model.DiagnosticSecurityChecks,
-			SecurityManager: securityManager,
-			SecurityTable:   securityTable,
-			PortsTable:      portsTable,
+			DiagnosticTable:     diagnosticTable,
+			Nav:                 v.DiagnosticNav,
+			SelectedItem:        model.DiagnosticSecurityChecks,
+			SecurityManager:     securityManager,
+			SecurityTable:       securityTable,
+			PortsTable:          portsTable,
+			FirewallTable:       firewallTable,
+			AutoBanTable:        autoBanTable,
+			LogsTable:           logsTable,
+			LogManager:          logManager,
+			LogFilters:          defaultLogFilters,
+			LogSearchInput:      logSearchInput,
+			LogServiceInput:     logServiceInput,
+			LogTimeRangeInput:   logTimeRangeInput,
+			LogLevelSelected:    0,
+			LogTimeSelected:     3, // Default to "24h" (index: All=0, 5m=1, 1h=2, 24h=3, 7d=4, Custom=5)
+			CustomTimeInputMode: false,
 			DomainInput: func() textinput.Model {
 				ti := textinput.New()
-				ti.Placeholder = "Enter domain name (e.g., example.com)"
+				ti.Placeholder = "Enter domain name (e.g., google.com)"
 				ti.CharLimit = 100
 				ti.Width = 40
 				return ti

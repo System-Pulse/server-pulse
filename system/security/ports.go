@@ -23,8 +23,19 @@ func NewOpenedPortsChecker() *OpenedPorts {
 	return &OpenedPorts{}
 }
 
-func (o *OpenedPorts) GetOpenedPorts() (map[int]bool, error) {
-	cmd := exec.Command("ss", "-tlpn")
+func (o *OpenedPorts) GetOpenedPorts(sm *SecurityManager) (map[int]bool, error) {
+	var cmd *exec.Cmd
+
+	// Use sudo if authenticated and not running as root
+	if sm != nil && sm.CanUseSudo && !sm.IsRoot {
+		cmd = exec.Command("sudo", "-S", "ss", "-tlpn")
+		if sm.SudoPassword != "" {
+			cmd.Stdin = strings.NewReader(sm.SudoPassword + "\n")
+		}
+	} else {
+		cmd = exec.Command("ss", "-tlpn")
+	}
+
 	output, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute ss command: %w", err)
@@ -75,7 +86,7 @@ const (
 func (sm *SecurityManager) checkOpenPorts() SecurityCheck {
 	o := NewOpenedPortsChecker()
 
-	openPorts, err := o.GetOpenedPorts()
+	openPorts, err := o.GetOpenedPorts(sm)
 	if err != nil {
 		return SecurityCheck{
 			Name:    "Open Ports",
@@ -175,7 +186,7 @@ func ShowOpenedPorts(ports map[int]bool) string {
 func (sm *SecurityManager) DisplayOpenedPortsInfos() tea.Cmd {
 	o := NewOpenedPortsChecker()
 	var AllPorts []int
-	value, err := o.GetOpenedPorts()
+	value, err := o.GetOpenedPorts(sm)
 	if err != nil {
 		return nil
 	}

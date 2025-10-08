@@ -10,8 +10,11 @@ import (
 )
 
 type SecurityManager struct {
-	Certificate *x509.Certificate
-	Hostname    string
+	Certificate  *x509.Certificate
+	Hostname     string
+	IsRoot       bool
+	CanUseSudo   bool
+	SudoPassword string
 }
 
 type CertificateInfos struct {

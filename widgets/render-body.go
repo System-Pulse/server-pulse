@@ -34,18 +34,21 @@ func (m Model) renderMainContent() string {
 		currentView = m.renderSSHRootDetails()
 	case model.StateOpenedPortsDetails:
 		currentView = m.renderOpenedPortsDetails()
+	case model.StateFirewallDetails:
+		currentView = m.renderFirewallDetails()
+	case model.StateAutoBanDetails:
+		currentView = m.renderAutoBanDetails()
 	case model.StateReporting:
 		currentView = m.renderReporting()
 	default:
 		currentView = fmt.Sprintf("Unknown state: %v", m.Ui.State)
 	}
 
-	switch m.Ui.State {
-	case model.StateSystem, model.StateContainerLogs, model.StateCertificateDetails,
-		model.StateSSHRootDetails, model.StateHome, model.StateMonitor:
-		m.Ui.Viewport.SetContent(currentView)
-		return m.Ui.Viewport.View()
-	default:
-		return currentView
-	}
+	// switch m.Ui.State {
+	// case model.StateSystem, model.StateContainerLogs, model.StateHome, model.StateMonitor:
+	m.Ui.Viewport.SetContent(currentView)
+	return m.Ui.Viewport.View()
+	// }
+
+	// return currentView
 }
