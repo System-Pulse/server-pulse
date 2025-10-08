@@ -618,7 +618,14 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "enter":
 			customTime := m.Diagnostic.LogTimeRangeInput.Value()
 			if customTime != "" {
+				// Validate the custom time input
+				if err := m.validateCustomTimeInput(customTime); err != nil {
+					m.Diagnostic.CustomTimeInputError = err.Error()
+					return m, nil
+				}
+				// Valid input - apply and load logs
 				m.Diagnostic.CustomTimeInputMode = false
+				m.Diagnostic.CustomTimeInputError = ""
 				m.Diagnostic.LogTimeRangeInput.Blur()
 				m.Diagnostic.LogFilters.TimeRange = customTime
 				return m, m.loadLogs()
@@ -626,10 +633,13 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "esc":
 			// Cancel custom time input
 			m.Diagnostic.CustomTimeInputMode = false
+			m.Diagnostic.CustomTimeInputError = ""
 			m.Diagnostic.LogTimeRangeInput.Blur()
 			m.Diagnostic.LogTimeRangeInput.SetValue("")
 			return m, nil
 		default:
+			// Clear error when typing
+			m.Diagnostic.CustomTimeInputError = ""
 			// Update text input
 			var cmd tea.Cmd
 			m.Diagnostic.LogTimeRangeInput, cmd = m.Diagnostic.LogTimeRangeInput.Update(msg)
@@ -709,7 +719,7 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "right", "l":
 		// On logs tab, right navigates time range filters
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
-			timeRanges := []string{"All", "1h", "24h", "7d", "Custom"}
+			timeRanges := []string{"All", "5m", "1h", "24h", "7d", "Custom"}
 			if m.Diagnostic.LogTimeSelected < len(timeRanges)-1 {
 				m.Diagnostic.LogTimeSelected++
 				m.applyTimeRangeSelection()
@@ -889,7 +899,7 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// On logs tab, check if Custom time range is selected
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
 			// If "Custom" is selected, enter custom time input mode
-			if m.Diagnostic.LogTimeSelected == 4 {
+			if m.Diagnostic.LogTimeSelected == 5 { // Custom is at index 5
 				m.Diagnostic.CustomTimeInputMode = true
 				m.Diagnostic.LogTimeRangeInput.Focus()
 				m.Diagnostic.LogTimeRangeInput.SetValue("")
@@ -1558,7 +1568,7 @@ func (m Model) handleDiagnosticLogsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "right", "l":
 		// Navigate time range selector
-		timeRanges := []string{"All", "1h", "24h", "7d", "Custom"}
+		timeRanges := []string{"All", "5m", "1h", "24h", "7d", "Custom"}
 		if m.Diagnostic.LogTimeSelected < len(timeRanges)-1 {
 			m.Diagnostic.LogTimeSelected++
 			m.applyTimeRangeSelection()
@@ -1595,7 +1605,7 @@ func (m Model) handleDiagnosticLogsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "t":
 		// Focus custom time range input (only if "Custom" is selected)
-		if m.Diagnostic.LogTimeSelected == 4 { // Custom is at index 4
+		if m.Diagnostic.LogTimeSelected == 5 { // Custom is at index 5
 			m.Diagnostic.LogTimeRangeInput.Focus()
 		}
 		return m, nil
@@ -1623,4 +1633,59 @@ func (m Model) handleDiagnosticLogsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+// validateCustomTimeInput validates user input for custom time ranges
+func (m Model) validateCustomTimeInput(input string) error {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return fmt.Errorf("time range cannot be empty")
+	}
+
+	// Check for common patterns that journalctl accepts
+	validPatterns := []string{
+		// Relative time with "ago"
+		"ago", "minute", "hour", "day", "week", "month", "year",
+		// Absolute dates (basic check for digits and dashes/colons)
+		"-", ":", // Date separators
+	}
+
+	inputLower := strings.ToLower(input)
+
+	// Check if input contains at least one valid pattern or looks like a date
+	hasValidPattern := false
+	for _, pattern := range validPatterns {
+		if strings.Contains(inputLower, pattern) {
+			hasValidPattern = true
+			break
+		}
+	}
+
+	// Also accept if it looks like a date (contains digits)
+	hasDigits := false
+	for _, char := range input {
+		if char >= '0' && char <= '9' {
+			hasDigits = true
+			break
+		}
+	}
+
+	if !hasValidPattern && !hasDigits {
+		return fmt.Errorf("invalid time format. Examples:\n  • '5 minutes ago', '2 hours ago', '3 days ago'\n  • '2025-01-08' or '2025-01-08 14:30:00'\n  • 'today', 'yesterday'")
+	}
+
+	// Additional validation: if it contains "ago", it should have a number before it
+	if strings.Contains(inputLower, "ago") {
+		words := strings.Fields(input)
+		if len(words) < 2 {
+			return fmt.Errorf("invalid format with 'ago'. Use: '<number> <unit> ago'\n  Examples: '5 minutes ago', '2 hours ago'")
+		}
+		// Check if first word is a number
+		_, err := strconv.Atoi(words[0])
+		if err != nil {
+			return fmt.Errorf("expected a number before time unit.\n  Examples: '5 minutes ago', '2 hours ago'")
+		}
+	}
+
+	return nil
 }

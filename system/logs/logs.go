@@ -437,6 +437,8 @@ func parseLogLine(line string) LogEntry {
 // If the input is not a shorthand, pass it through as-is for journalctl
 func convertTimeRange(timeRange string) string {
 	switch timeRange {
+	case "5m":
+		return "5 minutes ago"
 	case "1h":
 		return "1 hour ago"
 	case "24h":

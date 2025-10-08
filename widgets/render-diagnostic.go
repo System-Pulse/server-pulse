@@ -379,6 +379,16 @@ func (m Model) renderDiagnosticLogs() string {
 		doc.WriteString("\n")
 		doc.WriteString(m.Diagnostic.LogTimeRangeInput.View())
 		doc.WriteString("\n\n")
+
+		// Show error message if validation failed
+		if m.Diagnostic.CustomTimeInputError != "" {
+			errorStyle := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("196")).
+				Bold(true)
+			doc.WriteString(errorStyle.Render("✗ " + m.Diagnostic.CustomTimeInputError))
+			doc.WriteString("\n\n")
+		}
+
 		doc.WriteString(lipgloss.NewStyle().Faint(true).Render("Examples: '2 hours ago', '2025-01-08 14:30:00', '3 days ago'"))
 		doc.WriteString("\n")
 		doc.WriteString(lipgloss.NewStyle().Faint(true).Render("Press Enter to apply, ESC to cancel"))
@@ -395,7 +405,7 @@ func (m Model) renderDiagnosticLogs() string {
 	filterDoc := strings.Builder{}
 
 	// Time range options
-	timeRanges := []string{"All", "1h", "24h", "7d", "Custom"}
+	timeRanges := []string{"All", "5m", "1h", "24h", "7d", "Custom"}
 	timeRangeStr := "Time: "
 	for i, tr := range timeRanges {
 		if i == m.Diagnostic.LogTimeSelected {

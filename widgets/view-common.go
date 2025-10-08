@@ -381,7 +381,7 @@ func (m Model) loadLogs() tea.Cmd {
 
 // applyTimeRangeSelection updates the time range filter based on selection
 func (m *Model) applyTimeRangeSelection() {
-	timeRanges := []string{"", "1h", "24h", "7d", ""}
+	timeRanges := []string{"", "5m", "1h", "24h", "7d", ""}
 	if m.Diagnostic.LogTimeSelected < len(timeRanges) {
 		m.Diagnostic.LogFilters.TimeRange = timeRanges[m.Diagnostic.LogTimeSelected]
 	}

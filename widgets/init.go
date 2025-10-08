@@ -257,7 +257,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			LogServiceInput:     logServiceInput,
 			LogTimeRangeInput:   logTimeRangeInput,
 			LogLevelSelected:    0,
-			LogTimeSelected:     1, // Default to "24h"
+			LogTimeSelected:     3, // Default to "24h" (index: All=0, 5m=1, 1h=2, 24h=3, 7d=4, Custom=5)
 			CustomTimeInputMode: false,
 			DomainInput: func() textinput.Model {
 				ti := textinput.New()
