@@ -10,6 +10,7 @@ import (
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	resource "github.com/System-Pulse/server-pulse/system/resource"
 	"github.com/System-Pulse/server-pulse/system/security"
+	"github.com/System-Pulse/server-pulse/utils"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
 
@@ -159,7 +160,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	passwordInput.Width = 30
 
 	// Initialize authentication state
-	isRoot := isRoot()
+	isRoot := utils.IsRoot()
 	sudoAvailable := isSudoAvailable()
 	canRunSudo := canRunSudo()
 
@@ -243,7 +244,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	logsTable := table.New(
 		table.WithColumns(logsColumns),
 		table.WithFocused(true),
-		table.WithHeight(15),
+		table.WithHeight(11),
 	)
 
 	logsTable.SetStyles(tableStyle)

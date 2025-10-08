@@ -4,7 +4,6 @@ import (
 	"fmt"
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
 	"math/rand"
-	"os"
 	"os/exec"
 	"slices"
 	"strings"
@@ -14,10 +13,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// check if as root
-func isRoot() bool {
-	return os.Geteuid() == 0
-}
 
 // check if sudo is available
 func isSudoAvailable() bool {

@@ -129,6 +129,11 @@ func LoadAvg() ([3]float64, error) {
 	return loadAvg, nil
 }
 
+// check if as root
+func IsRoot() bool {
+	return os.Geteuid() == 0
+}
+
 func CheckDockerPermissions() (bool, string) {
 	// Step 1: Check if the 'docker' command exists in the user's PATH (cross-platform)
 	_, err := exec.LookPath("docker")

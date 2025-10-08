@@ -369,10 +369,6 @@ func (m Model) renderAutoBanDetails() string {
 func (m Model) renderDiagnosticLogs() string {
 	doc := strings.Builder{}
 
-	// Title
-	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("System Logs"))
-	doc.WriteString("\n\n")
-
 	// Custom time input mode - show popup
 	if m.Diagnostic.CustomTimeInputMode {
 		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Enter Custom Time Range"))

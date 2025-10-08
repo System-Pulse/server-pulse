@@ -6,7 +6,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/System-Pulse/server-pulse/utils"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/prometheus-community/pro-bing"
 )
 
 type PingResult struct {
@@ -37,72 +39,37 @@ type TracerouteMsg TracerouteResult
 
 func Ping(target string, count int) tea.Cmd {
 	return func() tea.Msg {
-		cmd := exec.Command("ping", "-c", fmt.Sprintf("%d", count), "-W", "5", target)
-
-		output, err := cmd.Output()
-
+		pinger, err := probing.NewPinger(target)
 		if err != nil {
-			// Check if it's a timeout or unreachable
-			outputStr := string(output)
-			if strings.Contains(outputStr, "100% packet loss") {
-				return PingMsg(PingResult{
-					Target:     target,
-					Success:    false,
-					PacketLoss: 100.0,
-					Error:      "Destination unreachable",
-				})
-			}
 			return PingMsg(PingResult{
 				Target:  target,
 				Success: false,
-				Error:   fmt.Sprintf("ping failed: %v", err),
+				Error:   fmt.Sprintf("Failed to create pinger: %v", err),
 			})
 		}
 
-		// Parse ping output
-		outputStr := string(output)
-		lines := strings.Split(outputStr, "\n")
+		pinger.Count = count
+		pinger.Timeout = 5 * time.Second
+		pinger.Interval = 100 * time.Millisecond
+		pinger.SetPrivileged(utils.IsRoot())
 
-		var latency time.Duration
-		var packetLoss float64
-
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-
-			// Parse latency (e.g., "64 bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=12.3 ms")
-			if strings.Contains(line, "time=") {
-				timeStart := strings.Index(line, "time=")
-				if timeStart != -1 {
-					timePart := line[timeStart+5:]
-					timeEnd := strings.Index(timePart, " ")
-					if timeEnd != -1 {
-						timeStr := timePart[:timeEnd]
-						if parsed, err := time.ParseDuration(timeStr + "ms"); err == nil {
-							latency = parsed
-						}
-					}
-				}
-			}
-
-			// Parse packet loss (e.g., "3 packets transmitted, 3 received, 0% packet loss")
-			if strings.Contains(line, "packet loss") {
-				lossStart := strings.Index(line, "received,")
-				if lossStart != -1 {
-					lossPart := line[lossStart+9:]
-					lossEnd := strings.Index(lossPart, "%")
-					if lossEnd != -1 {
-						lossStr := strings.TrimSpace(lossPart[:lossEnd])
-						fmt.Sscanf(lossStr, "%f", &packetLoss)
-					}
-				}
-			}
+		err = pinger.Run()
+		if err != nil {
+			return PingMsg(PingResult{
+				Target:  target,
+				Success: false,
+				Error:   fmt.Sprintf("Ping failed: %v", err),
+			})
 		}
+
+		stats := pinger.Statistics()
 
 		return PingMsg(PingResult{
 			Target:     target,
-			Success:    true,
-			Latency:    latency,
-			PacketLoss: packetLoss,
+			Success:    stats.PacketsRecv > 0,
+			Latency:    stats.AvgRtt,
+			PacketLoss: stats.PacketLoss,
+			Error:      "",
 		})
 	}
 }
