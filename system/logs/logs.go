@@ -43,22 +43,22 @@ type LogEntry struct {
 }
 
 type LogFilters struct {
-	TimeRange   string // "1h", "24h", "7d", "custom"
-	TimeStart   time.Time
-	TimeEnd     time.Time
-	Level       LogLevel
-	Service     string
-	SearchText  string
-	Limit       int
+	TimeRange  string // "1h", "24h", "7d", "custom"
+	TimeStart  time.Time
+	TimeEnd    time.Time
+	Level      LogLevel
+	Service    string
+	SearchText string
+	Limit      int
 }
 
 type LogsInfos struct {
-	Source      LogSource
-	Entries     []LogEntry
-	TotalCount  int
-	HasMore     bool
-	Filters     LogFilters
-	ErrorMsg    string
+	Source     LogSource
+	Entries    []LogEntry
+	TotalCount int
+	HasMore    bool
+	Filters    LogFilters
+	ErrorMsg   string
 }
 
 type LogsMsg LogsInfos

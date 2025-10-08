@@ -18,20 +18,20 @@ const (
 )
 
 type DiagnosticModel struct {
-	DiagnosticTable table.Model
-	Nav             []string
-	SelectedItem    ContainerTab
-	SecurityManager *security.SecurityManager
-	SecurityTable   table.Model
-	SecurityChecks  []security.SecurityCheck
-	CertificateInfo *security.CertificateInfos
-	SSHRootInfo     *security.SSHRootInfos
-	DomainInput     textinput.Model
-	DomainInputMode bool
-	OpenedPortsInfo *security.OpenedPortsInfos
-	PortsTable      table.Model
-	FirewallInfo    *security.FirewallInfos
-	FirewallTable   table.Model
+	DiagnosticTable   table.Model
+	Nav               []string
+	SelectedItem      ContainerTab
+	SecurityManager   *security.SecurityManager
+	SecurityTable     table.Model
+	SecurityChecks    []security.SecurityCheck
+	CertificateInfo   *security.CertificateInfos
+	SSHRootInfo       *security.SSHRootInfos
+	DomainInput       textinput.Model
+	DomainInputMode   bool
+	OpenedPortsInfo   *security.OpenedPortsInfos
+	PortsTable        table.Model
+	FirewallInfo      *security.FirewallInfos
+	FirewallTable     table.Model
 	AutoBanInfo       *security.AutoBanInfos
 	AutoBanTable      table.Model
 	LogsInfo          *logs.LogsInfos

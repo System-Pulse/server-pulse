@@ -387,7 +387,7 @@ func (m Model) renderDiagnosticLogs() string {
 	timeRangeStr := "Time: "
 	for i, tr := range timeRanges {
 		if i == m.Diagnostic.LogTimeSelected {
-			timeRangeStr += lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46")).Render("[" + tr + "]") + " "
+			timeRangeStr += lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46")).Render("["+tr+"]") + " "
 		} else {
 			timeRangeStr += tr + " "
 		}
@@ -400,7 +400,7 @@ func (m Model) renderDiagnosticLogs() string {
 	levelStr := "Level: "
 	for i, level := range levels {
 		if i == m.Diagnostic.LogLevelSelected {
-			levelStr += lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46")).Render("[" + level + "]") + " "
+			levelStr += lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46")).Render("["+level+"]") + " "
 		} else {
 			levelStr += level + " "
 		}

@@ -19,9 +19,9 @@ type AutoBanJail struct {
 }
 
 type AutoBanInfos struct {
-	ServiceType string   // fail2ban, crowdsec, etc.
-	Status      string   // Active, Disabled
-	Version     string   // Version info
+	ServiceType string // fail2ban, crowdsec, etc.
+	Status      string // Active, Disabled
+	Version     string // Version info
 	Jails       []AutoBanJail
 	BannedIPs   []string
 	Details     string
