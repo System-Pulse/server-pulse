@@ -19,7 +19,7 @@ func (m Model) renderDignostics() string {
 	case model.DiagnosticTabPerformances:
 		currentView = renderNotImplemented("Performance Analysis")
 	case model.DiagnosticTabLogs:
-		currentView = renderNotImplemented("Log Analysis")
+		currentView = m.renderDiagnosticLogs()
 	}
 	return currentView
 }
@@ -362,6 +362,88 @@ func (m Model) renderAutoBanDetails() string {
 		doc.WriteString(rawOutputStyle.Render(m.Diagnostic.AutoBanInfo.RawOutput))
 		doc.WriteString("\n")
 	}
+
+	return vars.CardStyle.Render(doc.String())
+}
+
+func (m Model) renderDiagnosticLogs() string {
+	doc := strings.Builder{}
+
+	// Title
+	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("System Logs"))
+	doc.WriteString("\n\n")
+
+	// Filters section
+	filterStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(0, 1).
+		MarginBottom(1)
+
+	filterDoc := strings.Builder{}
+
+	// Time range options
+	timeRanges := []string{"All", "1h", "24h", "7d", "Custom"}
+	timeRangeStr := "Time: "
+	for i, tr := range timeRanges {
+		if i == m.Diagnostic.LogTimeSelected {
+			timeRangeStr += lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46")).Render("[" + tr + "]") + " "
+		} else {
+			timeRangeStr += tr + " "
+		}
+	}
+	filterDoc.WriteString(timeRangeStr)
+	filterDoc.WriteString("\n")
+
+	// Log level options
+	levels := []string{"All", "Error", "Warn", "Info", "Debug"}
+	levelStr := "Level: "
+	for i, level := range levels {
+		if i == m.Diagnostic.LogLevelSelected {
+			levelStr += lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46")).Render("[" + level + "]") + " "
+		} else {
+			levelStr += level + " "
+		}
+	}
+	filterDoc.WriteString(levelStr)
+	filterDoc.WriteString("\n")
+
+	// Filter inputs
+	filterDoc.WriteString("Search: " + m.Diagnostic.LogSearchInput.View() + "  ")
+	filterDoc.WriteString("Service: " + m.Diagnostic.LogServiceInput.View())
+
+	doc.WriteString(filterStyle.Render(filterDoc.String()))
+	doc.WriteString("\n\n")
+
+	// Log entries table or loading message
+	if m.Diagnostic.LogsInfo == nil {
+		doc.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render("Press 'r' to load logs or Enter to apply filters"))
+		doc.WriteString("\n")
+	} else if m.Diagnostic.LogsInfo.ErrorMsg != "" {
+		doc.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Render("Error: " + m.Diagnostic.LogsInfo.ErrorMsg))
+		doc.WriteString("\n")
+	} else if len(m.Diagnostic.LogsInfo.Entries) == 0 {
+		doc.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render("No log entries found matching filters"))
+		doc.WriteString("\n")
+	} else {
+		// Display logs table
+		doc.WriteString(m.Diagnostic.LogsTable.View())
+		doc.WriteString("\n\n")
+
+		// Summary
+		summaryStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+		summary := fmt.Sprintf("Showing %d entries", m.Diagnostic.LogsInfo.TotalCount)
+		if m.Diagnostic.LogsInfo.HasMore {
+			summary += " (more available - increase limit or refine filters)"
+		}
+		doc.WriteString(summaryStyle.Render(summary))
+		doc.WriteString("\n")
+	}
+
+	// Help text
+	doc.WriteString("\n")
+	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Italic(true)
+	doc.WriteString(helpStyle.Render("Controls: ←/→ change time/level | Enter apply filters | r reload | / search | s service filter"))
 
 	return vars.CardStyle.Render(doc.String())
 }

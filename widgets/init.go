@@ -6,6 +6,7 @@ import (
 
 	"github.com/System-Pulse/server-pulse/system/app"
 	info "github.com/System-Pulse/server-pulse/system/informations"
+	"github.com/System-Pulse/server-pulse/system/logs"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	resource "github.com/System-Pulse/server-pulse/system/resource"
 	"github.com/System-Pulse/server-pulse/system/security"
@@ -190,6 +191,48 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 
 	autoBanTable.SetStyles(tableStyle)
 
+	// Logs table
+	logsColumns := []table.Column{
+		{Title: "Time", Width: 20},
+		{Title: "Level", Width: 8},
+		{Title: "Service", Width: 20},
+		{Title: "Message", Width: 70},
+	}
+
+	logsTable := table.New(
+		table.WithColumns(logsColumns),
+		table.WithFocused(true),
+		table.WithHeight(15),
+	)
+
+	logsTable.SetStyles(tableStyle)
+
+	// Log filter inputs
+	logSearchInput := textinput.New()
+	logSearchInput.Placeholder = "Search logs..."
+	logSearchInput.CharLimit = 100
+	logSearchInput.Width = 30
+
+	logServiceInput := textinput.New()
+	logServiceInput.Placeholder = "Filter by service..."
+	logServiceInput.CharLimit = 50
+	logServiceInput.Width = 25
+
+	logTimeRangeInput := textinput.New()
+	logTimeRangeInput.Placeholder = "Custom time (e.g., 2h, 30m)"
+	logTimeRangeInput.CharLimit = 20
+	logTimeRangeInput.Width = 25
+
+	// Initialize log manager
+	logManager := logs.NewLogManager()
+
+	// Default log filters
+	defaultLogFilters := logs.LogFilters{
+		TimeRange: "24h",
+		Level:     logs.LogLevelAll,
+		Limit:     100,
+	}
+
 	logsViewport := viewport.New(100, 20)
 	m := Model{
 		LogsViewport: logsViewport,
@@ -204,9 +247,17 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			SelectedItem:    model.DiagnosticSecurityChecks,
 			SecurityManager: securityManager,
 			SecurityTable:   securityTable,
-			PortsTable:      portsTable,
-			FirewallTable:   firewallTable,
-			AutoBanTable:    autoBanTable,
+			PortsTable:        portsTable,
+			FirewallTable:     firewallTable,
+			AutoBanTable:      autoBanTable,
+			LogsTable:         logsTable,
+			LogManager:        logManager,
+			LogFilters:        defaultLogFilters,
+			LogSearchInput:    logSearchInput,
+			LogServiceInput:   logServiceInput,
+			LogTimeRangeInput: logTimeRangeInput,
+			LogLevelSelected:  0,
+			LogTimeSelected:   1, // Default to "24h"
 			DomainInput: func() textinput.Model {
 				ti := textinput.New()
 				ti.Placeholder = "Enter domain name (e.g., google.com)"

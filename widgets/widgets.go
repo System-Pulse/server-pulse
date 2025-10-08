@@ -7,6 +7,7 @@ import (
 	"github.com/System-Pulse/server-pulse/system/app"
 	system "github.com/System-Pulse/server-pulse/system/app"
 	info "github.com/System-Pulse/server-pulse/system/informations"
+	"github.com/System-Pulse/server-pulse/system/logs"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	"github.com/System-Pulse/server-pulse/system/resource"
 	"github.com/System-Pulse/server-pulse/system/security"
@@ -48,6 +49,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleFirewallDisplayMsg(msg)
 	case security.AutoBanMsg:
 		return m.handleAutoBanDisplayMsg(msg)
+	case logs.LogsMsg:
+		return m.handleLogsDisplayMsg(msg)
 	case system.ContainerLogsStreamMsg:
 		return m.handleLogsStreamMsg(msg)
 	case system.ContainerLogsStopMsg:

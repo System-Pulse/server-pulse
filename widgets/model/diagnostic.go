@@ -1,6 +1,7 @@
 package model
 
 import (
+	"github.com/System-Pulse/server-pulse/system/logs"
 	"github.com/System-Pulse/server-pulse/system/security"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -31,13 +32,22 @@ type DiagnosticModel struct {
 	PortsTable      table.Model
 	FirewallInfo    *security.FirewallInfos
 	FirewallTable   table.Model
-	AutoBanInfo     *security.AutoBanInfos
-	AutoBanTable    table.Model
-	Password        textinput.Model
-	AuthState       AuthenticationState
-	AuthMessage     string
-	IsRoot          bool
-	SudoAvailable   bool
-	CanRunSudo      bool
-	AuthTimer       int
+	AutoBanInfo       *security.AutoBanInfos
+	AutoBanTable      table.Model
+	LogsInfo          *logs.LogsInfos
+	LogsTable         table.Model
+	LogManager        *logs.LogManager
+	LogFilters        logs.LogFilters
+	LogTimeRangeInput textinput.Model
+	LogSearchInput    textinput.Model
+	LogServiceInput   textinput.Model
+	LogLevelSelected  int // Index in level dropdown
+	LogTimeSelected   int // Index in time range dropdown
+	Password          textinput.Model
+	AuthState         AuthenticationState
+	AuthMessage       string
+	IsRoot            bool
+	SudoAvailable     bool
+	CanRunSudo        bool
+	AuthTimer         int
 }
