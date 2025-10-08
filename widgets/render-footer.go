@@ -67,7 +67,21 @@ func (m Model) renderFooter() string {
 	case model.StateNetwork:
 		hints = "[Tab/←→] Switch tabs • [b] Back • [q] Quit"
 	case model.StateDiagnostics:
-		hints = "[b] Back • [enter] Details • [q] Quit"
+		// Check if we're on the logs tab
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			// Check if any input is focused
+			if m.Diagnostic.LogSearchInput.Focused() {
+				hints = "[ESC] Cancel • [Enter] Apply search • [Type] Search text"
+			} else if m.Diagnostic.LogServiceInput.Focused() {
+				hints = "[ESC] Cancel • [Enter] Apply filter • [Type] Service name"
+			} else if m.Diagnostic.LogTimeRangeInput.Focused() {
+				hints = "[ESC] Cancel • [Enter] Apply • [Type] Time range (e.g., '2 hours ago')"
+			} else {
+				hints = "[←→] Time range • [Shift+←→] Level • [Enter/r] Reload • [/] Search • [s] Service • [↑↓] Navigate • [b] Back"
+			}
+		} else {
+			hints = "[b] Back • [enter] Details • [q] Quit"
+		}
 	case model.StateCertificateDetails, model.StateSSHRootDetails, model.StateReporting:
 		hints = "[b] Back • [q] Quit"
 	}

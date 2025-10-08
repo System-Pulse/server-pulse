@@ -440,10 +440,5 @@ func (m Model) renderDiagnosticLogs() string {
 		doc.WriteString("\n")
 	}
 
-	// Help text
-	doc.WriteString("\n")
-	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Italic(true)
-	doc.WriteString(helpStyle.Render("Controls: ←/→ change time/level | Enter apply filters | r reload | / search | s service filter"))
-
 	return vars.CardStyle.Render(doc.String())
 }
