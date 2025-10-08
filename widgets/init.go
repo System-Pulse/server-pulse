@@ -219,9 +219,9 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	logServiceInput.Width = 25
 
 	logTimeRangeInput := textinput.New()
-	logTimeRangeInput.Placeholder = "Custom time (e.g., 2h, 30m)"
-	logTimeRangeInput.CharLimit = 20
-	logTimeRangeInput.Width = 25
+	logTimeRangeInput.Placeholder = "e.g., '2 hours ago', '2025-01-08', '3 days ago'"
+	logTimeRangeInput.CharLimit = 50
+	logTimeRangeInput.Width = 50
 
 	// Initialize log manager
 	logManager := logs.NewLogManager()
@@ -242,22 +242,23 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			SelectedItem: model.NetworkTabInterface,
 		},
 		Diagnostic: model.DiagnosticModel{
-			DiagnosticTable:   diagnosticTable,
-			Nav:               v.DiagnosticNav,
-			SelectedItem:      model.DiagnosticSecurityChecks,
-			SecurityManager:   securityManager,
-			SecurityTable:     securityTable,
-			PortsTable:        portsTable,
-			FirewallTable:     firewallTable,
-			AutoBanTable:      autoBanTable,
-			LogsTable:         logsTable,
-			LogManager:        logManager,
-			LogFilters:        defaultLogFilters,
-			LogSearchInput:    logSearchInput,
-			LogServiceInput:   logServiceInput,
-			LogTimeRangeInput: logTimeRangeInput,
-			LogLevelSelected:  0,
-			LogTimeSelected:   1, // Default to "24h"
+			DiagnosticTable:     diagnosticTable,
+			Nav:                 v.DiagnosticNav,
+			SelectedItem:        model.DiagnosticSecurityChecks,
+			SecurityManager:     securityManager,
+			SecurityTable:       securityTable,
+			PortsTable:          portsTable,
+			FirewallTable:       firewallTable,
+			AutoBanTable:        autoBanTable,
+			LogsTable:           logsTable,
+			LogManager:          logManager,
+			LogFilters:          defaultLogFilters,
+			LogSearchInput:      logSearchInput,
+			LogServiceInput:     logServiceInput,
+			LogTimeRangeInput:   logTimeRangeInput,
+			LogLevelSelected:    0,
+			LogTimeSelected:     1, // Default to "24h"
+			CustomTimeInputMode: false,
 			DomainInput: func() textinput.Model {
 				ti := textinput.New()
 				ti.Placeholder = "Enter domain name (e.g., google.com)"

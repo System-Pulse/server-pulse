@@ -373,6 +373,18 @@ func (m Model) renderDiagnosticLogs() string {
 	doc.WriteString(lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("System Logs"))
 	doc.WriteString("\n\n")
 
+	// Custom time input mode - show popup
+	if m.Diagnostic.CustomTimeInputMode {
+		doc.WriteString(lipgloss.NewStyle().Bold(true).Render("Enter Custom Time Range"))
+		doc.WriteString("\n")
+		doc.WriteString(m.Diagnostic.LogTimeRangeInput.View())
+		doc.WriteString("\n\n")
+		doc.WriteString(lipgloss.NewStyle().Faint(true).Render("Examples: '2 hours ago', '2025-01-08 14:30:00', '3 days ago'"))
+		doc.WriteString("\n")
+		doc.WriteString(lipgloss.NewStyle().Faint(true).Render("Press Enter to apply, ESC to cancel"))
+		return vars.CardStyle.Render(doc.String())
+	}
+
 	// Filters section
 	filterStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

@@ -612,6 +612,32 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Handle custom time input mode
+	if m.Diagnostic.CustomTimeInputMode {
+		switch msg.String() {
+		case "enter":
+			customTime := m.Diagnostic.LogTimeRangeInput.Value()
+			if customTime != "" {
+				m.Diagnostic.CustomTimeInputMode = false
+				m.Diagnostic.LogTimeRangeInput.Blur()
+				m.Diagnostic.LogFilters.TimeRange = customTime
+				return m, m.loadLogs()
+			}
+		case "esc":
+			// Cancel custom time input
+			m.Diagnostic.CustomTimeInputMode = false
+			m.Diagnostic.LogTimeRangeInput.Blur()
+			m.Diagnostic.LogTimeRangeInput.SetValue("")
+			return m, nil
+		default:
+			// Update text input
+			var cmd tea.Cmd
+			m.Diagnostic.LogTimeRangeInput, cmd = m.Diagnostic.LogTimeRangeInput.Update(msg)
+			return m, cmd
+		}
+		return m, nil
+	}
+
 	// Handle logs filter input modes
 	if m.Diagnostic.LogSearchInput.Focused() {
 		switch msg.String() {
@@ -641,22 +667,6 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		default:
 			var cmd tea.Cmd
 			m.Diagnostic.LogServiceInput, cmd = m.Diagnostic.LogServiceInput.Update(msg)
-			return m, cmd
-		}
-	}
-
-	if m.Diagnostic.LogTimeRangeInput.Focused() {
-		switch msg.String() {
-		case "esc":
-			m.Diagnostic.LogTimeRangeInput.Blur()
-			return m, nil
-		case "enter":
-			m.Diagnostic.LogTimeRangeInput.Blur()
-			m.Diagnostic.LogFilters.TimeRange = m.Diagnostic.LogTimeRangeInput.Value()
-			return m, m.loadLogs()
-		default:
-			var cmd tea.Cmd
-			m.Diagnostic.LogTimeRangeInput, cmd = m.Diagnostic.LogTimeRangeInput.Update(msg)
 			return m, cmd
 		}
 	}
@@ -872,18 +882,20 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Diagnostic.LogServiceInput.Focus()
 			return m, nil
 		}
-	case "t":
-		// Focus time range input when on logs tab and Custom is selected
-		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogTimeSelected == 4 {
-			m.Diagnostic.LogTimeRangeInput.Focus()
-			return m, nil
-		}
 	case "q", "ctrl+c":
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit
 	case "enter":
-		// On logs tab, reload logs with current filters
+		// On logs tab, check if Custom time range is selected
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
+			// If "Custom" is selected, enter custom time input mode
+			if m.Diagnostic.LogTimeSelected == 4 {
+				m.Diagnostic.CustomTimeInputMode = true
+				m.Diagnostic.LogTimeRangeInput.Focus()
+				m.Diagnostic.LogTimeRangeInput.SetValue("")
+				return m, nil
+			}
+			// Otherwise, reload logs with current filters
 			return m, m.loadLogs()
 		}
 		// Check if we're on security checks tab and get selected security check
