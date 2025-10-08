@@ -327,7 +327,7 @@ func (m *Model) updatePortsTable() tea.Cmd {
 }
 
 // updateLogsTable updates the logs table with current log entries
-func (m Model) updateLogsTable() tea.Cmd {
+func (m *Model) updateLogsTable() tea.Cmd {
 	if m.Diagnostic.LogsInfo == nil {
 		return nil
 	}
@@ -366,6 +366,7 @@ func (m Model) updateLogsTable() tea.Cmd {
 	}
 
 	m.Diagnostic.LogsTable.SetRows(rows)
+
 	return nil
 }
 

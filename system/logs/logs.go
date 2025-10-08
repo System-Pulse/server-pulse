@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -206,8 +207,9 @@ func (lm *LogManager) parseJournalJSON(output []byte, filters LogFilters) ([]Log
 
 		// Timestamp (microseconds since epoch)
 		if ts, ok := journalEntry["__REALTIME_TIMESTAMP"].(string); ok {
-			if usec, err := time.ParseDuration(ts + "us"); err == nil {
-				entry.Timestamp = time.Unix(0, 0).Add(usec)
+			if usec, err := strconv.ParseInt(ts, 10, 64); err == nil {
+				// Convert microseconds to nanoseconds and create time
+				entry.Timestamp = time.Unix(0, usec*1000)
 			}
 		}
 
