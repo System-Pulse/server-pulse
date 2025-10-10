@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/System-Pulse/server-pulse/system/performance"
 	"github.com/System-Pulse/server-pulse/widgets/auth"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	"github.com/System-Pulse/server-pulse/widgets/vars"
@@ -56,7 +57,7 @@ func (m Model) renderDignostics() string {
 	case model.DiagnosticSecurityChecks:
 		currentView = m.renderDiagnosticSecurity()
 	case model.DiagnosticTabPerformances:
-		currentView = renderNotImplemented("Performance Analysis")
+		currentView = m.renderPerformanceAnalysis()
 	case model.DiagnosticTabLogs:
 		currentView = m.renderDiagnosticLogs()
 	}
@@ -501,4 +502,33 @@ func (m Model) renderDiagnosticLogs() string {
 	}
 
 	return vars.CardStyle.Render(doc.String())
+}
+
+func (m Model) renderPerformanceAnalysis() string {
+	var nav []string
+	for i, tab := range m.Diagnostic.Performance.Nav {
+		if model.PerformanceTab(i) == m.Diagnostic.Performance.SelectedItem {
+			nav = append(nav, vars.CardButtonStyle.Render(tab))
+		} else {
+			nav = append(nav, vars.CardButtonStyleDesactive.Render(tab))
+		}
+	}
+
+	navBar := lipgloss.JoinHorizontal(lipgloss.Top, nav...)
+
+	var currentView string
+	switch m.Diagnostic.Performance.SelectedItem {
+	case model.SystemHealth:
+		currentView = performance.RenderSystemHealth()
+	case model.InputOutput:
+		currentView = performance.RenderInputOutput()
+	case model.CPU:
+		currentView = performance.RenderCPU()
+	case model.Memory:
+		currentView = performance.RenderMemory()
+	case model.QuickTests:
+		currentView = performance.RenderQuickTests()
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, navBar, currentView)
 }

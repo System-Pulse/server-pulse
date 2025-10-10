@@ -9,6 +9,7 @@ const (
 	ContainerTabCPU
 	ContainerTabMemory
 	ContainerTabNetwork
+	ContainerTabTests
 	// ContainerTabDisk
 	ContainerTabEnv
 	// "Interface", "Connectivity", "Configuration", "Protocol Analysis"
@@ -23,6 +24,8 @@ const (
 	DiagnosticSecurityChecks  ContainerTab = ContainerTabGeneral
 	DiagnosticTabPerformances ContainerTab = ContainerTabCPU
 	DiagnosticTabLogs         ContainerTab = ContainerTabMemory
+
+	
 )
 
 type ContainerMenuItem struct {

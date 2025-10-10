@@ -311,6 +311,10 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			DiagnosticTable:     diagnosticTable,
 			Nav:                 v.DiagnosticNav,
 			SelectedItem:        model.DiagnosticSecurityChecks,
+			Performance: model.PerformanceModel{
+				SelectedItem: model.SystemHealth,
+				Nav:          []string{"System Health", "I/O", "CPU", "Memory", "Quick Tests"},
+			},
 			SecurityManager:     securityManager,
 			SecurityTable:       securityTable,
 			PortsTable:          portsTable,

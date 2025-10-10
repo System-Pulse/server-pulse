@@ -180,6 +180,7 @@ func (m *Model) updateNetworkTable() tea.Cmd {
 	return nil
 }
 
+
 func (m *Model) updateContainerTable(containers []app.Container) tea.Cmd {
 	var rows []table.Row
 	searchTerm := strings.ToLower(m.Ui.SearchInput.Value())

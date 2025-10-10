@@ -30,6 +30,12 @@ const (
 	StateConfiguration      AppState = "network.configuration"
 	StateProtocolAnalysis   AppState = "network.protocol.analysis"
 	StateReporting          AppState = "reporting"
+	StatePerformance        AppState = "performance"
+	StateSystemHealth       AppState = "performance.systemhealth"
+	StateInputOutput        AppState = "performance.inputoutput"
+	StateCPU                AppState = "performance.cpu"
+	StateMemory             AppState = "performance.memory"
+	StateQuickTests         AppState = "performance.quicktests"
 )
 
 type UIModel struct {

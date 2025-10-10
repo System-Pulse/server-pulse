@@ -1038,6 +1038,14 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case "left", "h":
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances {
+			newTab := int(m.Diagnostic.Performance.SelectedItem) - 1
+			if newTab < 0 {
+				newTab = len(m.Diagnostic.Performance.Nav) - 1
+			}
+			m.Diagnostic.Performance.SelectedItem = model.PerformanceTab(newTab)
+			return m, nil
+		}
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
 
 			newTab := int(m.Diagnostic.SelectedItem) - 1
