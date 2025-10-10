@@ -13,7 +13,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-
 // check if sudo is available
 func isSudoAvailable() bool {
 	_, err := exec.LookPath("sudo")
@@ -38,25 +37,6 @@ func (m Model) setRoot() error {
 		return fmt.Errorf("failed to run command, invalid password or insufficient privileges")
 	}
 	m.Diagnostic.IsRoot = true
-	m.Network.IsRoot = true
-	return nil
-}
-
-// setNetworkRoot sets the root password for network operations
-func (m Model) setNetworkRoot() error {
-	if !isSudoAvailable() {
-		return fmt.Errorf("sudo is not available on this system")
-	}
-	m.Network.SudoAvailable = true
-	m.Network.CanRunSudo = true
-	cm := exec.Command("sudo", "-S", "ls")
-	cm.Stdin = strings.NewReader(m.Diagnostic.Password.Value() + "\n")
-	cm.Stdout = nil
-	cm.Stderr = nil
-	err := cm.Run()
-	if err != nil {
-		return fmt.Errorf("failed to run command, invalid password or insufficient privileges")
-	}
 	m.Network.IsRoot = true
 	return nil
 }

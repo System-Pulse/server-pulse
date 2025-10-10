@@ -67,7 +67,6 @@ func (m Model) renderProtocolAnalysis() string {
 		content.WriteString(authStyle.Render(authMessage))
 		content.WriteString("\n\n")
 		content.WriteString(m.Network.AuthMessage)
-		content.WriteString("\n\n")
 		if m.Network.AuthState == model.AuthRequired {
 			content.WriteString(auth.AuthPromptStyle.Render("Enter Password:"))
 			content.WriteString("\n")
@@ -98,7 +97,6 @@ func (m Model) renderProtocolAnalysis() string {
 
 		content.WriteString(authStyle.Render(authMessage))
 		content.WriteString("\n\n")
-		content.WriteString(auth.AuthInfoStyle.Render("Admin privileges granted"))
 	}
 
 	// Header with connection count

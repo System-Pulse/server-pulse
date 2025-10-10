@@ -4,6 +4,7 @@ import (
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/lipgloss"
 )
 
 // KeyMap defines the interface for state-specific keybindings
@@ -196,26 +197,28 @@ func (k NetworkKeyMap) FullHelp() [][]key.Binding {
 // DiagnosticsKeyMap defines keybindings for diagnostics state
 type DiagnosticsKeyMap struct {
 	BaseKeyMap
-	TimeRange   key.Binding
-	Level       key.Binding
-	Reload      key.Binding
-	Search      key.Binding
-	Service     key.Binding
-	Navigate    key.Binding
-	Details     key.Binding
-	Security    key.Binding
-	Performance key.Binding
-	Logs        key.Binding
+	TimeRange    key.Binding
+	Level        key.Binding
+	SwitchFilter key.Binding
+	SwitchTab    key.Binding
+	Reload       key.Binding
+	Search       key.Binding
+	Service      key.Binding
+	Navigate     key.Binding
+	Details      key.Binding
+	Security     key.Binding
+	Performance  key.Binding
+	Logs         key.Binding
 }
 
 func (k DiagnosticsKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Navigate, k.Search, k.Help, k.Back, k.Quit}
+	return []key.Binding{k.Navigate, k.Search, k.SwitchTab, k.Help, k.Back, k.Quit}
 }
 
 func (k DiagnosticsKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.Navigate, k.Search, k.Service},
-		{k.TimeRange, k.Level, k.Reload},
+		{k.Navigate, k.Search, k.Service, k.SwitchTab},
+		{k.TimeRange, k.Level, k.SwitchFilter, k.Reload},
 		{k.Security, k.Performance, k.Logs, k.Details},
 		{k.Help, k.Back, k.Quit},
 	}
@@ -273,14 +276,25 @@ type HelpSystem struct {
 
 // NewHelpSystem creates a new help system
 func NewHelpSystem() HelpSystem {
+	helpModel := help.New()
+	helpModel.Styles = help.Styles{
+		ShortKey:       lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Bold(true),
+		ShortDesc:      lipgloss.NewStyle().Foreground(lipgloss.Color("#CCCCCC")),
+		ShortSeparator: lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")),
+		Ellipsis:       lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")),
+		FullKey:        lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF")).Bold(true),
+		FullDesc:       lipgloss.NewStyle().Foreground(lipgloss.Color("#CCCCCC")),
+		FullSeparator:  lipgloss.NewStyle().Foreground(lipgloss.Color("#666666")),
+	}
+
 	return HelpSystem{
-		HelpModel: help.New(),
+		HelpModel: helpModel,
 		ShowAll:   false,
 	}
 }
 
 // GetKeyMapForState returns the appropriate keymap for the current state
-func (hs *HelpSystem) GetKeyMapForState(state model.AppState) KeyMap {
+func (hs *HelpSystem) GetKeyMapForState(state model.AppState, diagnosticSelectedItem model.ContainerTab) KeyMap {
 	baseKeys := BaseKeyMap{
 		Help: key.NewBinding(
 			key.WithKeys("?"),
@@ -462,48 +476,151 @@ func (hs *HelpSystem) GetKeyMapForState(state model.AppState) KeyMap {
 		}
 
 	case model.StateDiagnostics, model.StateCertificateDetails, model.StateSSHRootDetails:
-		return DiagnosticsKeyMap{
-			BaseKeyMap: baseKeys,
-			TimeRange: key.NewBinding(
-				key.WithKeys("left", "right"),
-				key.WithHelp("←→", "time range"),
-			),
-			Level: key.NewBinding(
-				key.WithKeys("shift+left", "shift+right"),
-				key.WithHelp("shift+←→", "level"),
-			),
-			Reload: key.NewBinding(
-				key.WithKeys("enter", "r"),
-				key.WithHelp("enter/r", "reload"),
-			),
-			Search: key.NewBinding(
-				key.WithKeys("/"),
-				key.WithHelp("/", "search"),
-			),
-			Service: key.NewBinding(
-				key.WithKeys("s"),
-				key.WithHelp("s", "service"),
-			),
-			Navigate: key.NewBinding(
-				key.WithKeys("up", "down"),
-				key.WithHelp("↑↓", "navigate"),
-			),
-			Details: key.NewBinding(
-				key.WithKeys("enter"),
-				key.WithHelp("enter", "details"),
-			),
-			Security: key.NewBinding(
-				key.WithKeys("1"),
-				key.WithHelp("1", "security"),
-			),
-			Performance: key.NewBinding(
-				key.WithKeys("2"),
-				key.WithHelp("2", "performance"),
-			),
-			Logs: key.NewBinding(
-				key.WithKeys("3"),
-				key.WithHelp("3", "logs"),
-			),
+		switch diagnosticSelectedItem {
+		case model.DiagnosticSecurityChecks:
+			return DiagnosticsKeyMap{
+				BaseKeyMap: baseKeys,
+				SwitchTab: key.NewBinding(
+					key.WithKeys("left", "right"),
+					key.WithHelp("←→", "switch tabs"),
+				),
+				Reload: key.NewBinding(
+					key.WithKeys("enter", "r"),
+					key.WithHelp("enter/r", "reload"),
+				),
+				Search: key.NewBinding(
+					key.WithKeys("/"),
+					key.WithHelp("/", "search"),
+				),
+				Navigate: key.NewBinding(
+					key.WithKeys("up", "down"),
+					key.WithHelp("↑↓", "navigate"),
+				),
+				Details: key.NewBinding(
+					key.WithKeys("enter"),
+					key.WithHelp("enter", "details"),
+				),
+				Security: key.NewBinding(
+					key.WithKeys("1"),
+					key.WithHelp("1", "security"),
+				),
+				Performance: key.NewBinding(
+					key.WithKeys("2"),
+					key.WithHelp("2", "performance"),
+				),
+				Logs: key.NewBinding(
+					key.WithKeys("3"),
+					key.WithHelp("3", "logs"),
+				),
+			}
+		case model.DiagnosticTabPerformances:
+			return DiagnosticsKeyMap{
+				BaseKeyMap: baseKeys,
+				SwitchTab: key.NewBinding(
+					key.WithKeys("left", "right"),
+					key.WithHelp("←→", "switch tabs"),
+				),
+				Navigate: key.NewBinding(
+					key.WithKeys("up", "down"),
+					key.WithHelp("↑↓", "navigate"),
+				),
+				Details: key.NewBinding(
+					key.WithKeys("enter"),
+					key.WithHelp("enter", "details"),
+				),
+				Security: key.NewBinding(
+					key.WithKeys("1"),
+					key.WithHelp("1", "security"),
+				),
+				Performance: key.NewBinding(
+					key.WithKeys("2"),
+					key.WithHelp("2", "performance"),
+				),
+				Logs: key.NewBinding(
+					key.WithKeys("3"),
+					key.WithHelp("3", "logs"),
+				),
+			}
+		case model.DiagnosticTabLogs:
+			return DiagnosticsKeyMap{
+				BaseKeyMap: baseKeys,
+				TimeRange: key.NewBinding(
+					key.WithKeys("shift+left", "shift+right"),
+					key.WithHelp("shift+←→", "time range"),
+				),
+				Level: key.NewBinding(
+					key.WithKeys("shift+left", "shift+right"),
+					key.WithHelp("shift+←→", "level"),
+				),
+				SwitchFilter: key.NewBinding(
+					key.WithKeys("space"),
+					key.WithHelp("space", "switch filter"),
+				),
+				SwitchTab: key.NewBinding(
+					key.WithKeys("left", "right"),
+					key.WithHelp("←→", "switch tabs"),
+				),
+				Reload: key.NewBinding(
+					key.WithKeys("enter", "r"),
+					key.WithHelp("enter/r", "reload"),
+				),
+				Search: key.NewBinding(
+					key.WithKeys("/"),
+					key.WithHelp("/", "search"),
+				),
+				Service: key.NewBinding(
+					key.WithKeys("s"),
+					key.WithHelp("s", "service"),
+				),
+				Navigate: key.NewBinding(
+					key.WithKeys("up", "down"),
+					key.WithHelp("↑↓", "navigate"),
+				),
+				Details: key.NewBinding(
+					key.WithKeys("d"),
+					key.WithHelp("d", "details"),
+				),
+				Security: key.NewBinding(
+					key.WithKeys("1"),
+					key.WithHelp("1", "security"),
+				),
+				Performance: key.NewBinding(
+					key.WithKeys("2"),
+					key.WithHelp("2", "performance"),
+				),
+				Logs: key.NewBinding(
+					key.WithKeys("3"),
+					key.WithHelp("3", "logs"),
+				),
+			}
+		default:
+			return DiagnosticsKeyMap{
+				BaseKeyMap: baseKeys,
+				SwitchTab: key.NewBinding(
+					key.WithKeys("left", "right"),
+					key.WithHelp("←→", "switch tabs"),
+				),
+				Navigate: key.NewBinding(
+					key.WithKeys("up", "down"),
+					key.WithHelp("↑↓", "navigate"),
+				),
+				Details: key.NewBinding(
+					key.WithKeys("enter"),
+					key.WithHelp("enter", "details"),
+				),
+				Security: key.NewBinding(
+					key.WithKeys("1"),
+					key.WithHelp("1", "security"),
+				),
+				Performance: key.NewBinding(
+					key.WithKeys("2"),
+					key.WithHelp("2", "performance"),
+				),
+				Logs: key.NewBinding(
+					key.WithKeys("3"),
+					key.WithHelp("3", "logs"),
+				),
+			}
 		}
 
 	case model.StateReporting:
@@ -523,8 +640,8 @@ func (hs *HelpSystem) ToggleHelp() {
 }
 
 // View returns the help view for the current state
-func (hs *HelpSystem) View(state model.AppState) string {
-	keyMap := hs.GetKeyMapForState(state)
+func (hs *HelpSystem) View(state model.AppState, diagnosticSelectedItem model.ContainerTab) string {
+	keyMap := hs.GetKeyMapForState(state, diagnosticSelectedItem)
 	if hs.ShowAll {
 		return hs.HelpModel.FullHelpView(keyMap.FullHelp())
 	}

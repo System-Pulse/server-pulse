@@ -22,6 +22,8 @@ const (
 	StateOpenedPortsDetails AppState = "diagnostics.openedports"
 	StateFirewallDetails    AppState = "diagnostics.firewall"
 	StateAutoBanDetails     AppState = "diagnostics.autoban"
+	StateLogDetails         AppState = "diagnostics.logs"
+	StateLogEntryDetails    AppState = "diagnostics.logs.entry"
 	StateNetwork            AppState = "network"
 	StateInterfaces         AppState = "network.interfaces"
 	StateConnectivity       AppState = "network.connectivity"

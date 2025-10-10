@@ -11,7 +11,46 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+func (m Model) renderLogEntryDetails() string {
+	if m.Diagnostic.SelectedLogEntry == nil {
+		return vars.CardStyle.Render("No log entry selected.")
+	}
+
+	entry := m.Diagnostic.SelectedLogEntry
+	var builder strings.Builder
+
+	// Title
+	title := lipgloss.NewStyle().Bold(true).Underline(true).MarginBottom(1).Render("Log Entry Details")
+	builder.WriteString(title)
+	builder.WriteString("\n\n")
+
+	// Details
+	builder.WriteString(fmt.Sprintf("%s: %s\n", vars.MetricLabelStyle.Render("Time"), entry.Timestamp))
+	builder.WriteString(fmt.Sprintf("%s: %s\n", vars.MetricLabelStyle.Render("Level"), entry.Level))
+	builder.WriteString(fmt.Sprintf("%s: %s\n", vars.MetricLabelStyle.Render("Service"), entry.Service))
+	builder.WriteString("\n")
+	builder.WriteString(vars.MetricLabelStyle.Render("Message:"))
+	builder.WriteString("\n\n")
+
+	// Message with word wrapping in a bordered box
+	messageStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(0, 1).
+		Width(m.Ui.Width - 10) // Adjust width as needed
+
+	builder.WriteString(messageStyle.Render(entry.Message))
+	builder.WriteString("\n\n")
+	builder.WriteString(lipgloss.NewStyle().Faint(true).Render("Press 'b', 'esc', or 'enter' to go back."))
+
+	return vars.CardStyle.Render(builder.String())
+}
+
 func (m Model) renderDignostics() string {
+	if m.Diagnostic.LogDetailsView && m.Diagnostic.SelectedLogEntry != nil {
+		return m.renderLogEntryDetails()
+	}
+
 	currentView := ""
 	switch m.Diagnostic.SelectedItem {
 	case model.DiagnosticSecurityChecks:
@@ -37,11 +76,8 @@ func (m Model) renderDiagnosticSecurity() string {
 		authStyle := auth.GetAuthStyle(int(m.Diagnostic.AuthState))
 
 		doc.WriteString(authStyle.Render(authMessage))
-		doc.WriteString("\n\n")
-		doc.WriteString(m.Diagnostic.AuthMessage)
-		doc.WriteString("\n\n")
+		doc.WriteString("\n")
 		if m.Diagnostic.AuthState == model.AuthRequired {
-			doc.WriteString(auth.AuthPromptStyle.Render("Enter Password:"))
 			doc.WriteString("\n")
 			doc.WriteString(m.Diagnostic.Password.View())
 			doc.WriteString("\n\n")
@@ -70,8 +106,6 @@ func (m Model) renderDiagnosticSecurity() string {
 		authStyle := auth.GetAuthStyle(int(m.Diagnostic.AuthState))
 
 		doc.WriteString(authStyle.Render(authMessage))
-		doc.WriteString("\n\n")
-		doc.WriteString(auth.AuthInfoStyle.Render("Admin privileges granted"))
 		doc.WriteString("\n\n")
 	}
 
@@ -133,8 +167,6 @@ func (m Model) renderDiagnosticSecurity() string {
 	doc.WriteString("\n\n")
 	if !m.Diagnostic.IsRoot && !m.Diagnostic.CanRunSudo {
 		doc.WriteString(auth.AccessIndicatorStyle.Render(auth.AdminAccessRequired))
-	} else if m.Diagnostic.AuthState == model.AuthSuccess && m.Diagnostic.AuthTimer > 0 {
-		doc.WriteString(auth.AuthSuccessStyle.Render(auth.AdminAccessGranted))
 	}
 
 	doc.WriteString("\n\n")
@@ -400,9 +432,19 @@ func (m Model) renderDiagnosticLogs() string {
 
 	filterDoc := strings.Builder{}
 
+	// Filter selection indicator
+	filterIndicatorStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
+	timeIndicator := "Time"
+	levelIndicator := "Level"
+	if m.Diagnostic.LogFilterSelected == 0 {
+		timeIndicator = filterIndicatorStyle.Render("▶ Time")
+	} else {
+		levelIndicator = filterIndicatorStyle.Render("▶ Level")
+	}
+
 	// Time range options
 	timeRanges := []string{"All", "5m", "1h", "24h", "7d", "Custom"}
-	timeRangeStr := "Time: "
+	timeRangeStr := timeIndicator + ": "
 	for i, tr := range timeRanges {
 		if i == m.Diagnostic.LogTimeSelected {
 			timeRangeStr += lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46")).Render("["+tr+"]") + " "
@@ -415,7 +457,7 @@ func (m Model) renderDiagnosticLogs() string {
 
 	// Log level options
 	levels := []string{"All", "Error", "Warn", "Info", "Debug"}
-	levelStr := "Level: "
+	levelStr := levelIndicator + ": "
 	for i, level := range levels {
 		if i == m.Diagnostic.LogLevelSelected {
 			levelStr += lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46")).Render("["+level+"]") + " "

@@ -41,10 +41,13 @@ type DiagnosticModel struct {
 	LogTimeRangeInput    textinput.Model
 	LogSearchInput       textinput.Model
 	LogServiceInput      textinput.Model
-	LogLevelSelected     int    // Index in level dropdown
-	LogTimeSelected      int    // Index in time range dropdown
-	CustomTimeInputMode  bool   // Track if custom time input is active
-	CustomTimeInputError string // Error message for invalid custom time input
+	LogLevelSelected     int            // Index in level dropdown
+	LogTimeSelected      int            // Index in time range dropdown
+	LogFilterSelected    int            // 0 for Time, 1 for Level
+	SelectedLogEntry     *logs.LogEntry // Currently selected log entry for details view
+	LogDetailsView       bool           // To show the log entry details view
+	CustomTimeInputMode  bool           // Track if custom time input is active
+	CustomTimeInputError string         // Error message for invalid custom time input
 	Password             textinput.Model
 	AuthState            AuthenticationState
 	AuthMessage          string
