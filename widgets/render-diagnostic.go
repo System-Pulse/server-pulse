@@ -505,20 +505,15 @@ func (m Model) renderDiagnosticLogs() string {
 }
 
 func (m Model) renderPerformanceAnalysis() string {
-	var nav []string
-	for i, tab := range m.Diagnostic.Performance.Nav {
-		style := vars.CardButtonStyleDesactive
-		if model.PerformanceTab(i) == m.Diagnostic.Performance.SelectedItem {
-			if m.Diagnostic.Performance.SubTabNavigationActive {
-				style = vars.CardButtonStyle.Copy().Underline(true)
-			} else {
-				style = vars.CardButtonStyle
-			}
-		}
-		nav = append(nav, style.Render(tab))
+	activeTabStyle := lipgloss.NewStyle().Padding(0, 2).
+		Foreground(vars.ClearWhite).
+		Background(vars.PurpleCollor).
+		Bold(true)
+	if m.Diagnostic.Performance.SubTabNavigationActive {
+		activeTabStyle = activeTabStyle.Copy().Underline(true)
 	}
 
-	navBar := lipgloss.JoinHorizontal(lipgloss.Top, nav...)
+	navBar := renderNav(m.Diagnostic.Performance.Nav, model.ContainerTab(m.Diagnostic.Performance.SelectedItem), activeTabStyle)
 
 	var currentView string
 	switch m.Diagnostic.Performance.SelectedItem {
@@ -534,5 +529,5 @@ func (m Model) renderPerformanceAnalysis() string {
 		currentView = performance.RenderQuickTests()
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, navBar, currentView)
+	return lipgloss.NewStyle().MarginTop(1).Render(lipgloss.JoinVertical(lipgloss.Left, navBar, currentView))
 }
