@@ -308,12 +308,13 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			CanRunSudo:       canRunSudo,
 		},
 		Diagnostic: model.DiagnosticModel{
-			DiagnosticTable:     diagnosticTable,
-			Nav:                 v.DiagnosticNav,
-			SelectedItem:        model.DiagnosticSecurityChecks,
+			DiagnosticTable: diagnosticTable,
+			Nav:             v.DiagnosticNav,
+			SelectedItem:    model.DiagnosticSecurityChecks,
 			Performance: model.PerformanceModel{
-				SelectedItem: model.SystemHealth,
-				Nav:          []string{"System Health", "I/O", "CPU", "Memory", "Quick Tests"},
+				SelectedItem:           model.SystemHealth,
+				Nav:                    []string{"System Health", "I/O", "CPU", "Memory", "Quick Tests"},
+				SubTabNavigationActive: false,
 			},
 			SecurityManager:     securityManager,
 			SecurityTable:       securityTable,

@@ -15,6 +15,7 @@ func (pt PerformanceTab) String() string {
 }
 
 type PerformanceModel struct {
-	SelectedItem PerformanceTab
-	Nav          []string
+	SelectedItem           PerformanceTab
+	Nav                    []string
+	SubTabNavigationActive bool
 }

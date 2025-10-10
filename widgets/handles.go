@@ -818,6 +818,27 @@ func (m Model) handleConnectivityInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances && m.Diagnostic.Performance.SubTabNavigationActive {
+		switch msg.String() {
+		case "right", "l":
+			newTab := int(m.Diagnostic.Performance.SelectedItem) + 1
+			if newTab >= len(m.Diagnostic.Performance.Nav) {
+				newTab = 0
+			}
+			m.Diagnostic.Performance.SelectedItem = model.PerformanceTab(newTab)
+			return m, nil
+		case "left", "h":
+			newTab := int(m.Diagnostic.Performance.SelectedItem) - 1
+			if newTab < 0 {
+				newTab = len(m.Diagnostic.Performance.Nav) - 1
+			}
+			m.Diagnostic.Performance.SelectedItem = model.PerformanceTab(newTab)
+			return m, nil
+		case "esc", "b":
+			m.Diagnostic.Performance.SubTabNavigationActive = false
+			return m, nil
+		}
+	}
 	if m.Diagnostic.LogDetailsView {
 		switch msg.String() {
 		case "b", "esc", "enter":
@@ -1038,14 +1059,6 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 	case "left", "h":
-		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances {
-			newTab := int(m.Diagnostic.Performance.SelectedItem) - 1
-			if newTab < 0 {
-				newTab = len(m.Diagnostic.Performance.Nav) - 1
-			}
-			m.Diagnostic.Performance.SelectedItem = model.PerformanceTab(newTab)
-			return m, nil
-		}
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
 
 			newTab := int(m.Diagnostic.SelectedItem) - 1
@@ -1238,6 +1251,10 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit
 	case "enter":
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances {
+			m.Diagnostic.Performance.SubTabNavigationActive = true
+			return m, nil
+		}
 		// On logs tab, check if Custom time range is selected
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
 			// If "Custom" is selected, enter custom time input mode

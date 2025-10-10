@@ -507,11 +507,15 @@ func (m Model) renderDiagnosticLogs() string {
 func (m Model) renderPerformanceAnalysis() string {
 	var nav []string
 	for i, tab := range m.Diagnostic.Performance.Nav {
+		style := vars.CardButtonStyleDesactive
 		if model.PerformanceTab(i) == m.Diagnostic.Performance.SelectedItem {
-			nav = append(nav, vars.CardButtonStyle.Render(tab))
-		} else {
-			nav = append(nav, vars.CardButtonStyleDesactive.Render(tab))
+			if m.Diagnostic.Performance.SubTabNavigationActive {
+				style = vars.CardButtonStyle.Copy().Underline(true)
+			} else {
+				style = vars.CardButtonStyle
+			}
 		}
+		nav = append(nav, style.Render(tab))
 	}
 
 	navBar := lipgloss.JoinHorizontal(lipgloss.Top, nav...)

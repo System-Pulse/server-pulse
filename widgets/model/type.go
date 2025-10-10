@@ -24,8 +24,6 @@ const (
 	DiagnosticSecurityChecks  ContainerTab = ContainerTabGeneral
 	DiagnosticTabPerformances ContainerTab = ContainerTabCPU
 	DiagnosticTabLogs         ContainerTab = ContainerTabMemory
-
-	
 )
 
 type ContainerMenuItem struct {
