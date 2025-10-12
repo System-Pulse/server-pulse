@@ -536,6 +536,7 @@ func (m Model) renderPerformanceAnalysis() string {
 				Score:           m.Diagnostic.Performance.HealthScore.Score,
 				Issues:          m.Diagnostic.Performance.HealthScore.Issues,
 				Recommendations: m.Diagnostic.Performance.HealthScore.Recommendations,
+				ChecksPerformed: m.Diagnostic.Performance.HealthScore.ChecksPerformed,
 			}
 		}
 

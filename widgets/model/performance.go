@@ -15,6 +15,7 @@ type HealthScore struct {
 	Score           int
 	Issues          []string
 	Recommendations []string
+	ChecksPerformed []string
 }
 
 type PerformanceTab int

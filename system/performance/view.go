@@ -60,5 +60,15 @@ func RenderSystemHealthView(healthLoading bool, healthMetrics *HealthMetrics, he
 		b.WriteString("\n")
 	}
 
+	// Checks Performed
+	if len(healthScore.ChecksPerformed) > 0 {
+		b.WriteString(lipgloss.NewStyle().Bold(true).Render("CHECKS PERFORMED"))
+		b.WriteString("\n")
+		for _, check := range healthScore.ChecksPerformed {
+			b.WriteString(fmt.Sprintf("- %s \n", check))
+		}
+		b.WriteString("\n")
+	}
+
 	return vars.CardStyle.Render(b.String())
 }

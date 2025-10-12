@@ -78,6 +78,7 @@ func (m Model) handleResourceAndProcessMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Score:           msg.Score.Score,
 				Issues:          msg.Score.Issues,
 				Recommendations: msg.Score.Recommendations,
+				ChecksPerformed: msg.Score.ChecksPerformed,
 			}
 		}
 		m.Diagnostic.Performance.HealthLoading = false

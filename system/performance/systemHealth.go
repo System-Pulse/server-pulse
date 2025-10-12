@@ -112,8 +112,10 @@ func CalculateHealthScore(metrics *HealthMetrics) *HealthScore {
 	score := 100
 	var issues []string
 	var recommendations []string
+	var checksPerformed []string
 
 	// IOWait
+	checksPerformed = append(checksPerformed, "IOWait")
 	if metrics.IOWait > 20 {
 		score -= 30
 		issues = append(issues, fmt.Sprintf("IOWait very high (%.2f%%)", metrics.IOWait))
@@ -125,6 +127,7 @@ func CalculateHealthScore(metrics *HealthMetrics) *HealthScore {
 	}
 
 	// CPU Steal Time
+	checksPerformed = append(checksPerformed, "CPU Steal Time")
 	if metrics.StealTime > 10 {
 		score -= 20
 		issues = append(issues, fmt.Sprintf("CPU Steal Time high (%.2f%%)", metrics.StealTime))
@@ -136,6 +139,7 @@ func CalculateHealthScore(metrics *HealthMetrics) *HealthScore {
 	}
 
 	// Major Page Faults
+	checksPerformed = append(checksPerformed, "Major Page Faults")
 	if metrics.MajorFaults > 10000 {
 		score -= 15
 		issues = append(issues, fmt.Sprintf("High number of major page faults (%s)", formatNumber(metrics.MajorFaults)))
@@ -143,6 +147,7 @@ func CalculateHealthScore(metrics *HealthMetrics) *HealthScore {
 	}
 
 	// Context Switches
+	checksPerformed = append(checksPerformed, "Context Switches")
 	if metrics.ContextSwitches > 100000000 { // 100 million
 		score -= 10
 		issues = append(issues, fmt.Sprintf("High number of context switches (%s)", formatNumber(metrics.ContextSwitches)))
@@ -157,5 +162,6 @@ func CalculateHealthScore(metrics *HealthMetrics) *HealthScore {
 		Score:           score,
 		Issues:          issues,
 		Recommendations: recommendations,
+		ChecksPerformed: checksPerformed,
 	}
 }
