@@ -220,19 +220,75 @@ func RenderInputOutputWithData(metrics *model.IOMetrics, loading bool) string {
 
 	// Summary section
 	b.WriteString(lipgloss.NewStyle().Bold(true).Render("📊 I/O SUMMARY"))
+	b.WriteString("\n\n")
+
+	// Average latency with color coding
+	latencyColor := lipgloss.Color("46") // Green by default
+	latencyIcon := "✅"
+	if metrics.AverageLatency > 20 {
+		latencyColor = lipgloss.Color("196") // Red for high latency
+		latencyIcon = "🔴"
+	} else if metrics.AverageLatency > 10 {
+		latencyColor = lipgloss.Color("214") // Orange for medium latency
+		latencyIcon = "🟡"
+	}
+
+	latencyText := lipgloss.NewStyle().Foreground(latencyColor).Bold(true).Render(
+		fmt.Sprintf("%s %.2f ms", latencyIcon, metrics.AverageLatency),
+	)
+	b.WriteString(fmt.Sprintf("│ Average Latency: %s     ", latencyText))
+
+	// Last update
+	lastUpdateText := lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Render(
+		metrics.LastUpdate.Format("15:04:05"),
+	)
+	b.WriteString(fmt.Sprintf("│    Last Update:     %s\n", lastUpdateText))
 	b.WriteString("\n")
-	b.WriteString(fmt.Sprintf("│ Total Read IOPS:  %s\n", formatNumber(metrics.TotalReadIOPS)))
-	b.WriteString(fmt.Sprintf("│ Total Write IOPS: %s\n", formatNumber(metrics.TotalWriteIOPS)))
-	b.WriteString(fmt.Sprintf("│ Total Read:       %s\n", utils.FormatBytes(metrics.TotalReadBytes)))
-	b.WriteString(fmt.Sprintf("│ Total Write:      %s\n", utils.FormatBytes(metrics.TotalWriteBytes)))
-	b.WriteString(fmt.Sprintf("│ Avg Latency:      %.2f ms\n", metrics.AverageLatency))
-	b.WriteString(fmt.Sprintf("│ Last Update:      %s\n", metrics.LastUpdate.Format("15:04:05")))
-	b.WriteString("\n")
+
+	// Create summary table
+	summaryColumns := []table.Column{
+		{Title: "Total Read IOPS", Width: 16},
+		{Title: "Total Write IOPS", Width: 17},
+		{Title: "Total Read", Width: 15},
+		{Title: "Total Write", Width: 16},
+	}
+
+	summaryRows := []table.Row{
+		{
+			formatNumber(metrics.TotalReadIOPS),
+			formatNumber(metrics.TotalWriteIOPS),
+			utils.FormatBytes(metrics.TotalReadBytes),
+			utils.FormatBytes(metrics.TotalWriteBytes),
+		},
+	}
+
+	summaryTable := table.New(
+		table.WithColumns(summaryColumns),
+		table.WithRows(summaryRows),
+		table.WithFocused(false),
+		table.WithHeight(2),
+	)
+
+	// Style the summary table
+	summaryStyle := table.DefaultStyles()
+	summaryStyle.Header = summaryStyle.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderBottom(true).
+		Bold(true).
+		Foreground(lipgloss.Color("39"))
+
+	summaryStyle.Cell = summaryStyle.Cell.
+		Foreground(lipgloss.Color("255"))
+
+	summaryTable.SetStyles(summaryStyle)
+
+	b.WriteString(summaryTable.View())
+	b.WriteString("\n\n")
 
 	// Disk I/O table
 	if len(metrics.Disks) > 0 {
 		b.WriteString(lipgloss.NewStyle().Bold(true).Render("💾 DISK I/O PERFORMANCE"))
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 
 		// Create table
 		columns := []table.Column{
@@ -271,13 +327,12 @@ func RenderInputOutputWithData(metrics *model.IOMetrics, loading bool) string {
 		s := table.DefaultStyles()
 		s.Header = s.Header.
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("240")).
 			BorderBottom(true).
-			Bold(false)
-		s.Selected = s.Selected.
-			Foreground(lipgloss.Color("229")).
-			Background(lipgloss.Color("57")).
-			Bold(false)
+			Bold(false).
+			Foreground(lipgloss.Color("39"))
+
+		s.Cell = s.Cell.
+			Foreground(lipgloss.Color("255"))
 		t.SetStyles(s)
 
 		b.WriteString(t.View())
@@ -287,7 +342,7 @@ func RenderInputOutputWithData(metrics *model.IOMetrics, loading bool) string {
 	// Top I/O Processes
 	if len(metrics.TopProcesses) > 0 {
 		b.WriteString(lipgloss.NewStyle().Bold(true).Render("🔥 TOP I/O PROCESSES"))
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 
 		columns := []table.Column{
 			{Title: "PID", Width: 6},
@@ -323,62 +378,17 @@ func RenderInputOutputWithData(metrics *model.IOMetrics, loading bool) string {
 		s := table.DefaultStyles()
 		s.Header = s.Header.
 			BorderStyle(lipgloss.NormalBorder()).
-			BorderForeground(lipgloss.Color("240")).
 			BorderBottom(true).
-			Bold(false)
-		s.Selected = s.Selected.
-			Foreground(lipgloss.Color("229")).
-			Background(lipgloss.Color("57")).
-			Bold(false)
+			Bold(false).
+			Foreground(lipgloss.Color("39"))
+
+		s.Cell = s.Cell.
+			Foreground(lipgloss.Color("255"))
+
 		t.SetStyles(s)
 
 		b.WriteString(t.View())
 		b.WriteString("\n\n")
-	}
-
-	// I/O Health Indicators
-	b.WriteString(lipgloss.NewStyle().Bold(true).Render("⚡ I/O HEALTH INDICATORS"))
-	b.WriteString("\n")
-
-	// Check for high utilization disks
-	highUtilDisks := 0
-	for _, disk := range metrics.Disks {
-		if disk.Utilization > 80 {
-			highUtilDisks++
-		}
-	}
-
-	if highUtilDisks > 0 {
-		warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
-		b.WriteString(warningStyle.Render(fmt.Sprintf("⚠️  %d disk(s) with high utilization (>80%%)\n", highUtilDisks)))
-	} else {
-		okStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("46"))
-		b.WriteString(okStyle.Render("✅ All disks operating within normal utilization\n"))
-	}
-
-	// Check for high queue depth
-	highQueueDisks := 0
-	for _, disk := range metrics.Disks {
-		if disk.QueueDepth > 10 {
-			highQueueDisks++
-		}
-	}
-
-	if highQueueDisks > 0 {
-		warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
-		b.WriteString(warningStyle.Render(fmt.Sprintf("⚠️  %d disk(s) with high queue depth (>10)\n", highQueueDisks)))
-	} else {
-		okStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("46"))
-		b.WriteString(okStyle.Render("✅ All disks have normal queue depth\n"))
-	}
-
-	// Check for high latency
-	if metrics.AverageLatency > 10 {
-		warningStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
-		b.WriteString(warningStyle.Render(fmt.Sprintf("⚠️  High average I/O latency: %.2f ms\n", metrics.AverageLatency)))
-	} else {
-		okStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("46"))
-		b.WriteString(okStyle.Render(fmt.Sprintf("✅ Normal I/O latency: %.2f ms\n", metrics.AverageLatency)))
 	}
 
 	return vars.CardStyle.Render(b.String())
