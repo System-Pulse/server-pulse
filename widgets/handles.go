@@ -10,7 +10,8 @@ import (
 
 	system "github.com/System-Pulse/server-pulse/system/app"
 	info "github.com/System-Pulse/server-pulse/system/informations"
-	"github.com/System-Pulse/server-pulse/system/logs"
+	logs "github.com/System-Pulse/server-pulse/system/logs"
+	"github.com/System-Pulse/server-pulse/system/performance"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	v "github.com/System-Pulse/server-pulse/widgets/vars"
@@ -61,6 +62,26 @@ func (m Model) handleResourceAndProcessMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case proc.ProcessMsg:
 		m.Monitor.Processes = []proc.ProcessInfo(msg)
 		return m, m.updateProcessTable()
+	case performance.HealthMetricsMsg:
+		if msg.Metrics != nil {
+			m.Diagnostic.Performance.HealthMetrics = &model.HealthMetrics{
+				IOWait:          msg.Metrics.IOWait,
+				ContextSwitches: msg.Metrics.ContextSwitches,
+				Interrupts:      msg.Metrics.Interrupts,
+				StealTime:       msg.Metrics.StealTime,
+				MajorFaults:     msg.Metrics.MajorFaults,
+				MinorFaults:     msg.Metrics.MinorFaults,
+			}
+		}
+		if msg.Score != nil {
+			m.Diagnostic.Performance.HealthScore = &model.HealthScore{
+				Score:           msg.Score.Score,
+				Issues:          msg.Score.Issues,
+				Recommendations: msg.Score.Recommendations,
+			}
+		}
+		m.Diagnostic.Performance.HealthLoading = false
+		return m, nil
 	}
 	return m, tea.Batch(cmds...)
 }
@@ -221,6 +242,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleAutoBanDetailsKeys(msg)
 	case model.StateReporting:
 		return m.handleReportingKeys(msg)
+	case model.StatePerformance:
+		return m.handlePerformanceKeys(msg)
 	}
 
 	return m, nil
@@ -1012,6 +1035,10 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogsInfo == nil {
 			return m, m.loadLogs()
 		}
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances && m.Diagnostic.Performance.HealthMetrics == nil {
+			m.Diagnostic.Performance.HealthLoading = true
+			return m, performance.GetHealthMetrics()
+		}
 		return m, nil
 	case "shift+tab":
 		// Shift+Tab always switches diagnostic tabs backwards
@@ -1027,6 +1054,10 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogsInfo == nil {
 			return m, m.loadLogs()
+		}
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances && m.Diagnostic.Performance.HealthMetrics == nil {
+			m.Diagnostic.Performance.HealthLoading = true
+			return m, performance.GetHealthMetrics()
 		}
 		return m, nil
 	case "right", "l":
@@ -1057,6 +1088,10 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogsInfo == nil {
 			return m, m.loadLogs()
 		}
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances && m.Diagnostic.Performance.HealthMetrics == nil {
+			m.Diagnostic.Performance.HealthLoading = true
+			return m, performance.GetHealthMetrics()
+		}
 		return m, nil
 	case "left", "h":
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
@@ -1085,6 +1120,10 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs && m.Diagnostic.LogsInfo == nil {
 			return m, m.loadLogs()
+		}
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances && m.Diagnostic.Performance.HealthMetrics == nil {
+			m.Diagnostic.Performance.HealthLoading = true
+			return m, performance.GetHealthMetrics()
 		}
 		return m, nil
 	case "shift+right", "shift+l":
@@ -1202,6 +1241,9 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.Diagnostic.SecurityManager.RunSecurityChecks(domain)
 		case model.DiagnosticTabLogs:
 			return m, m.loadLogs()
+		case model.DiagnosticTabPerformances:
+			m.Diagnostic.Performance.HealthLoading = true
+			return m, performance.GetHealthMetrics()
 		}
 	case "a":
 		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && !m.Diagnostic.IsRoot && !m.Diagnostic.CanRunSudo {
@@ -1976,4 +2018,14 @@ func (m Model) validateCustomTimeInput(input string) error {
 	}
 
 	return nil
+}
+
+func (m Model) handlePerformanceKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "r":
+		m.Diagnostic.Performance.HealthLoading = true
+		return m, performance.GetHealthMetrics()
+	default:
+		return m.handleGeneralKeys(msg)
+	}
 }

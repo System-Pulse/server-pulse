@@ -518,7 +518,28 @@ func (m Model) renderPerformanceAnalysis() string {
 	var currentView string
 	switch m.Diagnostic.Performance.SelectedItem {
 	case model.SystemHealth:
-		currentView = performance.RenderSystemHealth()
+		var pMetrics *performance.HealthMetrics
+		if m.Diagnostic.Performance.HealthMetrics != nil {
+			pMetrics = &performance.HealthMetrics{
+				IOWait:          m.Diagnostic.Performance.HealthMetrics.IOWait,
+				ContextSwitches: m.Diagnostic.Performance.HealthMetrics.ContextSwitches,
+				Interrupts:      m.Diagnostic.Performance.HealthMetrics.Interrupts,
+				StealTime:       m.Diagnostic.Performance.HealthMetrics.StealTime,
+				MajorFaults:     m.Diagnostic.Performance.HealthMetrics.MajorFaults,
+				MinorFaults:     m.Diagnostic.Performance.HealthMetrics.MinorFaults,
+			}
+		}
+
+		var pScore *performance.HealthScore
+		if m.Diagnostic.Performance.HealthScore != nil {
+			pScore = &performance.HealthScore{
+				Score:           m.Diagnostic.Performance.HealthScore.Score,
+				Issues:          m.Diagnostic.Performance.HealthScore.Issues,
+				Recommendations: m.Diagnostic.Performance.HealthScore.Recommendations,
+			}
+		}
+
+		currentView = performance.RenderSystemHealthView(m.Diagnostic.Performance.HealthLoading, pMetrics, pScore)
 	case model.InputOutput:
 		currentView = performance.RenderInputOutput()
 	case model.CPU:
