@@ -83,6 +83,14 @@ func (m Model) handleResourceAndProcessMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.Diagnostic.Performance.HealthLoading = false
 		return m, nil
+	case performance.IOMetricsMsg:
+		if msg.Error != nil {
+			m.Diagnostic.Performance.IOLoading = false
+			return m, nil
+		}
+		m.Diagnostic.Performance.IOMetrics = msg.Metrics
+		m.Diagnostic.Performance.IOLoading = false
+		return m, nil
 	}
 	return m, tea.Batch(cmds...)
 }
@@ -205,7 +213,7 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.ConfirmationVisible {
 		return m.handleConfirmationKeys(msg)
 	}
-	if m.Monitor.ContainerMenuState == v.ContainerMenuVisible {
+	if m.Monitor.ContainerMenuState == model.ContainerMenuState(1) { // ContainerMenuVisible
 		return m.handleContainerMenuKeys(msg)
 	}
 	if m.Ui.SearchMode {
@@ -243,7 +251,7 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleAutoBanDetailsKeys(msg)
 	case model.StateReporting:
 		return m.handleReportingKeys(msg)
-	case model.StatePerformance:
+	case model.StatePerformance, model.StateInputOutput, model.StateSystemHealth, model.StateCPU, model.StateMemory, model.StateQuickTests:
 		return m.handlePerformanceKeys(msg)
 	}
 
@@ -410,7 +418,7 @@ func (m Model) handleContainersKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if !found {
 				m.Monitor.SelectedContainer = &system.Container{ID: containerID, Name: selectedRow[2]}
 			}
-			m.Monitor.ContainerMenuState = v.ContainerMenuVisible
+			m.Monitor.ContainerMenuState = model.ContainerMenuState(1) // ContainerMenuVisible
 			m.Monitor.SelectedMenuItem = 0
 		}
 	default:
@@ -850,6 +858,12 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				newTab = 0
 			}
 			m.Diagnostic.Performance.SelectedItem = model.PerformanceTab(newTab)
+
+			// Auto-load data when switching to I/O tab
+			if m.Diagnostic.Performance.SelectedItem == model.InputOutput && m.Diagnostic.Performance.IOMetrics == nil {
+				m.Diagnostic.Performance.IOLoading = true
+				return m, performance.GetIOMetrics()
+			}
 			return m, nil
 		case "left", "h":
 			newTab := int(m.Diagnostic.Performance.SelectedItem) - 1
@@ -857,6 +871,12 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				newTab = len(m.Diagnostic.Performance.Nav) - 1
 			}
 			m.Diagnostic.Performance.SelectedItem = model.PerformanceTab(newTab)
+
+			// Auto-load data when switching to I/O tab
+			if m.Diagnostic.Performance.SelectedItem == model.InputOutput && m.Diagnostic.Performance.IOMetrics == nil {
+				m.Diagnostic.Performance.IOLoading = true
+				return m, performance.GetIOMetrics()
+			}
 			return m, nil
 		case "esc", "b":
 			m.Diagnostic.Performance.SubTabNavigationActive = false
@@ -1040,6 +1060,13 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Diagnostic.Performance.HealthLoading = true
 			return m, performance.GetHealthMetrics()
 		}
+		// Auto-load I/O data if I/O tab is selected and no data exists
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
+			m.Diagnostic.Performance.SelectedItem == model.InputOutput &&
+			m.Diagnostic.Performance.IOMetrics == nil {
+			m.Diagnostic.Performance.IOLoading = true
+			return m, performance.GetIOMetrics()
+		}
 		return m, nil
 	case "shift+tab":
 		// Shift+Tab always switches diagnostic tabs backwards
@@ -1059,6 +1086,13 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances && m.Diagnostic.Performance.HealthMetrics == nil {
 			m.Diagnostic.Performance.HealthLoading = true
 			return m, performance.GetHealthMetrics()
+		}
+		// Auto-load I/O data if I/O tab is selected and no data exists
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
+			m.Diagnostic.Performance.SelectedItem == model.InputOutput &&
+			m.Diagnostic.Performance.IOMetrics == nil {
+			m.Diagnostic.Performance.IOLoading = true
+			return m, performance.GetIOMetrics()
 		}
 		return m, nil
 	case "right", "l":
@@ -1093,6 +1127,13 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Diagnostic.Performance.HealthLoading = true
 			return m, performance.GetHealthMetrics()
 		}
+		// Auto-load I/O data if I/O tab is selected and no data exists
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
+			m.Diagnostic.Performance.SelectedItem == model.InputOutput &&
+			m.Diagnostic.Performance.IOMetrics == nil {
+			m.Diagnostic.Performance.IOLoading = true
+			return m, performance.GetIOMetrics()
+		}
 		return m, nil
 	case "left", "h":
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabLogs {
@@ -1125,6 +1166,13 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances && m.Diagnostic.Performance.HealthMetrics == nil {
 			m.Diagnostic.Performance.HealthLoading = true
 			return m, performance.GetHealthMetrics()
+		}
+		// Auto-load I/O data if I/O tab is selected and no data exists
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
+			m.Diagnostic.Performance.SelectedItem == model.InputOutput &&
+			m.Diagnostic.Performance.IOMetrics == nil {
+			m.Diagnostic.Performance.IOLoading = true
+			return m, performance.GetIOMetrics()
 		}
 		return m, nil
 	case "shift+right", "shift+l":
@@ -1592,12 +1640,12 @@ func (m Model) handleContainerMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "enter":
 		return m.executeContainerMenuAction()
 	case "o":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.setState(model.StateContainer)
 		m.ContainerTab = model.ContainerTabGeneral
 		return m, m.loadContainerDetails(m.Monitor.SelectedContainer.ID)
 	case "l":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.setState(model.StateContainerLogs)
 		m.Monitor.ContainerLogsLoading = true
 		if m.Monitor.ContainerLogsStreaming {
@@ -1606,45 +1654,45 @@ func (m Model) handleContainerMenuKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.Monitor.App.GetContainerLogsCmd(
 			m.Monitor.SelectedContainer.ID)
 	case "r":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.ConfirmationVisible = true
 		m.ConfirmationMessage = fmt.Sprintf("Restart container '%s'?\nThis will stop and start the container.", m.Monitor.SelectedContainer.Name)
 		m.ConfirmationAction = "restart"
 		m.ConfirmationData = m.Monitor.SelectedContainer.ID
 		return m, nil
 	case "d":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.ConfirmationVisible = true
 		m.ConfirmationMessage = fmt.Sprintf("Delete container '%s'?\nThis action cannot be undone.", m.Monitor.SelectedContainer.Name)
 		m.ConfirmationAction = "delete"
 		m.ConfirmationData = m.Monitor.SelectedContainer.ID
 		return m, nil
 	case "x":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.ConfirmationVisible = true
 		m.ConfirmationMessage = fmt.Sprintf("Force remove container '%s'?\nThis action cannot be undone.", m.Monitor.SelectedContainer.Name)
 		m.ConfirmationAction = "remove"
 		m.ConfirmationData = m.Monitor.SelectedContainer.ID
 		return m, nil
 	case "s":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.OperationInProgress = true
 		return m, m.Monitor.App.ToggleContainerStateCmd(m.Monitor.SelectedContainer.ID)
 	case "p":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.OperationInProgress = true
 		return m, m.Monitor.App.ToggleContainerPauseCmd(m.Monitor.SelectedContainer.ID)
 	case "e":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.Monitor.PendingShellExec = &model.ShellExecRequest{ContainerID: m.Monitor.SelectedContainer.ID}
 		m.Monitor.ShouldQuit = false
 		return m, tea.Quit
 	case "c":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.LastOperationMsg = "Commit functionality not yet implemented"
 		return m, nil
 	case "esc", "b":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.Monitor.SelectedContainer = nil
 		return m, nil
 	case "q", "ctrl+c":
@@ -1658,7 +1706,7 @@ func (m Model) executeContainerMenuAction() (tea.Model, tea.Cmd) {
 	if m.Monitor.SelectedMenuItem >= len(m.Monitor.ContainerMenuItems) {
 		return m, nil
 	}
-	m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+	m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 	action := m.Monitor.ContainerMenuItems[m.Monitor.SelectedMenuItem].Action
 	switch action {
 	case "open_single":
@@ -1671,41 +1719,41 @@ func (m Model) executeContainerMenuAction() (tea.Model, tea.Cmd) {
 		return m, m.Monitor.App.GetContainerLogsCmd(
 			m.Monitor.SelectedContainer.ID)
 	case "restart":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.ConfirmationVisible = true
 		m.ConfirmationMessage = fmt.Sprintf("Restart container '%s'?\nThis will stop and start the container.", m.Monitor.SelectedContainer.Name)
 		m.ConfirmationAction = "restart"
 		m.ConfirmationData = m.Monitor.SelectedContainer.ID
 		return m, nil
 	case "delete":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.ConfirmationVisible = true
 		m.ConfirmationMessage = fmt.Sprintf("Delete container '%s'?\nThis action cannot be undone.", m.Monitor.SelectedContainer.Name)
 		m.ConfirmationAction = "delete"
 		m.ConfirmationData = m.Monitor.SelectedContainer.ID
 		return m, nil
 	case "remove":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.ConfirmationVisible = true
 		m.ConfirmationMessage = fmt.Sprintf("Force remove container '%s'?\nThis action cannot be undone.", m.Monitor.SelectedContainer.Name)
 		m.ConfirmationAction = "remove"
 		m.ConfirmationData = m.Monitor.SelectedContainer.ID
 		return m, nil
 	case "toggle_start":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.OperationInProgress = true
 		return m, m.Monitor.App.ToggleContainerStateCmd(m.Monitor.SelectedContainer.ID)
 	case "toggle_pause":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.OperationInProgress = true
 		return m, m.Monitor.App.ToggleContainerPauseCmd(m.Monitor.SelectedContainer.ID)
 	case "exec":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.Monitor.PendingShellExec = &model.ShellExecRequest{ContainerID: m.Monitor.SelectedContainer.ID}
 		m.Monitor.ShouldQuit = false
 		return m, tea.Quit
 	case "commit":
-		m.Monitor.ContainerMenuState = v.ContainerMenuHidden
+		m.Monitor.ContainerMenuState = model.ContainerMenuState(0) // ContainerMenuHidden
 		m.LastOperationMsg = "Commit functionality not yet implemented"
 		return m, nil
 	}
@@ -2024,8 +2072,17 @@ func (m Model) validateCustomTimeInput(input string) error {
 func (m Model) handlePerformanceKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "r":
-		m.Diagnostic.Performance.HealthLoading = true
-		return m, performance.GetHealthMetrics()
+		switch m.Diagnostic.Performance.SelectedItem {
+		case model.SystemHealth:
+			m.Diagnostic.Performance.HealthLoading = true
+			return m, performance.GetHealthMetrics()
+		case model.InputOutput:
+			m.Diagnostic.Performance.IOLoading = true
+			return m, performance.GetIOMetrics()
+		default:
+			m.Diagnostic.Performance.HealthLoading = true
+			return m, performance.GetHealthMetrics()
+		}
 	default:
 		return m.handleGeneralKeys(msg)
 	}

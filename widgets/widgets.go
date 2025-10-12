@@ -38,7 +38,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKeyMsg(msg)
 	case tea.MouseMsg:
 		return m.handleMouseMsg(msg)
-	case info.SystemMsg, resource.CpuMsg, resource.MemoryMsg, resource.DiskMsg, resource.NetworkMsg, proc.ProcessMsg, performance.HealthMetricsMsg:
+	case info.SystemMsg, resource.CpuMsg, resource.MemoryMsg, resource.DiskMsg, resource.NetworkMsg, proc.ProcessMsg, performance.HealthMetricsMsg, performance.IOMetricsMsg:
 		return m.handleResourceAndProcessMsgs(msg)
 	case system.ContainerMsg, system.ContainerDetailsMsg, system.ContainerLogsMsg, system.ContainerOperationMsg,
 		system.ExecShellMsg, system.ContainerStatsChanMsg:

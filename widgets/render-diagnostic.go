@@ -542,7 +542,7 @@ func (m Model) renderPerformanceAnalysis() string {
 
 		currentView = performance.RenderSystemHealthView(m.Diagnostic.Performance.HealthLoading, pMetrics, pScore)
 	case model.InputOutput:
-		currentView = performance.RenderInputOutput()
+		currentView = performance.RenderInputOutputWithData(m.Diagnostic.Performance.IOMetrics, m.Diagnostic.Performance.IOLoading)
 	case model.CPU:
 		currentView = performance.RenderCPU()
 	case model.Memory:

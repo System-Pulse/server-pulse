@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 // HealthMetrics holds the metrics for the system health check.
 type HealthMetrics struct {
 	IOWait          float64
@@ -39,4 +41,41 @@ type PerformanceModel struct {
 	HealthMetrics          *HealthMetrics
 	HealthScore            *HealthScore
 	HealthLoading          bool
+	IOMetrics              *IOMetrics
+	IOLoading              bool
+}
+
+// DiskIOInfo represents I/O statistics for a single disk
+type DiskIOInfo struct {
+	Device      string
+	ReadIOPS    uint64
+	WriteIOPS   uint64
+	ReadBytes   uint64
+	WriteBytes  uint64
+	ReadTime    uint64
+	WriteTime   uint64
+	QueueDepth  uint64
+	Utilization float64
+}
+
+// ProcessIOInfo represents I/O statistics for a process
+type ProcessIOInfo struct {
+	PID        int32
+	Command    string
+	ReadIOPS   uint64
+	WriteIOPS  uint64
+	ReadBytes  uint64
+	WriteBytes uint64
+}
+
+// IOMetrics holds comprehensive I/O performance metrics
+type IOMetrics struct {
+	Disks           []DiskIOInfo
+	TopProcesses    []ProcessIOInfo
+	TotalReadIOPS   uint64
+	TotalWriteIOPS  uint64
+	TotalReadBytes  uint64
+	TotalWriteBytes uint64
+	AverageLatency  float64
+	LastUpdate      time.Time
 }
