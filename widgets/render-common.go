@@ -8,7 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-func renderNotImplemented(feature string) string {
+func RenderNotImplemented(feature string) string {
 	return v.CardStyle.Render(fmt.Sprintf("🚧 %s\n\nThis feature is not yet implemented.\n\nCheck back in future updates!", feature))
 }
 
