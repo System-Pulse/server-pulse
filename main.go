@@ -47,7 +47,7 @@ func runTUI() bool {
 			time.Sleep(2 * time.Second)
 		}
 	}()
-	
+
 	lipgloss.SetHasDarkBackground(true)
 
 	var m tea.Model
