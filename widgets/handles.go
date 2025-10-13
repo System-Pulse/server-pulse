@@ -131,7 +131,7 @@ func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	m.Ui.Width = msg.Width
 	m.Ui.Height = msg.Height
 
-	if msg.Width < 40 || msg.Height < 10 {
+	if msg.Width < 60 || msg.Height < 15 {
 		m.Ui.Ready = false
 		return m, nil
 	}
@@ -145,10 +145,12 @@ func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	footerHeight := lipgloss.Height(m.renderFooter())
 
 	verticalMargin := headerHeight + navHeight + footerHeight
-	contentHeight := max(1, msg.Height-verticalMargin)
+	contentHeight := max(5, msg.Height-verticalMargin)
 
 	m.Ui.Viewport.Width = msg.Width
 	m.Ui.Viewport.Height = contentHeight
+	m.Ui.Viewport.YPosition = headerHeight + navHeight
+	m.Ui.ContentHeight = contentHeight
 
 	m.LogsViewport.Width = msg.Width
 	m.LogsViewport.Height = contentHeight

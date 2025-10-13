@@ -17,7 +17,7 @@ func (m Model) View() string {
 		return lipgloss.NewStyle().
 			Foreground(lipgloss.Color("196")).
 			Bold(true).
-			Render("Terminal too small!\nMinimum size: 40x10\nCurrent: " +
+			Render("Terminal too small!\nMinimum size: (min: 80x20)\nCurrent: " +
 				fmt.Sprintf("%dx%d", m.Ui.Width, m.Ui.Height))
 	}
 
@@ -31,14 +31,16 @@ func (m Model) View() string {
 		mainContent = m.renderConfirmationDialog()
 	}
 
-	mainContentStyled := lipgloss.NewStyle().
-		Height(m.Ui.ContentHeight).
-		Render(mainContent)
-
-	baseView := lipgloss.JoinVertical(lipgloss.Left,
+	baseHeaderView := lipgloss.JoinVertical(lipgloss.Left,
 		header,
 		nav,
-		mainContentStyled,
+	)
+
+	m.Ui.Viewport.SetContent(mainContent)
+
+	baseView := lipgloss.JoinVertical(lipgloss.Left,
+		baseHeaderView,
+		m.Ui.Viewport.View(),
 		footer,
 	)
 

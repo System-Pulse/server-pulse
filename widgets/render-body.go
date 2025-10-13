@@ -44,11 +44,5 @@ func (m Model) renderMainContent() string {
 		currentView = fmt.Sprintf("Unknown state: %v", m.Ui.State)
 	}
 
-	// switch m.Ui.State {
-	// case model.StateSystem, model.StateContainerLogs, model.StateHome, model.StateMonitor:
-	m.Ui.Viewport.SetContent(currentView)
-	return m.Ui.Viewport.View()
-	// }
-
-	// return currentView
+	return currentView
 }

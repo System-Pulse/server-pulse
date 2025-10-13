@@ -40,6 +40,14 @@ func main() {
 }
 
 func runTUI() bool {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("Recovered from panic: %v", r)
+			fmt.Println("\nRestoring terminal after panic...")
+			time.Sleep(2 * time.Second)
+		}
+	}()
+	
 	lipgloss.SetHasDarkBackground(true)
 
 	var m tea.Model
