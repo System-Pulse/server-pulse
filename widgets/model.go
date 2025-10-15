@@ -34,6 +34,9 @@ type Model struct {
 	Diagnostic          model.DiagnosticModel
 	SecurityManager     *security.SecurityManager
 	HelpSystem          HelpSystem
+	AsRoot              bool
+	SudoAvailable       bool
+	CanRunSudo          bool
 }
 
 type connectionStats struct {

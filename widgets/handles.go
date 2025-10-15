@@ -514,15 +514,14 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				if err != nil {
 					m.Network.AuthState = model.AuthFailed
 					m.Network.AuthMessage = fmt.Sprintf("Authentication failed: %v", err)
-					if !m.Network.SudoAvailable {
+					if !m.SudoAvailable {
 						m.Network.AuthMessage += "\nSudo is not available. Please run as root."
 					}
 					m.Diagnostic.Password.Reset()
 				} else {
 					m.Network.AuthState = model.AuthSuccess
 					m.Network.AuthMessage = "Authentication successful!"
-					m.Network.IsRoot = true
-					m.Diagnostic.IsRoot = true
+					m.AsRoot = true
 					m.Network.AuthTimer = 2
 
 					m.Diagnostic.SecurityManager.IsRoot = false // User authenticated via sudo, not actual root
@@ -658,7 +657,7 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, network.GetConnections()
 	case "a":
 		// Request authentication for detailed network information
-		if m.Network.SelectedItem == model.NetworkTabProtocol && !m.Network.IsRoot && !m.Network.CanRunSudo {
+		if m.Network.SelectedItem == model.NetworkTabProtocol && !m.AsRoot && !m.CanRunSudo {
 			m.Network.AuthState = model.AuthRequired
 			m.Diagnostic.Password.Focus()
 			m.Diagnostic.Password.SetValue("")
@@ -780,7 +779,7 @@ func (m Model) handleConnectivityInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				spinnerCmd := m.Ui.Spinner.Tick
 				// Force UI refresh by returning a command that will trigger update
 				return m, tea.Batch(
-					network.Ping(target, 3),
+					network.Ping(target, 3, m.IsRoot()),
 					spinnerCmd,
 					func() tea.Msg { return model.ForceRefreshMsg{} },
 				)
@@ -846,15 +845,14 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				if err != nil {
 					m.Diagnostic.AuthState = model.AuthFailed
 					m.Diagnostic.AuthMessage = fmt.Sprintf("Authentication failed: %v", err)
-					if !m.Diagnostic.SudoAvailable {
+					if !m.SudoAvailable {
 						m.Diagnostic.AuthMessage += "\nSudo is not available. Please run as root."
 					}
 					m.Diagnostic.Password.Reset()
 				} else {
 					m.Diagnostic.AuthState = model.AuthSuccess
 					m.Diagnostic.AuthMessage = "Authentication successful!"
-					m.Diagnostic.IsRoot = true
-					m.Network.IsRoot = true
+					m.AsRoot = true
 					m.Diagnostic.AuthTimer = 2
 
 					// Update SecurityManager with authentication context
@@ -1185,7 +1183,7 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, m.loadLogs()
 		}
 	case "a":
-		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && !m.Diagnostic.IsRoot && !m.Diagnostic.CanRunSudo {
+		if m.Diagnostic.SelectedItem == model.DiagnosticSecurityChecks && !m.AsRoot && !m.CanRunSudo {
 			m.Diagnostic.AuthState = model.AuthRequired
 			m.Diagnostic.AuthMessage = "Enter password for admin access:"
 			m.Diagnostic.Password.Focus()
@@ -1287,7 +1285,7 @@ func (m Model) handleSecurityCheckMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.SecurityChecks = checks
 
 		// Update authentication state based on root/sudo availability
-		if !m.Diagnostic.IsRoot && !m.Diagnostic.CanRunSudo {
+		if !m.AsRoot && !m.CanRunSudo {
 			// Check if any admin-required checks are present
 			adminChecks := m.getAdminRequiredChecks()
 			hasAdminChecks := false

@@ -373,7 +373,7 @@ func (m *Model) updateLogsTable() tea.Cmd {
 // loadLogs loads system logs with current filters
 func (m Model) loadLogs() tea.Cmd {
 	// Update LogManager with current auth state
-	m.Diagnostic.LogManager.CanUseSudo = m.Diagnostic.CanRunSudo
+	m.Diagnostic.LogManager.CanUseSudo = m.CanRunSudo
 	m.Diagnostic.LogManager.SudoPassword = m.Diagnostic.SecurityManager.SudoPassword
 
 	return m.Diagnostic.LogManager.GetSystemLogs(m.Diagnostic.LogFilters)

@@ -165,7 +165,7 @@ func (m Model) renderDiagnosticSecurity() string {
 
 	// Footer with authentication info
 	doc.WriteString("\n\n")
-	if !m.Diagnostic.IsRoot && !m.Diagnostic.CanRunSudo {
+	if !m.AsRoot && !m.CanRunSudo {
 		doc.WriteString(auth.AccessIndicatorStyle.Render(auth.AdminAccessRequired))
 	}
 

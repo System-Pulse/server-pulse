@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/System-Pulse/server-pulse/utils"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/prometheus-community/pro-bing"
 )
@@ -37,7 +36,7 @@ type TracerouteHop struct {
 type PingMsg PingResult
 type TracerouteMsg TracerouteResult
 
-func Ping(target string, count int) tea.Cmd {
+func Ping(target string, count int, privileged bool) tea.Cmd {
 	return func() tea.Msg {
 		pinger, err := probing.NewPinger(target)
 		if err != nil {
@@ -51,7 +50,7 @@ func Ping(target string, count int) tea.Cmd {
 		pinger.Count = count
 		pinger.Timeout = 5 * time.Second
 		pinger.Interval = 100 * time.Millisecond
-		pinger.SetPrivileged(utils.IsRoot())
+		pinger.SetPrivileged(privileged)
 
 		err = pinger.Run()
 		if err != nil {

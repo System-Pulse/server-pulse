@@ -51,8 +51,5 @@ type DiagnosticModel struct {
 	Password             textinput.Model
 	AuthState            AuthenticationState
 	AuthMessage          string
-	IsRoot               bool
-	SudoAvailable        bool
-	CanRunSudo           bool
 	AuthTimer            int
 }

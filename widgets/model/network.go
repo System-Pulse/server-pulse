@@ -25,9 +25,6 @@ type NetworkModel struct {
 	ConnectivityMode  ConnectivityMode
 	AuthState         AuthenticationState
 	AuthMessage       string
-	IsRoot            bool
-	SudoAvailable     bool
-	CanRunSudo        bool
 	AuthTimer         int
 	PingLoading       bool
 	TracerouteLoading bool
