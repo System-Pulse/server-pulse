@@ -619,7 +619,9 @@ func (m Model) renderMemoryPerformance() string {
 		activeTabStyle = activeTabStyle.Copy().Underline(true)
 	}
 
-	navBar := renderNav(memoryTabs, model.ContainerTab(m.Diagnostic.Performance.MemorySelectedTab), activeTabStyle)
+	navBar := lipgloss.NewStyle().MarginTop(1).Render(
+		renderNav(memoryTabs, model.ContainerTab(m.Diagnostic.Performance.MemorySelectedTab), activeTabStyle),
+	)
 
 	// Current sub-tab content
 	var currentView string
