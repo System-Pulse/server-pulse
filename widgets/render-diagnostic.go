@@ -9,6 +9,7 @@ import (
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	"github.com/System-Pulse/server-pulse/widgets/vars"
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -544,7 +545,20 @@ func (m Model) renderPerformanceAnalysis() string {
 	case model.InputOutput:
 		currentView = performance.RenderInputOutputWithData(m.Diagnostic.Performance.IOMetrics, m.Diagnostic.Performance.IOLoading)
 	case model.CPU:
-		currentView = performance.RenderCPU()
+		if m.Diagnostic.Performance.CPULoading {
+			currentView = vars.CardStyle.Render("⏳ Loading CPU Performance Metrics...")
+		} else if m.Diagnostic.Performance.CPUMetrics != nil {
+			// Update viewport content with CPU data
+			if vp, ok := m.Diagnostic.Performance.CPUViewport.(viewport.Model); ok {
+				content := performance.RenderCPUContent(m.Diagnostic.Performance.CPUMetrics)
+				vp.SetContent(content)
+				currentView = vp.View()
+			} else {
+				currentView = performance.RenderCPUWithData(m.Diagnostic.Performance.CPUMetrics, false)
+			}
+		} else {
+			currentView = vars.CardStyle.Render("Press 'r' to load CPU metrics")
+		}
 	case model.Memory:
 		currentView = performance.RenderMemory()
 	case model.QuickTests:

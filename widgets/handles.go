@@ -21,6 +21,7 @@ import (
 	"github.com/System-Pulse/server-pulse/system/security"
 	"github.com/System-Pulse/server-pulse/utils"
 	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -90,6 +91,14 @@ func (m Model) handleResourceAndProcessMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.Diagnostic.Performance.IOMetrics = msg.Metrics
 		m.Diagnostic.Performance.IOLoading = false
+		return m, nil
+	case performance.CPUMetricsMsg:
+		if msg.Error != nil {
+			m.Diagnostic.Performance.CPULoading = false
+			return m, nil
+		}
+		m.Diagnostic.Performance.CPUMetrics = msg.Metrics
+		m.Diagnostic.Performance.CPULoading = false
 		return m, nil
 	}
 	return m, tea.Batch(cmds...)
@@ -182,6 +191,13 @@ func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 
 	m.LogsViewport.Width = msg.Width
 	m.LogsViewport.Height = contentHeight
+
+	// Update CPU viewport size
+	if vp, ok := m.Diagnostic.Performance.CPUViewport.(viewport.Model); ok {
+		vp.Width = msg.Width - 4 // Account for border and padding
+		vp.Height = contentHeight
+		m.Diagnostic.Performance.CPUViewport = vp
+	}
 
 	tableHeight := max(1, contentHeight-3)
 
@@ -859,10 +875,14 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.Diagnostic.Performance.SelectedItem = model.PerformanceTab(newTab)
 
-			// Auto-load data when switching to I/O tab
+			// Auto-load data when switching to I/O or CPU tab
 			if m.Diagnostic.Performance.SelectedItem == model.InputOutput && m.Diagnostic.Performance.IOMetrics == nil {
 				m.Diagnostic.Performance.IOLoading = true
 				return m, performance.GetIOMetrics()
+			}
+			if m.Diagnostic.Performance.SelectedItem == model.CPU && m.Diagnostic.Performance.CPUMetrics == nil {
+				m.Diagnostic.Performance.CPULoading = true
+				return m, performance.GetCPUMetrics()
 			}
 			return m, nil
 		case "left", "h":
@@ -872,14 +892,31 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.Diagnostic.Performance.SelectedItem = model.PerformanceTab(newTab)
 
-			// Auto-load data when switching to I/O tab
+			// Auto-load data when switching to I/O or CPU tab
 			if m.Diagnostic.Performance.SelectedItem == model.InputOutput && m.Diagnostic.Performance.IOMetrics == nil {
 				m.Diagnostic.Performance.IOLoading = true
 				return m, performance.GetIOMetrics()
 			}
+			if m.Diagnostic.Performance.SelectedItem == model.CPU && m.Diagnostic.Performance.CPUMetrics == nil {
+				m.Diagnostic.Performance.CPULoading = true
+				return m, performance.GetCPUMetrics()
+			}
 			return m, nil
 		case "esc", "b":
 			m.Diagnostic.Performance.SubTabNavigationActive = false
+			return m, nil
+		}
+	}
+
+	// When in CPU tab and not in navigation mode, viewport scrolling is handled in widgets.go
+	// We just need to prevent other keys from interfering
+	if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
+		m.Diagnostic.Performance.SelectedItem == model.CPU &&
+		!m.Diagnostic.Performance.SubTabNavigationActive {
+		// Let viewport handle its own scrolling keys
+		switch msg.String() {
+		case "up", "k", "down", "j", "pgup", "pgdown", "home", "end":
+			// These are handled by the viewport in widgets.go
 			return m, nil
 		}
 	}
@@ -1060,12 +1097,18 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Diagnostic.Performance.HealthLoading = true
 			return m, performance.GetHealthMetrics()
 		}
-		// Auto-load I/O data if I/O tab is selected and no data exists
+		// Auto-load I/O or CPU data if respective tab is selected and no data exists
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
 			m.Diagnostic.Performance.SelectedItem == model.InputOutput &&
 			m.Diagnostic.Performance.IOMetrics == nil {
 			m.Diagnostic.Performance.IOLoading = true
 			return m, performance.GetIOMetrics()
+		}
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
+			m.Diagnostic.Performance.SelectedItem == model.CPU &&
+			m.Diagnostic.Performance.CPUMetrics == nil {
+			m.Diagnostic.Performance.CPULoading = true
+			return m, performance.GetCPUMetrics()
 		}
 		return m, nil
 	case "shift+tab":
@@ -1087,12 +1130,18 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Diagnostic.Performance.HealthLoading = true
 			return m, performance.GetHealthMetrics()
 		}
-		// Auto-load I/O data if I/O tab is selected and no data exists
+		// Auto-load I/O or CPU data if respective tab is selected and no data exists
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
 			m.Diagnostic.Performance.SelectedItem == model.InputOutput &&
 			m.Diagnostic.Performance.IOMetrics == nil {
 			m.Diagnostic.Performance.IOLoading = true
 			return m, performance.GetIOMetrics()
+		}
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
+			m.Diagnostic.Performance.SelectedItem == model.CPU &&
+			m.Diagnostic.Performance.CPUMetrics == nil {
+			m.Diagnostic.Performance.CPULoading = true
+			return m, performance.GetCPUMetrics()
 		}
 		return m, nil
 	case "right", "l":
@@ -1127,12 +1176,18 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Diagnostic.Performance.HealthLoading = true
 			return m, performance.GetHealthMetrics()
 		}
-		// Auto-load I/O data if I/O tab is selected and no data exists
+		// Auto-load I/O or CPU data if respective tab is selected and no data exists
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
 			m.Diagnostic.Performance.SelectedItem == model.InputOutput &&
 			m.Diagnostic.Performance.IOMetrics == nil {
 			m.Diagnostic.Performance.IOLoading = true
 			return m, performance.GetIOMetrics()
+		}
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
+			m.Diagnostic.Performance.SelectedItem == model.CPU &&
+			m.Diagnostic.Performance.CPUMetrics == nil {
+			m.Diagnostic.Performance.CPULoading = true
+			return m, performance.GetCPUMetrics()
 		}
 		return m, nil
 	case "left", "h":
@@ -1167,12 +1222,18 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Diagnostic.Performance.HealthLoading = true
 			return m, performance.GetHealthMetrics()
 		}
-		// Auto-load I/O data if I/O tab is selected and no data exists
+		// Auto-load I/O or CPU data if respective tab is selected and no data exists
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
 			m.Diagnostic.Performance.SelectedItem == model.InputOutput &&
 			m.Diagnostic.Performance.IOMetrics == nil {
 			m.Diagnostic.Performance.IOLoading = true
 			return m, performance.GetIOMetrics()
+		}
+		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
+			m.Diagnostic.Performance.SelectedItem == model.CPU &&
+			m.Diagnostic.Performance.CPUMetrics == nil {
+			m.Diagnostic.Performance.CPULoading = true
+			return m, performance.GetCPUMetrics()
 		}
 		return m, nil
 	case "shift+right", "shift+l":
@@ -2079,6 +2140,9 @@ func (m Model) handlePerformanceKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case model.InputOutput:
 			m.Diagnostic.Performance.IOLoading = true
 			return m, performance.GetIOMetrics()
+		case model.CPU:
+			m.Diagnostic.Performance.CPULoading = true
+			return m, performance.GetCPUMetrics()
 		default:
 			m.Diagnostic.Performance.HealthLoading = true
 			return m, performance.GetHealthMetrics()

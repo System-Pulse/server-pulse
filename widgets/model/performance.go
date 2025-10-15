@@ -43,6 +43,9 @@ type PerformanceModel struct {
 	HealthLoading          bool
 	IOMetrics              *IOMetrics
 	IOLoading              bool
+	CPUMetrics             *CPUMetrics
+	CPULoading             bool
+	CPUViewport            interface{} // viewport.Model - defined as interface to avoid import cycle
 }
 
 // DiskIOInfo represents I/O statistics for a single disk
@@ -77,5 +80,40 @@ type IOMetrics struct {
 	TotalReadBytes  uint64
 	TotalWriteBytes uint64
 	AverageLatency  float64
+	LastUpdate      time.Time
+}
+
+// CPUStateBreakdown represents detailed CPU state information
+type CPUStateBreakdown struct {
+	User      float64
+	System    float64
+	Idle      float64
+	IOWait    float64
+	IRQ       float64
+	SoftIRQ   float64
+	Steal     float64
+	Nice      float64
+	Guest     float64
+	GuestNice float64
+}
+
+// CPUCoreInfo represents information for a single CPU core
+type CPUCoreInfo struct {
+	CoreID      int
+	Usage       float64
+	Frequency   float64
+	Temperature float64 // If available
+}
+
+// CPUMetrics holds comprehensive CPU performance metrics
+type CPUMetrics struct {
+	OverallUsage    float64
+	StateBreakdown  CPUStateBreakdown
+	Cores           []CPUCoreInfo
+	ContextSwitches uint64
+	Interrupts      uint64
+	LoadAverage     [3]float64
+	ProcessCount    int
+	ThreadCount     int
 	LastUpdate      time.Time
 }
