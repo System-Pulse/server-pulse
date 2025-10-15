@@ -878,7 +878,9 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Diagnostic.Performance.CPUSelectedTab = model.CPUTab(newTab)
 			return m, nil
 		case "esc", "b":
+			// Go back to Performance tab navigation (one level up)
 			m.Diagnostic.Performance.CPUSubTabActive = false
+			m.Diagnostic.Performance.SubTabNavigationActive = true
 			return m, nil
 		}
 	}

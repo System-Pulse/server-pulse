@@ -648,7 +648,102 @@ func (hs *HelpSystem) View(state model.AppState, diagnosticSelectedItem model.Co
 	return hs.HelpModel.ShortHelpView(keyMap.ShortHelp())
 }
 
+// ViewWithModel returns the help view with access to the full model for context-aware help
+func (hs *HelpSystem) ViewWithModel(state model.AppState, diagnosticSelectedItem model.ContainerTab, m Model) string {
+	keyMap := hs.GetKeyMapForStateWithModel(state, diagnosticSelectedItem, m)
+	if hs.ShowAll {
+		return hs.HelpModel.FullHelpView(keyMap.FullHelp())
+	}
+	return hs.HelpModel.ShortHelpView(keyMap.ShortHelp())
+}
+
 // SetWidth sets the width for the help model
 func (hs *HelpSystem) SetWidth(width int) {
 	hs.HelpModel.Width = width
+}
+
+// GetKeyMapForStateWithModel returns the appropriate keymap with access to full model
+func (hs *HelpSystem) GetKeyMapForStateWithModel(state model.AppState, diagnosticSelectedItem model.ContainerTab, m Model) KeyMap {
+	if state == model.StateDiagnostics &&
+		diagnosticSelectedItem == model.DiagnosticTabPerformances &&
+		m.Diagnostic.Performance.SelectedItem == model.CPU &&
+		m.Diagnostic.Performance.CPUSubTabActive {
+		baseKeys := BaseKeyMap{
+			Help: key.NewBinding(
+				key.WithKeys("?"),
+				key.WithHelp("?", "toggle help"),
+			),
+			Quit: key.NewBinding(
+				key.WithKeys("q", "ctrl+c"),
+				key.WithHelp("q", "quit"),
+			),
+			Back: key.NewBinding(
+				key.WithKeys("b", "esc"),
+				key.WithHelp("b/esc", "back"),
+			),
+		}
+
+		return DiagnosticsKeyMap{
+			BaseKeyMap: baseKeys,
+			SwitchTab: key.NewBinding(
+				key.WithKeys("left", "right", "h", "l"),
+				key.WithHelp("←→", "switch CPU sub-tabs"),
+			),
+			Navigate: key.NewBinding(
+				key.WithKeys(""),
+				key.WithHelp("", ""),
+			),
+			Details: key.NewBinding(
+				key.WithKeys(""),
+				key.WithHelp("", ""),
+			),
+		}
+	}
+
+	if state == model.StateDiagnostics &&
+		diagnosticSelectedItem == model.DiagnosticTabPerformances &&
+		m.Diagnostic.Performance.SubTabNavigationActive &&
+		!m.Diagnostic.Performance.CPUSubTabActive {
+		baseKeys := BaseKeyMap{
+			Help: key.NewBinding(
+				key.WithKeys("?"),
+				key.WithHelp("?", "toggle help"),
+			),
+			Quit: key.NewBinding(
+				key.WithKeys("q", "ctrl+c"),
+				key.WithHelp("q", "quit"),
+			),
+			Back: key.NewBinding(
+				key.WithKeys("b", "esc"),
+				key.WithHelp("b/esc", "back"),
+			),
+		}
+
+		enterHelp := "activate tab"
+		// Show special help when on CPU tab
+		if m.Diagnostic.Performance.SelectedItem == model.CPU {
+			enterHelp = "enter CPU sub-tabs"
+		}
+
+		return DiagnosticsKeyMap{
+			BaseKeyMap: baseKeys,
+			SwitchTab: key.NewBinding(
+				key.WithKeys("left", "right", "h", "l"),
+				key.WithHelp("←→", "switch performance tabs"),
+			),
+			Navigate: key.NewBinding(
+				key.WithKeys(""),
+				key.WithHelp("", ""),
+			),
+			Details: key.NewBinding(
+				key.WithKeys("enter"),
+				key.WithHelp("enter", enterHelp),
+			),
+			Reload: key.NewBinding(
+				key.WithKeys("r"),
+				key.WithHelp("r", "reload data"),
+			),
+		}
+	}
+	return hs.GetKeyMapForState(state, diagnosticSelectedItem)
 }
