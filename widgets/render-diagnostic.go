@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/System-Pulse/server-pulse/system/performance"
 	"github.com/System-Pulse/server-pulse/widgets/auth"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	"github.com/System-Pulse/server-pulse/widgets/vars"
@@ -56,7 +57,7 @@ func (m Model) renderDignostics() string {
 	case model.DiagnosticSecurityChecks:
 		currentView = m.renderDiagnosticSecurity()
 	case model.DiagnosticTabPerformances:
-		currentView = renderNotImplemented("Performance Analysis")
+		currentView = m.renderPerformanceAnalysis()
 	case model.DiagnosticTabLogs:
 		currentView = m.renderDiagnosticLogs()
 	}
@@ -501,4 +502,99 @@ func (m Model) renderDiagnosticLogs() string {
 	}
 
 	return vars.CardStyle.Render(doc.String())
+}
+
+func (m Model) renderPerformanceAnalysis() string {
+	activeTabStyle := lipgloss.NewStyle().Padding(0, 2).
+		Foreground(vars.ClearWhite).
+		Background(vars.PurpleCollor).
+		Bold(true)
+	if m.Diagnostic.Performance.SubTabNavigationActive {
+		activeTabStyle = activeTabStyle.Copy().Underline(true)
+	}
+
+	navBar := renderNav(m.Diagnostic.Performance.Nav, model.ContainerTab(m.Diagnostic.Performance.SelectedItem), activeTabStyle)
+
+	var currentView string
+	switch m.Diagnostic.Performance.SelectedItem {
+	case model.SystemHealth:
+		var pMetrics *performance.HealthMetrics
+		if m.Diagnostic.Performance.HealthMetrics != nil {
+			pMetrics = &performance.HealthMetrics{
+				IOWait:          m.Diagnostic.Performance.HealthMetrics.IOWait,
+				ContextSwitches: m.Diagnostic.Performance.HealthMetrics.ContextSwitches,
+				Interrupts:      m.Diagnostic.Performance.HealthMetrics.Interrupts,
+				StealTime:       m.Diagnostic.Performance.HealthMetrics.StealTime,
+				MajorFaults:     m.Diagnostic.Performance.HealthMetrics.MajorFaults,
+				MinorFaults:     m.Diagnostic.Performance.HealthMetrics.MinorFaults,
+			}
+		}
+
+		var pScore *performance.HealthScore
+		if m.Diagnostic.Performance.HealthScore != nil {
+			pScore = &performance.HealthScore{
+				Score:           m.Diagnostic.Performance.HealthScore.Score,
+				Issues:          m.Diagnostic.Performance.HealthScore.Issues,
+				Recommendations: m.Diagnostic.Performance.HealthScore.Recommendations,
+				ChecksPerformed: m.Diagnostic.Performance.HealthScore.ChecksPerformed,
+			}
+		}
+
+		currentView = performance.RenderSystemHealthView(m.Diagnostic.Performance.HealthLoading, pMetrics, pScore)
+	case model.InputOutput:
+		currentView = performance.RenderInputOutputWithData(m.Diagnostic.Performance.IOMetrics, m.Diagnostic.Performance.IOLoading)
+	case model.CPU:
+		currentView = m.renderCPUPerformance()
+	case model.Memory:
+		currentView = performance.RenderMemory()
+	case model.QuickTests:
+		currentView = performance.RenderQuickTests()
+	}
+
+	return lipgloss.NewStyle().MarginTop(1).Render(lipgloss.JoinVertical(lipgloss.Left, navBar, currentView))
+}
+
+func (m Model) renderCPUPerformance() string {
+	if m.Diagnostic.Performance.CPULoading {
+		return vars.CardStyle.Render("⏳ Loading CPU Performance Metrics...")
+	}
+
+	if m.Diagnostic.Performance.CPUMetrics == nil {
+		return vars.CardStyle.Render("Press 'r' to load CPU metrics")
+	}
+
+	// CPU sub-tabs navigation
+	cpuTabs := []string{"CPU State Breakdown", "Per-Core Performance", "System Activity Metrics"}
+
+	activeTabStyle := lipgloss.NewStyle().Padding(0, 2).
+		Foreground(vars.ClearWhite).
+		Background(vars.PurpleCollor).
+		Bold(true)
+	if m.Diagnostic.Performance.CPUSubTabActive {
+		activeTabStyle = activeTabStyle.Copy().Underline(true)
+	}
+
+	navBar := renderNav(cpuTabs, model.ContainerTab(m.Diagnostic.Performance.CPUSelectedTab), activeTabStyle)
+
+	// Overview always visible
+	overview := performance.RenderCPUOverview(m.Diagnostic.Performance.CPUMetrics)
+
+	// Current sub-tab content
+	var currentView string
+	switch m.Diagnostic.Performance.CPUSelectedTab {
+	case model.CPUTabStateBreakdown:
+		currentView = performance.RenderCPUStateBreakdown(m.Diagnostic.Performance.CPUMetrics)
+	case model.CPUTabPerCore:
+		currentView = performance.RenderCPUPerCore(m.Diagnostic.Performance.CPUMetrics)
+	case model.CPUTabSystemActivity:
+		currentView = performance.RenderCPUSystemActivity(m.Diagnostic.Performance.CPUMetrics)
+	}
+
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		vars.CardStyle.Render(overview),
+		navBar,
+		vars.CardStyle.Render(currentView),
+	)
+
+	return content
 }

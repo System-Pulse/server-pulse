@@ -9,6 +9,7 @@ import (
 	info "github.com/System-Pulse/server-pulse/system/informations"
 	"github.com/System-Pulse/server-pulse/system/logs"
 	"github.com/System-Pulse/server-pulse/system/network"
+	performance "github.com/System-Pulse/server-pulse/system/performance"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	"github.com/System-Pulse/server-pulse/system/resource"
 	"github.com/System-Pulse/server-pulse/system/security"
@@ -37,7 +38,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleKeyMsg(msg)
 	case tea.MouseMsg:
 		return m.handleMouseMsg(msg)
-	case info.SystemMsg, resource.CpuMsg, resource.MemoryMsg, resource.DiskMsg, resource.NetworkMsg, proc.ProcessMsg:
+	case info.SystemMsg, resource.CpuMsg, resource.MemoryMsg, resource.DiskMsg, resource.NetworkMsg, proc.ProcessMsg, performance.HealthMetricsMsg, performance.IOMetricsMsg, performance.CPUMetricsMsg:
 		return m.handleResourceAndProcessMsgs(msg)
 	case system.ContainerMsg, system.ContainerDetailsMsg, system.ContainerLogsMsg, system.ContainerOperationMsg,
 		system.ExecShellMsg, system.ContainerStatsChanMsg:

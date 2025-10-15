@@ -21,6 +21,7 @@ type DiagnosticModel struct {
 	DiagnosticTable      table.Model
 	Nav                  []string
 	SelectedItem         ContainerTab
+	Performance          PerformanceModel
 	SecurityManager      *security.SecurityManager
 	SecurityTable        table.Model
 	SecurityChecks       []security.SecurityCheck

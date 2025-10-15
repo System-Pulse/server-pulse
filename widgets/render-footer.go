@@ -38,15 +38,15 @@ func (m Model) renderFooter() string {
 	var hints string
 	// Use help system for hints, except in special cases
 	if m.ConfirmationVisible {
-		hints = m.HelpSystem.View(model.StateHome, model.ContainerTab(0)) // Use base keymap for confirmation
+		hints = m.HelpSystem.ViewWithModel(model.StateHome, model.ContainerTab(0), m) // Use base keymap for confirmation
 	} else if m.Monitor.ContainerMenuState == v.ContainerMenuVisible {
-		hints = m.HelpSystem.View(model.StateHome, model.ContainerTab(0)) // Use base keymap for container menu
+		hints = m.HelpSystem.ViewWithModel(model.StateHome, model.ContainerTab(0), m) // Use base keymap for container menu
 	} else {
 		// For diagnostics state, pass the selected diagnostic tab
 		if m.Ui.State == model.StateDiagnostics || m.Ui.State == model.StateCertificateDetails || m.Ui.State == model.StateSSHRootDetails {
-			hints = m.HelpSystem.View(m.Ui.State, m.Diagnostic.SelectedItem)
+			hints = m.HelpSystem.ViewWithModel(m.Ui.State, m.Diagnostic.SelectedItem, m)
 		} else {
-			hints = m.HelpSystem.View(m.Ui.State, model.ContainerTab(0))
+			hints = m.HelpSystem.ViewWithModel(m.Ui.State, model.ContainerTab(0), m)
 		}
 	}
 

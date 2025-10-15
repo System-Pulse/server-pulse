@@ -40,6 +40,10 @@ func (m Model) renderMainContent() string {
 		currentView = m.renderAutoBanDetails()
 	case model.StateReporting:
 		currentView = m.renderReporting()
+	case model.StatePerformance:
+		currentView = m.renderPerformanceAnalysis()
+	case model.StateSystemHealth, model.StateInputOutput, model.StateCPU, model.StateMemory, model.StateQuickTests:
+		currentView = m.renderPerformanceAnalysis()
 	default:
 		currentView = fmt.Sprintf("Unknown state: %v", m.Ui.State)
 	}

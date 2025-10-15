@@ -276,6 +276,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	}
 
 	logsViewport := viewport.New(100, 20)
+
 	m := Model{
 		LogsViewport: logsViewport,
 		HelpSystem:   NewHelpSystem(),
@@ -305,9 +306,16 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			AuthMessage:      "",
 		},
 		Diagnostic: model.DiagnosticModel{
-			DiagnosticTable:     diagnosticTable,
-			Nav:                 v.DiagnosticNav,
-			SelectedItem:        model.DiagnosticSecurityChecks,
+			DiagnosticTable: diagnosticTable,
+			Nav:             v.DiagnosticNav,
+			SelectedItem:    model.DiagnosticSecurityChecks,
+			Performance: model.PerformanceModel{
+				SelectedItem:           model.SystemHealth,
+				Nav:                    []string{"System Health", "I/O", "CPU", "Memory", "Quick Tests"},
+				SubTabNavigationActive: false,
+				CPUSelectedTab:         model.CPUTabStateBreakdown,
+				CPUSubTabActive:        false,
+			},
 			SecurityManager:     securityManager,
 			SecurityTable:       securityTable,
 			PortsTable:          portsTable,
