@@ -9,7 +9,6 @@ import (
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	"github.com/System-Pulse/server-pulse/widgets/vars"
 	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -545,20 +544,7 @@ func (m Model) renderPerformanceAnalysis() string {
 	case model.InputOutput:
 		currentView = performance.RenderInputOutputWithData(m.Diagnostic.Performance.IOMetrics, m.Diagnostic.Performance.IOLoading)
 	case model.CPU:
-		if m.Diagnostic.Performance.CPULoading {
-			currentView = vars.CardStyle.Render("⏳ Loading CPU Performance Metrics...")
-		} else if m.Diagnostic.Performance.CPUMetrics != nil {
-			// Update viewport content with CPU data
-			if vp, ok := m.Diagnostic.Performance.CPUViewport.(viewport.Model); ok {
-				content := performance.RenderCPUContent(m.Diagnostic.Performance.CPUMetrics)
-				vp.SetContent(content)
-				currentView = vp.View()
-			} else {
-				currentView = performance.RenderCPUWithData(m.Diagnostic.Performance.CPUMetrics, false)
-			}
-		} else {
-			currentView = vars.CardStyle.Render("Press 'r' to load CPU metrics")
-		}
+		currentView = m.renderCPUPerformance()
 	case model.Memory:
 		currentView = performance.RenderMemory()
 	case model.QuickTests:
@@ -566,4 +552,49 @@ func (m Model) renderPerformanceAnalysis() string {
 	}
 
 	return lipgloss.NewStyle().MarginTop(1).Render(lipgloss.JoinVertical(lipgloss.Left, navBar, currentView))
+}
+
+func (m Model) renderCPUPerformance() string {
+	if m.Diagnostic.Performance.CPULoading {
+		return vars.CardStyle.Render("⏳ Loading CPU Performance Metrics...")
+	}
+
+	if m.Diagnostic.Performance.CPUMetrics == nil {
+		return vars.CardStyle.Render("Press 'r' to load CPU metrics")
+	}
+
+	// CPU sub-tabs navigation
+	cpuTabs := []string{"CPU State Breakdown", "Per-Core Performance", "System Activity Metrics"}
+
+	activeTabStyle := lipgloss.NewStyle().Padding(0, 2).
+		Foreground(vars.ClearWhite).
+		Background(vars.PurpleCollor).
+		Bold(true)
+	if m.Diagnostic.Performance.CPUSubTabActive {
+		activeTabStyle = activeTabStyle.Copy().Underline(true)
+	}
+
+	navBar := renderNav(cpuTabs, model.ContainerTab(m.Diagnostic.Performance.CPUSelectedTab), activeTabStyle)
+
+	// Overview always visible
+	overview := performance.RenderCPUOverview(m.Diagnostic.Performance.CPUMetrics)
+
+	// Current sub-tab content
+	var currentView string
+	switch m.Diagnostic.Performance.CPUSelectedTab {
+	case model.CPUTabStateBreakdown:
+		currentView = performance.RenderCPUStateBreakdown(m.Diagnostic.Performance.CPUMetrics)
+	case model.CPUTabPerCore:
+		currentView = performance.RenderCPUPerCore(m.Diagnostic.Performance.CPUMetrics)
+	case model.CPUTabSystemActivity:
+		currentView = performance.RenderCPUSystemActivity(m.Diagnostic.Performance.CPUMetrics)
+	}
+
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		vars.CardStyle.Render(overview),
+		navBar,
+		vars.CardStyle.Render(currentView),
+	)
+
+	return content
 }

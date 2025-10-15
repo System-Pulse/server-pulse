@@ -21,7 +21,6 @@ import (
 	"github.com/System-Pulse/server-pulse/system/security"
 	"github.com/System-Pulse/server-pulse/utils"
 	"github.com/charmbracelet/bubbles/progress"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -191,13 +190,6 @@ func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 
 	m.LogsViewport.Width = msg.Width
 	m.LogsViewport.Height = contentHeight
-
-	// Update CPU viewport size
-	if vp, ok := m.Diagnostic.Performance.CPUViewport.(viewport.Model); ok {
-		vp.Width = msg.Width - 4 // Account for border and padding
-		vp.Height = contentHeight
-		m.Diagnostic.Performance.CPUViewport = vp
-	}
 
 	tableHeight := max(1, contentHeight-3)
 
@@ -866,6 +858,32 @@ func (m Model) handleConnectivityInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle CPU sub-tab navigation
+	if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
+		m.Diagnostic.Performance.SelectedItem == model.CPU &&
+		m.Diagnostic.Performance.CPUSubTabActive {
+		switch msg.String() {
+		case "right", "l":
+			newTab := int(m.Diagnostic.Performance.CPUSelectedTab) + 1
+			if newTab >= 3 { // 3 CPU sub-tabs
+				newTab = 0
+			}
+			m.Diagnostic.Performance.CPUSelectedTab = model.CPUTab(newTab)
+			return m, nil
+		case "left", "h":
+			newTab := int(m.Diagnostic.Performance.CPUSelectedTab) - 1
+			if newTab < 0 {
+				newTab = 2 // 3 CPU sub-tabs
+			}
+			m.Diagnostic.Performance.CPUSelectedTab = model.CPUTab(newTab)
+			return m, nil
+		case "esc", "b":
+			m.Diagnostic.Performance.CPUSubTabActive = false
+			return m, nil
+		}
+	}
+
+	// Handle Performance main tab navigation
 	if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances && m.Diagnostic.Performance.SubTabNavigationActive {
 		switch msg.String() {
 		case "right", "l":
@@ -904,19 +922,6 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case "esc", "b":
 			m.Diagnostic.Performance.SubTabNavigationActive = false
-			return m, nil
-		}
-	}
-
-	// When in CPU tab and not in navigation mode, viewport scrolling is handled in widgets.go
-	// We just need to prevent other keys from interfering
-	if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
-		m.Diagnostic.Performance.SelectedItem == model.CPU &&
-		!m.Diagnostic.Performance.SubTabNavigationActive {
-		// Let viewport handle its own scrolling keys
-		switch msg.String() {
-		case "up", "k", "down", "j", "pgup", "pgdown", "home", "end":
-			// These are handled by the viewport in widgets.go
 			return m, nil
 		}
 	}
@@ -1404,6 +1409,13 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "enter":
 		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances {
+			// If already in Performance sub-tab navigation and on CPU tab, activate CPU sub-tab navigation
+			if m.Diagnostic.Performance.SubTabNavigationActive && m.Diagnostic.Performance.SelectedItem == model.CPU {
+				m.Diagnostic.Performance.SubTabNavigationActive = false
+				m.Diagnostic.Performance.CPUSubTabActive = true
+				return m, nil
+			}
+			// Otherwise activate Performance sub-tab navigation
 			m.Diagnostic.Performance.SubTabNavigationActive = true
 			return m, nil
 		}

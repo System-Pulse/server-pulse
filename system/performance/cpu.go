@@ -194,19 +194,9 @@ func RenderCPU() string {
 	return "⏳ Loading CPU Performance Metrics..."
 }
 
-// RenderCPUContent generates the CPU content without wrapping in CardStyle
-// This allows it to be used in a viewport
-func RenderCPUContent(metrics *model.CPUMetrics) string {
+// RenderCPUOverview renders the CPU overview section (always visible at top)
+func RenderCPUOverview(metrics *model.CPUMetrics) string {
 	var b strings.Builder
-
-	// Title
-	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(vars.AccentColor).MarginBottom(1)
-	b.WriteString(titleStyle.Render("═══════════════════════════════════════════════════════════════════"))
-	b.WriteString("\n")
-	b.WriteString(titleStyle.Render("                  CPU PERFORMANCE ANALYSIS                         "))
-	b.WriteString("\n")
-	b.WriteString(titleStyle.Render("═══════════════════════════════════════════════════════════════════"))
-	b.WriteString("\n\n")
 
 	// Overall CPU Usage section
 	b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51")).Render("⚡ CPU OVERVIEW"))
@@ -250,6 +240,13 @@ func RenderCPUContent(metrics *model.CPUMetrics) string {
 	)
 	b.WriteString(fmt.Sprintf("  %s    %s\n", lastUpdateText, loadAvgText))
 	b.WriteString("\n")
+
+	return b.String()
+}
+
+// RenderCPUStateBreakdown renders detailed CPU state breakdown
+func RenderCPUStateBreakdown(metrics *model.CPUMetrics) string {
+	var b strings.Builder
 
 	// CPU State Breakdown
 	b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51")).Render("📊 CPU STATE BREAKDOWN"))
@@ -299,6 +296,13 @@ func RenderCPUContent(metrics *model.CPUMetrics) string {
 		))
 	}
 	b.WriteString("\n")
+
+	return b.String()
+}
+
+// RenderCPUPerCore renders per-core CPU performance
+func RenderCPUPerCore(metrics *model.CPUMetrics) string {
+	var b strings.Builder
 
 	// Per-Core Performance
 	if len(metrics.Cores) > 0 {
@@ -354,7 +358,16 @@ func RenderCPUContent(metrics *model.CPUMetrics) string {
 			b.WriteString(line + "\n")
 		}
 		b.WriteString("\n")
+	} else {
+		b.WriteString("  No core data available\n\n")
 	}
+
+	return b.String()
+}
+
+// RenderCPUSystemActivity renders system activity metrics
+func RenderCPUSystemActivity(metrics *model.CPUMetrics) string {
+	var b strings.Builder
 
 	// System Activity Metrics
 	b.WriteString(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("51")).Render("📈 SYSTEM ACTIVITY METRICS"))
@@ -389,6 +402,24 @@ func RenderCPUContent(metrics *model.CPUMetrics) string {
 	return b.String()
 }
 
+// RenderCPUContent generates full CPU content (for viewport/updateCPUViewport)
+func RenderCPUContent(metrics *model.CPUMetrics) string {
+	var b strings.Builder
+
+	// Overview
+	b.WriteString(RenderCPUOverview(metrics))
+	b.WriteString("\n")
+
+	// All sections for viewport
+	b.WriteString(RenderCPUStateBreakdown(metrics))
+	b.WriteString("\n")
+	b.WriteString(RenderCPUPerCore(metrics))
+	b.WriteString("\n")
+	b.WriteString(RenderCPUSystemActivity(metrics))
+
+	return b.String()
+}
+
 func RenderCPUWithData(metrics *model.CPUMetrics, loading bool) string {
 	if loading {
 		return vars.CardStyle.Render("⏳ Loading CPU Performance Metrics...")
@@ -398,7 +429,7 @@ func RenderCPUWithData(metrics *model.CPUMetrics, loading bool) string {
 		return vars.CardStyle.Render("Press 'r' to load CPU metrics")
 	}
 
-	return RenderCPUContent(metrics)
+	return vars.CardStyle.Render(RenderCPUContent(metrics))
 }
 
 func createProgressBar(value float64, color lipgloss.Color) string {

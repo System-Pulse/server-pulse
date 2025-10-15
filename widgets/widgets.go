@@ -18,7 +18,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -93,17 +92,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case model.StateContainerLogs:
 		m.LogsViewport, cmd = m.LogsViewport.Update(msg)
 		cmds = append(cmds, cmd)
-	case model.StateDiagnostics:
-		// Update CPU viewport when in Diagnostics > Performance > CPU tab
-		if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
-			m.Diagnostic.Performance.SelectedItem == model.CPU &&
-			!m.Diagnostic.Performance.SubTabNavigationActive {
-			if vp, ok := m.Diagnostic.Performance.CPUViewport.(viewport.Model); ok {
-				vp, cmd = vp.Update(msg)
-				m.Diagnostic.Performance.CPUViewport = vp
-				cmds = append(cmds, cmd)
-			}
-		}
 	case model.StateNetwork:
 		m.Network.NetworkTable, cmd = m.Network.NetworkTable.Update(msg)
 		cmds = append(cmds, cmd)

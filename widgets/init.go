@@ -276,11 +276,6 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 	}
 
 	logsViewport := viewport.New(100, 20)
-	cpuViewport := viewport.New(100, 20)
-	cpuViewport.Style = lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		Padding(1)
 
 	m := Model{
 		LogsViewport: logsViewport,
@@ -321,7 +316,8 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 				SelectedItem:           model.SystemHealth,
 				Nav:                    []string{"System Health", "I/O", "CPU", "Memory", "Quick Tests"},
 				SubTabNavigationActive: false,
-				CPUViewport:            cpuViewport,
+				CPUSelectedTab:         model.CPUTabStateBreakdown,
+				CPUSubTabActive:        false,
 			},
 			SecurityManager:     securityManager,
 			SecurityTable:       securityTable,

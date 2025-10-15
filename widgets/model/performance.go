@@ -34,6 +34,18 @@ func (pt PerformanceTab) String() string {
 	return []string{"System Health", "I/O", "CPU", "Memory", "Quick Tests"}[pt]
 }
 
+type CPUTab int
+
+const (
+	CPUTabStateBreakdown CPUTab = iota
+	CPUTabPerCore
+	CPUTabSystemActivity
+)
+
+func (ct CPUTab) String() string {
+	return []string{"CPU State Breakdown", "Per-Core Performance", "System Activity Metrics"}[ct]
+}
+
 type PerformanceModel struct {
 	SelectedItem           PerformanceTab
 	Nav                    []string
@@ -45,7 +57,8 @@ type PerformanceModel struct {
 	IOLoading              bool
 	CPUMetrics             *CPUMetrics
 	CPULoading             bool
-	CPUViewport            interface{} // viewport.Model - defined as interface to avoid import cycle
+	CPUSelectedTab         CPUTab
+	CPUSubTabActive        bool
 }
 
 // DiskIOInfo represents I/O statistics for a single disk
