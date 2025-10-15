@@ -26,6 +26,13 @@ type CPUMetricsMsg struct {
 	Error   error
 }
 
+type GetMemoryMetricsMsg struct{}
+
+type MemoryMetricsMsg struct {
+	Metrics *model.MemoryMetrics
+	Error   error
+}
+
 func GetHealthMetricsCmd() tea.Cmd {
 	return func() tea.Msg {
 		return GetHealthMetricsMsg{}
@@ -41,5 +48,11 @@ func GetIOMetricsCmd() tea.Cmd {
 func GetCPUMetricsCmd() tea.Cmd {
 	return func() tea.Msg {
 		return GetCPUMetricsMsg{}
+	}
+}
+
+func GetMemoryMetricsCmd() tea.Cmd {
+	return func() tea.Msg {
+		return GetMemoryMetricsMsg{}
 	}
 }

@@ -318,6 +318,8 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 				SubTabNavigationActive: false,
 				CPUSelectedTab:         model.CPUTabStateBreakdown,
 				CPUSubTabActive:        false,
+				MemorySelectedTab:      model.MemoryTabOverview,
+				MemorySubTabActive:     false,
 			},
 			SecurityManager:     securityManager,
 			SecurityTable:       securityTable,

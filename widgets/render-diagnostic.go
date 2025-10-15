@@ -546,7 +546,7 @@ func (m Model) renderPerformanceAnalysis() string {
 	case model.CPU:
 		currentView = m.renderCPUPerformance()
 	case model.Memory:
-		currentView = performance.RenderMemory()
+		currentView = m.renderMemoryPerformance()
 	case model.QuickTests:
 		currentView = performance.RenderQuickTests()
 	}
@@ -592,6 +592,49 @@ func (m Model) renderCPUPerformance() string {
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		vars.CardStyle.Render(overview),
+		navBar,
+		vars.CardStyle.Render(currentView),
+	)
+
+	return content
+}
+
+func (m Model) renderMemoryPerformance() string {
+	if m.Diagnostic.Performance.MemoryLoading {
+		return vars.CardStyle.Render("⏳ Loading Memory Performance Metrics...")
+	}
+
+	if m.Diagnostic.Performance.MemoryMetrics == nil {
+		return vars.CardStyle.Render("Press 'r' to load memory metrics")
+	}
+
+	// Memory sub-tabs navigation
+	memoryTabs := []string{"Overview", "Usage Breakdown", "Swap Analysis", "System Memory"}
+
+	activeTabStyle := lipgloss.NewStyle().Padding(0, 2).
+		Foreground(vars.ClearWhite).
+		Background(vars.PurpleCollor).
+		Bold(true)
+	if m.Diagnostic.Performance.MemorySubTabActive {
+		activeTabStyle = activeTabStyle.Copy().Underline(true)
+	}
+
+	navBar := renderNav(memoryTabs, model.ContainerTab(m.Diagnostic.Performance.MemorySelectedTab), activeTabStyle)
+
+	// Current sub-tab content
+	var currentView string
+	switch m.Diagnostic.Performance.MemorySelectedTab {
+	case model.MemoryTabOverview:
+		currentView = performance.RenderMemoryOverview(m.Diagnostic.Performance.MemoryMetrics)
+	case model.MemoryTabUsageBreakdown:
+		currentView = performance.RenderMemoryUsageBreakdown(m.Diagnostic.Performance.MemoryMetrics)
+	case model.MemoryTabSwapAnalysis:
+		currentView = performance.RenderMemorySwapAnalysis(m.Diagnostic.Performance.MemoryMetrics)
+	case model.MemoryTabSystemMemory:
+		currentView = performance.RenderMemorySystemMemory(m.Diagnostic.Performance.MemoryMetrics)
+	}
+
+	content := lipgloss.JoinVertical(lipgloss.Left,
 		navBar,
 		vars.CardStyle.Render(currentView),
 	)

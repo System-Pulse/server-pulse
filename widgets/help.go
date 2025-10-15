@@ -664,6 +664,7 @@ func (hs *HelpSystem) SetWidth(width int) {
 
 // GetKeyMapForStateWithModel returns the appropriate keymap with access to full model
 func (hs *HelpSystem) GetKeyMapForStateWithModel(state model.AppState, diagnosticSelectedItem model.ContainerTab, m Model) KeyMap {
+	// CPU sub-tab navigation help
 	if state == model.StateDiagnostics &&
 		diagnosticSelectedItem == model.DiagnosticTabPerformances &&
 		m.Diagnostic.Performance.SelectedItem == model.CPU &&
@@ -700,10 +701,49 @@ func (hs *HelpSystem) GetKeyMapForStateWithModel(state model.AppState, diagnosti
 		}
 	}
 
+	// Memory sub-tab navigation help
+	if state == model.StateDiagnostics &&
+		diagnosticSelectedItem == model.DiagnosticTabPerformances &&
+		m.Diagnostic.Performance.SelectedItem == model.Memory &&
+		m.Diagnostic.Performance.MemorySubTabActive {
+		baseKeys := BaseKeyMap{
+			Help: key.NewBinding(
+				key.WithKeys("?"),
+				key.WithHelp("?", "toggle help"),
+			),
+			Quit: key.NewBinding(
+				key.WithKeys("q", "ctrl+c"),
+				key.WithHelp("q", "quit"),
+			),
+			Back: key.NewBinding(
+				key.WithKeys("b", "esc"),
+				key.WithHelp("b/esc", "back"),
+			),
+		}
+
+		return DiagnosticsKeyMap{
+			BaseKeyMap: baseKeys,
+			SwitchTab: key.NewBinding(
+				key.WithKeys("left", "right", "h", "l"),
+				key.WithHelp("←→", "switch Memory sub-tabs"),
+			),
+			Navigate: key.NewBinding(
+				key.WithKeys(""),
+				key.WithHelp("", ""),
+			),
+			Details: key.NewBinding(
+				key.WithKeys(""),
+				key.WithHelp("", ""),
+			),
+		}
+	}
+
+	// Performance tab navigation help
 	if state == model.StateDiagnostics &&
 		diagnosticSelectedItem == model.DiagnosticTabPerformances &&
 		m.Diagnostic.Performance.SubTabNavigationActive &&
-		!m.Diagnostic.Performance.CPUSubTabActive {
+		!m.Diagnostic.Performance.CPUSubTabActive &&
+		!m.Diagnostic.Performance.MemorySubTabActive {
 		baseKeys := BaseKeyMap{
 			Help: key.NewBinding(
 				key.WithKeys("?"),
@@ -720,9 +760,11 @@ func (hs *HelpSystem) GetKeyMapForStateWithModel(state model.AppState, diagnosti
 		}
 
 		enterHelp := "activate tab"
-		// Show special help when on CPU tab
+		// Show special help when on CPU or Memory tab
 		if m.Diagnostic.Performance.SelectedItem == model.CPU {
 			enterHelp = "enter CPU sub-tabs"
+		} else if m.Diagnostic.Performance.SelectedItem == model.Memory {
+			enterHelp = "enter Memory sub-tabs"
 		}
 
 		return DiagnosticsKeyMap{

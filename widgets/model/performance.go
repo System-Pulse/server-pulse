@@ -46,6 +46,19 @@ func (ct CPUTab) String() string {
 	return []string{"CPU State Breakdown", "Per-Core Performance", "System Activity Metrics"}[ct]
 }
 
+type MemoryTab int
+
+const (
+	MemoryTabOverview MemoryTab = iota
+	MemoryTabUsageBreakdown
+	MemoryTabSwapAnalysis
+	MemoryTabSystemMemory
+)
+
+func (mt MemoryTab) String() string {
+	return []string{"Overview", "Usage Breakdown", "Swap Analysis", "System Memory"}[mt]
+}
+
 type PerformanceModel struct {
 	SelectedItem           PerformanceTab
 	Nav                    []string
@@ -59,6 +72,10 @@ type PerformanceModel struct {
 	CPULoading             bool
 	CPUSelectedTab         CPUTab
 	CPUSubTabActive        bool
+	MemoryMetrics          *MemoryMetrics
+	MemoryLoading          bool
+	MemorySelectedTab      MemoryTab
+	MemorySubTabActive     bool
 }
 
 // DiskIOInfo represents I/O statistics for a single disk
@@ -129,4 +146,35 @@ type CPUMetrics struct {
 	ProcessCount    int
 	ThreadCount     int
 	LastUpdate      time.Time
+}
+
+// MemoryMetrics holds comprehensive memory performance metrics
+type MemoryMetrics struct {
+	// Overview
+	Total       uint64
+	Used        uint64
+	Available   uint64
+	Free        uint64
+	UsedPercent float64
+
+	// Usage Breakdown
+	ApplicationMem uint64 // Used - Buffers - Cached
+	Buffers        uint64
+	Cached         uint64
+	Shared         uint64
+
+	// Swap Analysis
+	SwapTotal       uint64
+	SwapUsed        uint64
+	SwapFree        uint64
+	SwapUsedPercent float64
+	SwapCached      uint64
+
+	// System Memory
+	Dirty      uint64
+	WriteBack  uint64
+	Slab       uint64
+	PageTables uint64
+
+	LastUpdate time.Time
 }
