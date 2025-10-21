@@ -49,8 +49,8 @@ type connectionStats struct {
 func (m *Model) setState(newState model.AppState) {
 	if m.Ui.State != newState {
 		m.Ui.PreviousState = m.Ui.State
+		m.Ui.State = newState
 	}
-	m.Ui.State = newState
 
 	switch newState {
 	case model.StateHome:

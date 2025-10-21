@@ -36,11 +36,9 @@ func (m Model) View() string {
 		nav,
 	)
 
-	m.Ui.Viewport.SetContent(mainContent)
-
 	baseView := lipgloss.JoinVertical(lipgloss.Left,
 		baseHeaderView,
-		m.Ui.Viewport.View(),
+		mainContent,
 		footer,
 	)
 

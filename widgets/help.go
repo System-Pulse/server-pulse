@@ -471,7 +471,7 @@ func (hs *HelpSystem) GetKeyMapForState(state model.AppState, diagnosticSelected
 			),
 			Navigate: key.NewBinding(
 				key.WithKeys("up", "down"),
-				key.WithHelp("↑↓", "navigate"),
+				key.WithHelp("↑↓", "navigate tables/pages"),
 			),
 		}
 

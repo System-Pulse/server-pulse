@@ -47,6 +47,7 @@ func (m Model) renderMainContent() string {
 	default:
 		currentView = fmt.Sprintf("Unknown state: %v", m.Ui.State)
 	}
-
-	return currentView
+	m.Ui.Viewport.SetContent(currentView)
+	m.Ui.Viewport.SetYOffset(m.Ui.Viewport.YOffset)
+	return m.Ui.Viewport.View()
 }

@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"fmt"
 	"math"
 	"strings"
 	"time"
@@ -9,6 +10,7 @@ import (
 	system "github.com/System-Pulse/server-pulse/system/app"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func (m *Model) setLiveContainerLogs(line string) {
@@ -171,4 +173,70 @@ func (m *Model) handleRealTimeStats(containerID string, statsChan chan app.Conta
 			m.updateChartsWithStats(stats)
 		}
 	}
+}
+
+func calculateConnectivityContentLines(m Model) int {
+	tempContent := strings.Builder{}
+
+	if len(m.Network.PingResults) > 0 {
+		tempContent.WriteString("Ping Results\n")
+		for _, result := range m.Network.PingResults {
+			statusIcon := "❌"
+			if result.Success {
+				statusIcon = "✅"
+			}
+			tempContent.WriteString(fmt.Sprintf("%s %s - ", statusIcon, result.Target))
+			if result.Success {
+				tempContent.WriteString(fmt.Sprintf("Latency: %v, Packet Loss: %.1f%%", result.Latency, result.PacketLoss))
+			} else {
+				tempContent.WriteString(fmt.Sprintf("Error: %s", result.Error))
+			}
+			tempContent.WriteString("\n")
+		}
+		tempContent.WriteString("\n")
+	}
+
+	for _, tracerouteResult := range m.Network.TracerouteResults {
+		if tracerouteResult.Target != "" {
+			tempContent.WriteString(fmt.Sprintf("Traceroute to %s\n", tracerouteResult.Target))
+			if tracerouteResult.Error != "" {
+				tempContent.WriteString("Error: " + tracerouteResult.Error + "\n")
+			} else if len(tracerouteResult.Hops) > 0 {
+				for _, hop := range tracerouteResult.Hops {
+					hopLine := fmt.Sprintf("%2d. ", hop.HopNumber)
+					if hop.IP != "" {
+						hopLine += hop.IP
+						if hop.Hostname != "" {
+							hopLine += fmt.Sprintf(" (%s)", hop.Hostname)
+						}
+					} else {
+						hopLine += "*"
+					}
+					if hop.Latency1 > 0 {
+						hopLine += fmt.Sprintf("  %v", hop.Latency1)
+					}
+					tempContent.WriteString(hopLine + "\n")
+				}
+			} else {
+				tempContent.WriteString("No route found\n")
+			}
+			tempContent.WriteString("\n")
+		}
+	}
+
+	fullContent := tempContent.String()
+	return len(strings.Split(fullContent, "\n"))
+}
+
+func (m *Model) updateViewportDimensions() {
+	headerHeight := lipgloss.Height(m.renderHeader())
+	navHeight := lipgloss.Height(m.renderCurrentNav())
+	footerHeight := lipgloss.Height(m.renderFooter())
+
+	verticalMargin := headerHeight + navHeight + footerHeight
+	contentHeight := max(5, m.Ui.Height-verticalMargin)
+
+	m.Ui.Viewport.Height = contentHeight
+	m.Ui.Viewport.YPosition = headerHeight + navHeight
+	m.Ui.ContentHeight = contentHeight
 }

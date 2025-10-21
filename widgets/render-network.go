@@ -142,14 +142,14 @@ func (m Model) renderConnectivityAnalysis() string {
 		Foreground(lipgloss.Color("62")).
 		MarginBottom(1).
 		Render("Network Connectivity Tools")
-	content.WriteString(header + "\n\n")
+	content.WriteString(header + "\n")
 
 	instructions := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
 		Render("Press 'p' to ping, 't' to traceroute, 'c' to clear results")
 	content.WriteString(instructions + "\n\n")
 
-	// Input modes
+	// Input modes - always visible
 	switch m.Network.ConnectivityMode {
 	case model.ConnectivityModePing:
 		content.WriteString("🔍 Ping: " + m.Network.PingInput.View() + "\n\n")
@@ -171,13 +171,17 @@ func (m Model) renderConnectivityAnalysis() string {
 		content.WriteString(loadingText + "\n\n")
 	}
 
+	// Build results content for pagination
+	resultsContent := strings.Builder{}
+
+	// Ping results
 	if len(m.Network.PingResults) > 0 {
 		pingTitle := lipgloss.NewStyle().
 			Bold(true).
 			Underline(true).
 			Foreground(lipgloss.Color("39")).
 			Render("Ping Results")
-		content.WriteString(pingTitle + "\n")
+		resultsContent.WriteString(pingTitle + "\n")
 
 		for _, result := range m.Network.PingResults {
 			statusIcon := "❌"
@@ -195,43 +199,81 @@ func (m Model) renderConnectivityAnalysis() string {
 				statusLine += fmt.Sprintf("Error: %s", result.Error)
 			}
 
-			content.WriteString(lipgloss.NewStyle().Foreground(statusColor).Render(statusLine) + "\n")
+			resultsContent.WriteString(lipgloss.NewStyle().Foreground(statusColor).Render(statusLine) + "\n")
 		}
-		content.WriteString("\n")
+		resultsContent.WriteString("\n")
 	}
 
-	if m.Network.TracerouteResult.Target != "" {
-		tracerouteTitle := lipgloss.NewStyle().
-			Bold(true).
-			Underline(true).
-			Foreground(lipgloss.Color("208")).
-			Render(fmt.Sprintf("Traceroute to %s", m.Network.TracerouteResult.Target))
-		content.WriteString(tracerouteTitle + "\n")
+	// Traceroute results
+	for _, tracerouteResult := range m.Network.TracerouteResults {
+		if tracerouteResult.Target != "" {
+			tracerouteTitle := lipgloss.NewStyle().
+				Bold(true).
+				Underline(true).
+				Foreground(lipgloss.Color("208")).
+				Render(fmt.Sprintf("Traceroute to %s", tracerouteResult.Target))
+			resultsContent.WriteString(tracerouteTitle + "\n")
 
-		if m.Network.TracerouteResult.Error != "" {
-			content.WriteString(lipgloss.NewStyle().Foreground(v.ErrorColor).Render("Error: "+m.Network.TracerouteResult.Error) + "\n")
-		} else if len(m.Network.TracerouteResult.Hops) > 0 {
-			for _, hop := range m.Network.TracerouteResult.Hops {
-				hopLine := fmt.Sprintf("%2d. ", hop.HopNumber)
+			if tracerouteResult.Error != "" {
+				resultsContent.WriteString(lipgloss.NewStyle().Foreground(v.ErrorColor).Render("Error: "+tracerouteResult.Error) + "\n")
+			} else if len(tracerouteResult.Hops) > 0 {
+				for _, hop := range tracerouteResult.Hops {
+					hopLine := fmt.Sprintf("%2d. ", hop.HopNumber)
 
-				if hop.IP != "" {
-					hopLine += hop.IP
-					if hop.Hostname != "" {
-						hopLine += fmt.Sprintf(" (%s)", hop.Hostname)
+					if hop.IP != "" {
+						hopLine += hop.IP
+						if hop.Hostname != "" {
+							hopLine += fmt.Sprintf(" (%s)", hop.Hostname)
+						}
+					} else {
+						hopLine += "*"
 					}
-				} else {
-					hopLine += "*"
-				}
 
-				if hop.Latency1 > 0 {
-					hopLine += fmt.Sprintf("  %v", hop.Latency1)
-				}
+					if hop.Latency1 > 0 {
+						hopLine += fmt.Sprintf("  %v", hop.Latency1)
+					}
 
-				content.WriteString(hopLine + "\n")
+					resultsContent.WriteString(hopLine + "\n")
+				}
+			} else {
+				resultsContent.WriteString("No route found\n")
 			}
-		} else {
-			content.WriteString("No route found\n")
+			resultsContent.WriteString("\n")
 		}
+	}
+
+	// Apply pagination only to results
+	resultsLines := strings.Split(resultsContent.String(), "\n")
+	totalResultsLines := len(resultsLines)
+
+	// Add pagination instructions if results exceed page limit
+	if totalResultsLines > m.Network.ConnectivityPerPage {
+		paginationInstructions := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214")).
+			Render("Use '↑' and '↓' to navigate results pages")
+		content.WriteString(paginationInstructions + "\n\n")
+	}
+
+	startIdx := m.Network.ConnectivityPage * m.Network.ConnectivityPerPage
+	endIdx := startIdx + m.Network.ConnectivityPerPage
+	if endIdx > totalResultsLines {
+		endIdx = totalResultsLines
+	}
+	totalPages := (totalResultsLines + m.Network.ConnectivityPerPage - 1) / m.Network.ConnectivityPerPage
+
+	// Add paginated results to main content
+	for i := startIdx; i < endIdx; i++ {
+		content.WriteString(resultsLines[i] + "\n")
+	}
+
+	// Add pagination info if needed
+	if totalPages > 1 {
+		paginationInfo := fmt.Sprintf("Page %d/%d (Results %d-%d of %d)",
+			m.Network.ConnectivityPage+1, totalPages, startIdx+1, endIdx, totalResultsLines)
+		paginationStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("244")).
+			Italic(true)
+		content.WriteString("\n" + paginationStyle.Render(paginationInfo))
 	}
 
 	return v.CardNetworkStyle.

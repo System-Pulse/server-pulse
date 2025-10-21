@@ -22,7 +22,6 @@ import (
 	"github.com/System-Pulse/server-pulse/utils"
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // ------------------------- Handlers for system-related and resource messages -------------------------
@@ -177,23 +176,12 @@ func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 
 	// Set help system width to match window width
 	m.HelpSystem.SetWidth(msg.Width)
-
-	headerHeight := lipgloss.Height(m.renderHeader())
-	navHeight := lipgloss.Height(m.renderCurrentNav())
-	footerHeight := lipgloss.Height(m.renderFooter())
-
-	verticalMargin := headerHeight + navHeight + footerHeight
-	contentHeight := max(5, msg.Height-verticalMargin)
-
-	m.Ui.Viewport.Width = msg.Width
-	m.Ui.Viewport.Height = contentHeight
-	m.Ui.Viewport.YPosition = headerHeight + navHeight
-	m.Ui.ContentHeight = contentHeight
+	m.updateViewportDimensions()
 
 	m.LogsViewport.Width = msg.Width
-	m.LogsViewport.Height = contentHeight
+	m.LogsViewport.Height = m.Ui.ContentHeight
 
-	tableHeight := max(1, contentHeight-3)
+	tableHeight := max(1, m.Ui.ContentHeight-3)
 
 	m.Monitor.ProcessTable.SetWidth(msg.Width)
 	m.Monitor.ProcessTable.SetHeight(tableHeight)
@@ -598,33 +586,32 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.HelpSystem.ToggleHelp()
 	case "b", "esc":
 		m.goBack()
-	case "tab", "right", "l":
-		newTab := int(m.Network.SelectedItem) + 1
-		if newTab >= len(m.Network.Nav) {
-			newTab = 0
+	case "up", "k":
+		if m.Network.SelectedItem == model.NetworkTabConnectivity {
+			totalContentLines := calculateConnectivityContentLines(m)
+			if totalContentLines > m.Network.ConnectivityPerPage {
+				if m.Network.ConnectivityPage > 0 {
+					m.Network.ConnectivityPage--
+				}
+				return m, nil
+			}
 		}
-		m.Network.SelectedItem = model.ContainerTab(newTab)
-		// Set appropriate focus for the new tab
+		// Handle table navigation if not used for pagination
 		switch m.Network.SelectedItem {
-		case model.NetworkTabInterface:
-			m.Network.NetworkTable.Focus()
-		case model.NetworkTabConnectivity:
-			// Clear focus for connectivity tools
-			m.Network.NetworkTable.Blur()
-			m.Network.ConnectionsTable.Blur()
-			m.Network.RoutesTable.Blur()
-			m.Network.DNSTable.Blur()
-		case model.NetworkTabConfiguration:
-			m.Network.RoutesTable.Focus()
-			m.Network.DNSTable.Blur()
 		case model.NetworkTabProtocol:
-			m.Network.ConnectionsTable.Focus()
-		}
-		if m.Network.SelectedItem == model.NetworkTabProtocol && len(m.Network.Connections) == 0 {
-			return m, network.GetConnections()
+			m.Network.ConnectionsTable.MoveUp(1)
+		case model.NetworkTabConfiguration:
+			if m.Network.RoutesTable.Focused() {
+				m.Network.RoutesTable.MoveUp(1)
+			} else {
+				m.Network.DNSTable.MoveUp(1)
+			}
+		default:
+			m.Network.NetworkTable.MoveUp(1)
 		}
 		return m, nil
 	case "shift+tab", "left", "h":
+		// Handle tab navigation
 		newTab := int(m.Network.SelectedItem) - 1
 		if newTab < 0 {
 			newTab = len(m.Network.Nav) - 1
@@ -650,6 +637,60 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, network.GetConnections()
 		}
 		return m, nil
+	case "down", "j":
+		// Next page for connectivity results
+		if m.Network.SelectedItem == model.NetworkTabConnectivity {
+			totalContentLines := calculateConnectivityContentLines(m)
+			if totalContentLines > m.Network.ConnectivityPerPage {
+				totalPages := (totalContentLines + m.Network.ConnectivityPerPage - 1) / m.Network.ConnectivityPerPage
+				if m.Network.ConnectivityPage < totalPages-1 {
+					m.Network.ConnectivityPage++
+				}
+				return m, nil
+			}
+		}
+		// Handle table navigation if not used for pagination
+		switch m.Network.SelectedItem {
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable.MoveDown(1)
+		case model.NetworkTabConfiguration:
+			if m.Network.RoutesTable.Focused() {
+				m.Network.RoutesTable.MoveDown(1)
+			} else {
+				m.Network.DNSTable.MoveDown(1)
+			}
+		default:
+			m.Network.NetworkTable.MoveDown(1)
+		}
+		return m, nil
+	case "tab", "right", "l":
+		// Handle tab navigation
+		newTab := int(m.Network.SelectedItem) + 1
+		if newTab >= len(m.Network.Nav) {
+			newTab = 0
+		}
+		m.Network.SelectedItem = model.ContainerTab(newTab)
+		// Set appropriate focus for the new tab
+		switch m.Network.SelectedItem {
+		case model.NetworkTabInterface:
+			m.Network.NetworkTable.Focus()
+		case model.NetworkTabConnectivity:
+			// Clear focus for connectivity tools
+			m.Network.NetworkTable.Blur()
+			m.Network.ConnectionsTable.Blur()
+			m.Network.RoutesTable.Blur()
+			m.Network.DNSTable.Blur()
+		case model.NetworkTabConfiguration:
+			m.Network.RoutesTable.Focus()
+			m.Network.DNSTable.Blur()
+		case model.NetworkTabProtocol:
+			m.Network.ConnectionsTable.Focus()
+		}
+		if m.Network.SelectedItem == model.NetworkTabProtocol && len(m.Network.Connections) == 0 {
+			return m, network.GetConnections()
+		}
+		return m, nil
+
 	case "1":
 		m.Network.SelectedItem = model.NetworkTabInterface
 		// Set focus to network interfaces table
@@ -678,7 +719,8 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "c":
 		if m.Network.SelectedItem == model.NetworkTabConnectivity {
 			m.Network.PingResults = nil
-			m.Network.TracerouteResult = network.TracerouteResult{}
+			m.Network.TracerouteResults = []network.TracerouteResult{}
+			m.Network.ConnectivityPage = 0
 			return m, nil
 		}
 	case "3":
@@ -701,34 +743,6 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Network.AuthState = model.AuthRequired
 			m.Diagnostic.Password.Focus()
 			m.Diagnostic.Password.SetValue("")
-		}
-		return m, nil
-	case "up", "k":
-		switch m.Network.SelectedItem {
-		case model.NetworkTabProtocol:
-			m.Network.ConnectionsTable.MoveUp(1)
-		case model.NetworkTabConfiguration:
-			if m.Network.RoutesTable.Focused() {
-				m.Network.RoutesTable.MoveUp(1)
-			} else {
-				m.Network.DNSTable.MoveUp(1)
-			}
-		default:
-			m.Network.NetworkTable.MoveUp(1)
-		}
-		return m, nil
-	case "down", "j":
-		switch m.Network.SelectedItem {
-		case model.NetworkTabProtocol:
-			m.Network.ConnectionsTable.MoveDown(1)
-		case model.NetworkTabConfiguration:
-			if m.Network.RoutesTable.Focused() {
-				m.Network.RoutesTable.MoveDown(1)
-			} else {
-				m.Network.DNSTable.MoveDown(1)
-			}
-		default:
-			m.Network.NetworkTable.MoveDown(1)
 		}
 		return m, nil
 	case "pageup":
@@ -2006,14 +2020,31 @@ func (m Model) handleMouseMsg(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleScrollUp() (tea.Model, tea.Cmd) {
 	switch m.Ui.State {
-	case model.StateSystem, model.StateContainerLogs:
+	case model.StateSystem, model.StateContainer,
+		model.StateDiagnostics,
+		model.StateCertificateDetails,
+		model.StateSSHRootDetails,
+		model.StateOpenedPortsDetails,
+		model.StateFirewallDetails,
+		model.StateAutoBanDetails,
+		model.StatePerformance,
+		model.StateSystemHealth,
+		model.StateInputOutput,
+		model.StateCPU,
+		model.StateMemory,
+		model.StateQuickTests,
+		model.StateReporting:
 		m.Ui.Viewport.ScrollUp(m.ScrollSensitivity)
+	case model.StateContainerLogs:
+		m.LogsViewport.ScrollUp(m.ScrollSensitivity)
 	case model.StateProcess:
 		m.Monitor.ProcessTable.MoveUp(m.ScrollSensitivity)
 	case model.StateContainers:
 		m.Monitor.Container.MoveUp(m.ScrollSensitivity)
 	case model.StateNetwork:
 		switch m.Network.SelectedItem {
+		case model.NetworkTabConnectivity:
+			m.Ui.Viewport.ScrollUp(m.ScrollSensitivity)
 		case model.NetworkTabProtocol:
 			m.Network.ConnectionsTable.MoveUp(m.ScrollSensitivity)
 		case model.NetworkTabConfiguration:
@@ -2031,8 +2062,23 @@ func (m Model) handleScrollUp() (tea.Model, tea.Cmd) {
 
 func (m Model) handleScrollDown() (tea.Model, tea.Cmd) {
 	switch m.Ui.State {
-	case model.StateSystem, model.StateContainerLogs:
+	case model.StateSystem, model.StateContainer,
+		model.StateDiagnostics,
+		model.StateCertificateDetails,
+		model.StateSSHRootDetails,
+		model.StateOpenedPortsDetails,
+		model.StateFirewallDetails,
+		model.StateAutoBanDetails,
+		model.StatePerformance,
+		model.StateSystemHealth,
+		model.StateInputOutput,
+		model.StateCPU,
+		model.StateMemory,
+		model.StateQuickTests,
+		model.StateReporting:
 		m.Ui.Viewport.ScrollDown(m.ScrollSensitivity)
+	case model.StateContainerLogs:
+		m.LogsViewport.ScrollDown(m.ScrollSensitivity)
 	case model.StateProcess:
 		m.Monitor.ProcessTable.MoveDown(m.ScrollSensitivity)
 	case model.StateContainers:
@@ -2070,8 +2116,9 @@ func (m Model) handleNetworkMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Network.PingLoading = false
 		return m, nil
 	case network.TracerouteMsg:
-		m.Network.TracerouteResult = network.TracerouteResult(msg)
+		m.Network.TracerouteResults = append(m.Network.TracerouteResults, network.TracerouteResult(msg))
 		m.Network.TracerouteLoading = false
+		m.Network.ConnectivityPage = 0
 		return m, nil
 	}
 	return m, nil

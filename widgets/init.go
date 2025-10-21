@@ -7,6 +7,7 @@ import (
 	"github.com/System-Pulse/server-pulse/system/app"
 	info "github.com/System-Pulse/server-pulse/system/informations"
 	"github.com/System-Pulse/server-pulse/system/logs"
+	"github.com/System-Pulse/server-pulse/system/network"
 	proc "github.com/System-Pulse/server-pulse/system/process"
 	resource "github.com/System-Pulse/server-pulse/system/resource"
 	"github.com/System-Pulse/server-pulse/system/security"
@@ -301,9 +302,12 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 				ti.Width = 40
 				return ti
 			}(),
-			ConnectivityMode: model.ConnectivityModeNone,
-			AuthState:        model.AuthNotRequired,
-			AuthMessage:      "",
+			ConnectivityMode:    model.ConnectivityModeNone,
+			AuthState:           model.AuthNotRequired,
+			AuthMessage:         "",
+			TracerouteResults:   []network.TracerouteResult{},
+			ConnectivityPage:    0,
+			ConnectivityPerPage: 8,
 		},
 		Diagnostic: model.DiagnosticModel{
 			DiagnosticTable: diagnosticTable,
