@@ -315,10 +315,12 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 			SelectedItem:    model.DiagnosticSecurityChecks,
 			Performance: model.PerformanceModel{
 				SelectedItem:           model.SystemHealth,
-				Nav:                    []string{"System Health", "I/O", "CPU", "Memory", "Quick Tests"},
+				Nav:                    []string{"System Health", "I/O", "CPU", "Memory"},
 				SubTabNavigationActive: false,
 				CPUSelectedTab:         model.CPUTabStateBreakdown,
 				CPUSubTabActive:        false,
+				MemorySelectedTab:      model.MemoryTabOverview,
+				MemorySubTabActive:     false,
 			},
 			SecurityManager:     securityManager,
 			SecurityTable:       securityTable,

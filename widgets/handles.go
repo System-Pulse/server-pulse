@@ -98,6 +98,14 @@ func (m Model) handleResourceAndProcessMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Diagnostic.Performance.CPUMetrics = msg.Metrics
 		m.Diagnostic.Performance.CPULoading = false
 		return m, nil
+	case performance.MemoryMetricsMsg:
+		if msg.Error != nil {
+			m.Diagnostic.Performance.MemoryLoading = false
+			return m, nil
+		}
+		m.Diagnostic.Performance.MemoryMetrics = msg.Metrics
+		m.Diagnostic.Performance.MemoryLoading = false
+		return m, nil
 	}
 	return m, tea.Batch(cmds...)
 }
@@ -900,6 +908,33 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	// Handle Memory sub-tab navigation
+	if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances &&
+		m.Diagnostic.Performance.SelectedItem == model.Memory &&
+		m.Diagnostic.Performance.MemorySubTabActive {
+		switch msg.String() {
+		case "right", "l":
+			newTab := int(m.Diagnostic.Performance.MemorySelectedTab) + 1
+			if newTab >= 4 { // 4 Memory sub-tabs
+				newTab = 0
+			}
+			m.Diagnostic.Performance.MemorySelectedTab = model.MemoryTab(newTab)
+			return m, nil
+		case "left", "h":
+			newTab := int(m.Diagnostic.Performance.MemorySelectedTab) - 1
+			if newTab < 0 {
+				newTab = 3 // 4 Memory sub-tabs
+			}
+			m.Diagnostic.Performance.MemorySelectedTab = model.MemoryTab(newTab)
+			return m, nil
+		case "esc", "b":
+			// Go back to Performance tab navigation (one level up)
+			m.Diagnostic.Performance.MemorySubTabActive = false
+			m.Diagnostic.Performance.SubTabNavigationActive = true
+			return m, nil
+		}
+	}
+
 	// Handle Performance main tab navigation
 	if m.Diagnostic.SelectedItem == model.DiagnosticTabPerformances && m.Diagnostic.Performance.SubTabNavigationActive {
 		switch msg.String() {
@@ -910,7 +945,7 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.Diagnostic.Performance.SelectedItem = model.PerformanceTab(newTab)
 
-			// Auto-load data when switching to I/O or CPU tab
+			// Auto-load data when switching to I/O, CPU, or Memory tab
 			if m.Diagnostic.Performance.SelectedItem == model.InputOutput && m.Diagnostic.Performance.IOMetrics == nil {
 				m.Diagnostic.Performance.IOLoading = true
 				return m, performance.GetIOMetrics()
@@ -918,6 +953,10 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.Diagnostic.Performance.SelectedItem == model.CPU && m.Diagnostic.Performance.CPUMetrics == nil {
 				m.Diagnostic.Performance.CPULoading = true
 				return m, performance.GetCPUMetrics()
+			}
+			if m.Diagnostic.Performance.SelectedItem == model.Memory && m.Diagnostic.Performance.MemoryMetrics == nil {
+				m.Diagnostic.Performance.MemoryLoading = true
+				return m, performance.GetMemoryMetrics()
 			}
 			return m, nil
 		case "left", "h":
@@ -927,7 +966,7 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 			m.Diagnostic.Performance.SelectedItem = model.PerformanceTab(newTab)
 
-			// Auto-load data when switching to I/O or CPU tab
+			// Auto-load data when switching to I/O, CPU, or Memory tab
 			if m.Diagnostic.Performance.SelectedItem == model.InputOutput && m.Diagnostic.Performance.IOMetrics == nil {
 				m.Diagnostic.Performance.IOLoading = true
 				return m, performance.GetIOMetrics()
@@ -935,6 +974,10 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.Diagnostic.Performance.SelectedItem == model.CPU && m.Diagnostic.Performance.CPUMetrics == nil {
 				m.Diagnostic.Performance.CPULoading = true
 				return m, performance.GetCPUMetrics()
+			}
+			if m.Diagnostic.Performance.SelectedItem == model.Memory && m.Diagnostic.Performance.MemoryMetrics == nil {
+				m.Diagnostic.Performance.MemoryLoading = true
+				return m, performance.GetMemoryMetrics()
 			}
 			return m, nil
 		case "esc", "b":
@@ -1429,6 +1472,12 @@ func (m Model) handleDiagnosticsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.Diagnostic.Performance.SubTabNavigationActive && m.Diagnostic.Performance.SelectedItem == model.CPU {
 				m.Diagnostic.Performance.SubTabNavigationActive = false
 				m.Diagnostic.Performance.CPUSubTabActive = true
+				return m, nil
+			}
+			// If already in Performance sub-tab navigation and on Memory tab, activate Memory sub-tab navigation
+			if m.Diagnostic.Performance.SubTabNavigationActive && m.Diagnostic.Performance.SelectedItem == model.Memory {
+				m.Diagnostic.Performance.SubTabNavigationActive = false
+				m.Diagnostic.Performance.MemorySubTabActive = true
 				return m, nil
 			}
 			// Otherwise activate Performance sub-tab navigation
