@@ -547,8 +547,6 @@ func (m Model) renderPerformanceAnalysis() string {
 		currentView = m.renderCPUPerformance()
 	case model.Memory:
 		currentView = m.renderMemoryPerformance()
-	case model.QuickTests:
-		currentView = performance.RenderQuickTests()
 	}
 
 	return lipgloss.NewStyle().MarginTop(1).Render(lipgloss.JoinVertical(lipgloss.Left, navBar, currentView))

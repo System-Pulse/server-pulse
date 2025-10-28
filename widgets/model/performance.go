@@ -31,7 +31,7 @@ const (
 )
 
 func (pt PerformanceTab) String() string {
-	return []string{"System Health", "I/O", "CPU", "Memory", "Quick Tests"}[pt]
+	return []string{"System Health", "I/O", "CPU", "Memory"}[pt]
 }
 
 type CPUTab int
