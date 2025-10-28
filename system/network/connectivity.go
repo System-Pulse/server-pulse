@@ -88,7 +88,7 @@ func Traceroute(target string) tea.Cmd {
 
 		var hops []TracerouteHop
 		outputStr := string(output)
-		outputStr = strings.ReplaceAll(outputStr,"*","")
+		outputStr = strings.ReplaceAll(outputStr, "*", "")
 		lines := strings.Split(outputStr, "\n")
 
 		for i, line := range lines {
