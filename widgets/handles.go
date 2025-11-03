@@ -841,7 +841,7 @@ func (m Model) handleConnectivityInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				spinnerCmd := m.Ui.Spinner.Tick
 				// Force UI refresh by returning a command that will trigger update
 				return m, tea.Batch(
-					network.Ping(target, 3, m.IsRoot()),
+					network.Ping(target, 3),
 					spinnerCmd,
 					func() tea.Msg { return model.ForceRefreshMsg{} },
 				)

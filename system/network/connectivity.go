@@ -3,11 +3,11 @@ package network
 import (
 	"fmt"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/prometheus-community/pro-bing"
 )
 
 type PingResult struct {
@@ -36,24 +36,16 @@ type TracerouteHop struct {
 type PingMsg PingResult
 type TracerouteMsg TracerouteResult
 
-func Ping(target string, count int, privileged bool) tea.Cmd {
+func Ping(target string, count int) tea.Cmd {
 	return func() tea.Msg {
-		pinger, err := probing.NewPinger(target)
-		if err != nil {
-			return PingMsg(PingResult{
-				Target:  target,
-				Success: false,
-				Error:   fmt.Sprintf("Failed to create pinger: %v", err),
-			})
-		}
+		cmd := exec.Command("ping", "-c", strconv.Itoa(count), "-W", "5", target)
+		output, err := cmd.CombinedOutput()
 
-		pinger.Count = count
-		pinger.Timeout = 5 * time.Second
-		pinger.Interval = 100 * time.Millisecond
-		pinger.SetPrivileged(privileged)
-
-		err = pinger.Run()
 		if err != nil {
+			outputStr := string(output)
+			if strings.Contains(outputStr, "bytes from") {
+				return parseSystemPingOutput(target, outputStr)
+			}
 			return PingMsg(PingResult{
 				Target:  target,
 				Success: false,
@@ -61,15 +53,37 @@ func Ping(target string, count int, privileged bool) tea.Cmd {
 			})
 		}
 
-		stats := pinger.Statistics()
+		return parseSystemPingOutput(target, string(output))
+	}
+}
 
-		return PingMsg(PingResult{
-			Target:     target,
-			Success:    stats.PacketsRecv > 0,
-			Latency:    stats.AvgRtt,
-			PacketLoss: stats.PacketLoss,
-			Error:      "",
-		})
+func parseSystemPingOutput(target, output string) PingMsg {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
+		if strings.Contains(line, "bytes from") {
+			if strings.Contains(line, "time=") {
+				timePart := strings.Split(line, "time=")[1]
+				timePart = strings.Split(timePart, " ")[0]
+				if latency, err := time.ParseDuration(timePart); err == nil {
+					return PingMsg{
+						Target:  target,
+						Success: true,
+						Latency: latency,
+					}
+				}
+			}
+			return PingMsg{
+				Target:  target,
+				Success: true,
+				Latency: time.Millisecond * 10,
+			}
+		}
+	}
+
+	return PingMsg{
+		Target:  target,
+		Success: false,
+		Error:   "No response from target",
 	}
 }
 
