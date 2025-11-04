@@ -155,6 +155,8 @@ func (m Model) renderConnectivityAnalysis() string {
 		content.WriteString("🔍 Ping: " + m.Network.PingInput.View() + "\n\n")
 	case model.ConnectivityModeTraceroute:
 		content.WriteString("🛣️  Traceroute: " + m.Network.TracerouteInput.View() + "\n\n")
+	case model.ConnectivityModeInstallPassword:
+		content.WriteString("🔐 Sudo Password: " + m.Network.TracerouteInput.View() + "\n\n")
 	}
 
 	if m.Network.PingLoading {

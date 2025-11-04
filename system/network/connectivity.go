@@ -35,6 +35,15 @@ type TracerouteHop struct {
 
 type PingMsg PingResult
 type TracerouteMsg TracerouteResult
+type TracerouteInstallPromptMsg struct {
+	Target string
+}
+
+type TracerouteInstallResultMsg struct {
+	Success bool
+	Target  string
+	Error   string
+}
 
 func Ping(target string, count int) tea.Cmd {
 	return func() tea.Msg {
@@ -89,6 +98,12 @@ func parseSystemPingOutput(target, output string) PingMsg {
 
 func Traceroute(target string) tea.Cmd {
 	return func() tea.Msg {
+		// Check if traceroute is installed
+		checkCmd := exec.Command("which", "traceroute")
+		if err := checkCmd.Run(); err != nil {
+			return TracerouteInstallPromptMsg{Target: target}
+		}
+
 		cmd := exec.Command("traceroute", "-n", "-w", "2", "-q", "1", "-m", "30", target)
 
 		output, err := cmd.Output()
@@ -159,5 +174,128 @@ func Traceroute(target string) tea.Cmd {
 			Target: target,
 			Hops:   hops,
 		})
+	}
+}
+
+func InstallTraceroute(target string, sudoPassword string) tea.Cmd {
+	return func() tea.Msg {
+		var cmd *exec.Cmd
+
+		if _, err := exec.LookPath("apt-get"); err == nil {
+			// Try apt-get (Debian/Ubuntu)
+			cmd = exec.Command("sudo", "-S", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", "traceroute")
+		} else if _, err := exec.LookPath("yum"); err == nil {
+			// Try yum (CentOS/RHEL)
+			cmd = exec.Command("sudo", "-S", "yum", "install", "-y", "traceroute")
+		} else if _, err := exec.LookPath("dnf"); err == nil {
+			// Try dnf (Fedora)
+			cmd = exec.Command("sudo", "-S", "dnf", "install", "-y", "traceroute")
+		} else if _, err := exec.LookPath("pacman"); err == nil {
+			// Try pacman (Arch)
+			cmd = exec.Command("sudo", "-S", "pacman", "-S", "--noconfirm", "traceroute")
+		} else if _, err := exec.LookPath("apk"); err == nil {
+			// Try apk (Alpine)
+			cmd = exec.Command("sudo", "-S", "apk", "add", "traceroute")
+		} else {
+			return TracerouteInstallResultMsg{
+				Success: false,
+				Target:  target,
+				Error:   "Could not detect package manager. Please install traceroute manually.",
+			}
+		}
+
+		// Provide sudo password via stdin and close it properly
+		if sudoPassword != "" {
+			stdin, err := cmd.StdinPipe()
+			if err != nil {
+				return TracerouteInstallResultMsg{
+					Success: false,
+					Target:  target,
+					Error:   fmt.Sprintf("Failed to create stdin pipe: %v", err),
+				}
+			}
+
+			// Capture stdout and stderr to prevent blocking
+			stdout, err := cmd.StdoutPipe()
+			if err != nil {
+				return TracerouteInstallResultMsg{
+					Success: false,
+					Target:  target,
+					Error:   fmt.Sprintf("Failed to create stdout pipe: %v", err),
+				}
+			}
+			stderr, err := cmd.StderrPipe()
+			if err != nil {
+				return TracerouteInstallResultMsg{
+					Success: false,
+					Target:  target,
+					Error:   fmt.Sprintf("Failed to create stderr pipe: %v", err),
+				}
+			}
+
+			// Start the command
+			if err := cmd.Start(); err != nil {
+				return TracerouteInstallResultMsg{
+					Success: false,
+					Target:  target,
+					Error:   fmt.Sprintf("Failed to start command: %v", err),
+				}
+			}
+
+			// Write password and close stdin immediately
+			_, err = stdin.Write([]byte(sudoPassword + "\n"))
+			stdin.Close()
+			if err != nil {
+				return TracerouteInstallResultMsg{
+					Success: false,
+					Target:  target,
+					Error:   fmt.Sprintf("Failed to write password: %v", err),
+				}
+			}
+
+			// Read all output to prevent blocking (discard it)
+			go func() {
+				var buf [4096]byte
+				for {
+					_, err := stdout.Read(buf[:])
+					if err != nil {
+						break
+					}
+				}
+			}()
+			go func() {
+				var buf [4096]byte
+				for {
+					_, err := stderr.Read(buf[:])
+					if err != nil {
+						break
+					}
+				}
+			}()
+
+			// Wait for command to finish
+			err = cmd.Wait()
+			if err != nil {
+				return TracerouteInstallResultMsg{
+					Success: false,
+					Target:  target,
+					Error:   fmt.Sprintf("Installation failed: %v", err),
+				}
+			}
+		} else {
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				return TracerouteInstallResultMsg{
+					Success: false,
+					Target:  target,
+					Error:   fmt.Sprintf("Installation failed: %v\n%s", err, string(output)),
+				}
+			}
+		}
+
+		return TracerouteInstallResultMsg{
+			Success: true,
+			Target:  target,
+		}
 	}
 }

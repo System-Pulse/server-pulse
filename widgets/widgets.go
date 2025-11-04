@@ -57,7 +57,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleAutoBanDisplayMsg(msg)
 	case logs.LogsMsg:
 		return m.handleLogsDisplayMsg(msg)
-	case network.ConnectionsMsg, network.RoutesMsg, network.DNSMsg, network.PingMsg, network.TracerouteMsg:
+	case network.ConnectionsMsg, network.RoutesMsg, network.DNSMsg, network.PingMsg, network.TracerouteMsg, network.TracerouteInstallPromptMsg, network.TracerouteInstallResultMsg:
 		return m.handleNetworkMsgs(msg)
 	case system.ContainerLogsStreamMsg:
 		return m.handleLogsStreamMsg(msg)

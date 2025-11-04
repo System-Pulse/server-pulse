@@ -21,6 +21,7 @@ import (
 	"github.com/System-Pulse/server-pulse/system/security"
 	"github.com/System-Pulse/server-pulse/utils"
 	"github.com/charmbracelet/bubbles/progress"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -562,8 +563,10 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 					m.Diagnostic.SecurityManager.IsRoot = false // User authenticated via sudo, not actual root
 					m.Diagnostic.SecurityManager.CanUseSudo = true
+					m.Diagnostic.SecurityManager.SudoPassword = m.Diagnostic.Password.Value()
 					m.Diagnostic.Password.SetValue("")
 					m.Diagnostic.Password.Blur()
+
 					// Refresh connections with admin privileges
 					return m, network.GetConnections()
 				}
@@ -861,11 +864,34 @@ func (m Model) handleConnectivityInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					func() tea.Msg { return model.ForceRefreshMsg{} },
 				)
 			}
+		case model.ConnectivityModeInstallPassword:
+			password := m.Network.TracerouteInput.Value()
+			target := m.Network.TracerouteInstallTarget
+			if password != "" && target != "" {
+				// Clear password input and reset echo mode
+				m.Network.TracerouteInput.SetValue("")
+				m.Network.TracerouteInput.EchoMode = textinput.EchoNormal
+				m.Network.TracerouteInput.Placeholder = "Enter target (IP or domain)..."
+				m.Network.ConnectivityMode = model.ConnectivityModeNone
+				m.Network.TracerouteInstallTarget = ""
+
+				// Start installation
+				m.OperationInProgress = true
+				m.LastOperationMsg = "Installing traceroute..."
+				m.resetSpinner()
+				return m, tea.Batch(
+					network.InstallTraceroute(target, password),
+					m.Ui.Spinner.Tick,
+				)
+			}
 		}
 	case "esc":
 		m.Network.ConnectivityMode = model.ConnectivityModeNone
 		m.Network.PingInput.SetValue("")
 		m.Network.TracerouteInput.SetValue("")
+		m.Network.TracerouteInput.EchoMode = textinput.EchoNormal
+		m.Network.TracerouteInput.Placeholder = "Enter target (IP or domain)..."
+		m.Network.TracerouteInstallTarget = ""
 		m.Network.PingLoading = false
 		m.Network.TracerouteLoading = false
 		return m, nil
@@ -873,7 +899,7 @@ func (m Model) handleConnectivityInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		switch m.Network.ConnectivityMode {
 		case model.ConnectivityModePing:
 			m.Network.PingInput, _ = m.Network.PingInput.Update(msg)
-		case model.ConnectivityModeTraceroute:
+		case model.ConnectivityModeTraceroute, model.ConnectivityModeInstallPassword:
 			m.Network.TracerouteInput, _ = m.Network.TracerouteInput.Update(msg)
 		}
 	}
@@ -1928,6 +1954,20 @@ func (m Model) handleConfirmationKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.ConfirmationData = nil
 				return m, m.Monitor.App.RestartContainerCmd(containerID)
 			}
+		case "install_traceroute":
+			if target, ok := m.ConfirmationData.(string); ok {
+				m.ConfirmationVisible = false
+				m.ConfirmationAction = ""
+				m.ConfirmationData = nil
+
+				m.Network.TracerouteInstallTarget = target
+				m.Network.ConnectivityMode = model.ConnectivityModeInstallPassword
+				m.Network.TracerouteInput.SetValue("")
+				m.Network.TracerouteInput.Placeholder = "Enter sudo password..."
+				m.Network.TracerouteInput.EchoMode = textinput.EchoPassword
+				m.Network.TracerouteInput.Focus()
+				return m, nil
+			}
 		}
 		return m, nil
 	case "n", "N", "esc":
@@ -2168,6 +2208,31 @@ func (m Model) handleNetworkMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Network.TracerouteResults = append(m.Network.TracerouteResults, network.TracerouteResult(msg))
 		m.Network.TracerouteLoading = false
 		m.Network.ConnectivityPage = 0
+		return m, nil
+	case network.TracerouteInstallPromptMsg:
+		// Traceroute is not installed, show confirmation dialog
+		m.Network.TracerouteLoading = false
+		m.ConfirmationVisible = true
+		m.ConfirmationMessage = "Traceroute is not installed. Would you like to install it?"
+		m.ConfirmationAction = "install_traceroute"
+		m.ConfirmationData = msg.Target
+		return m, nil
+	case network.TracerouteInstallResultMsg:
+		m.OperationInProgress = false
+		if msg.Success {
+			m.LastOperationMsg = "Traceroute installed successfully. Running traceroute..."
+			m.Network.TracerouteLoading = true
+			m.resetSpinner()
+			// Now run traceroute with the original target
+			return m, tea.Batch(
+				network.Traceroute(msg.Target),
+				m.Ui.Spinner.Tick,
+				clearOperationMessage(),
+			)
+		} else {
+			m.LastOperationMsg = "Installation failed: " + msg.Error
+			return m, clearOperationMessage()
+		}
 		return m, nil
 	}
 	return m, nil
