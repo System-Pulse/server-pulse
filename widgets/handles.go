@@ -2230,10 +2230,19 @@ func (m Model) handleNetworkMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 				clearOperationMessage(),
 			)
 		} else {
+			if msg.PasswordInvalid {
+				m.LastOperationMsg = msg.Error
+				m.Network.TracerouteInstallTarget = msg.Target
+				m.Network.ConnectivityMode = model.ConnectivityModeInstallPassword
+				m.Network.TracerouteInput.SetValue("")
+				m.Network.TracerouteInput.Placeholder = "Enter sudo password..."
+				m.Network.TracerouteInput.EchoMode = textinput.EchoPassword
+				m.Network.TracerouteInput.Focus()
+				return m, clearOperationMessage()
+			}
 			m.LastOperationMsg = "Installation failed: " + msg.Error
 			return m, clearOperationMessage()
 		}
-		return m, nil
 	}
 	return m, nil
 }

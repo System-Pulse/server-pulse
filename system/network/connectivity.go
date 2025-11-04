@@ -40,9 +40,10 @@ type TracerouteInstallPromptMsg struct {
 }
 
 type TracerouteInstallResultMsg struct {
-	Success bool
-	Target  string
-	Error   string
+	Success         bool
+	Target          string
+	Error           string
+	PasswordInvalid bool
 }
 
 func Ping(target string, count int) tea.Cmd {
@@ -253,33 +254,47 @@ func InstallTraceroute(target string, sudoPassword string) tea.Cmd {
 				}
 			}
 
-			// Read all output to prevent blocking (discard it)
+			var stderrBuf strings.Builder
 			go func() {
 				var buf [4096]byte
 				for {
-					_, err := stdout.Read(buf[:])
+					n, err := stdout.Read(buf[:])
 					if err != nil {
 						break
 					}
+					_ = n
 				}
 			}()
 			go func() {
 				var buf [4096]byte
 				for {
-					_, err := stderr.Read(buf[:])
+					n, err := stderr.Read(buf[:])
 					if err != nil {
 						break
 					}
+					stderrBuf.Write(buf[:n])
 				}
 			}()
 
 			// Wait for command to finish
 			err = cmd.Wait()
 			if err != nil {
+				stderrOutput := stderrBuf.String()
+				if strings.Contains(stderrOutput, "Sorry, try again") ||
+					strings.Contains(stderrOutput, "incorrect password") ||
+					strings.Contains(stderrOutput, "authentication failure") ||
+					strings.Contains(err.Error(), "exit status 1") && strings.Contains(stderrOutput, "sudo") {
+					return TracerouteInstallResultMsg{
+						Success:         false,
+						Target:          target,
+						Error:           "Incorrect password. Please try again.",
+						PasswordInvalid: true,
+					}
+				}
 				return TracerouteInstallResultMsg{
 					Success: false,
 					Target:  target,
-					Error:   fmt.Sprintf("Installation failed: %v", err),
+					Error:   fmt.Sprintf("Installation failed: %v\n%s", err, stderrOutput),
 				}
 			}
 		} else {
