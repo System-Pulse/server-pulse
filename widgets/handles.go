@@ -2,6 +2,8 @@ package widgets
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -256,7 +258,7 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleFirewallDetailsKeys(msg)
 	case model.StateAutoBanDetails:
 		return m.handleAutoBanDetailsKeys(msg)
-	case model.StateReporting:
+	case model.StateReporting, model.StateGeneratingReport, model.StateViewingReport, model.StateSavingReport:
 		return m.handleReportingKeys(msg)
 	case model.StatePerformance, model.StateInputOutput, model.StateSystemHealth, model.StateCPU, model.StateMemory, model.StateQuickTests:
 		return m.handlePerformanceKeys(msg)
@@ -1774,13 +1776,118 @@ func (m Model) handleAutoBanDetailsKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleReportingKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-
 	switch msg.String() {
+	case "?":
+		m.HelpSystem.ToggleHelp()
 	case "b", "esc":
-		m.goBack()
-	case "q", "ctrl+c":
+		if m.Reporting.ShowSavedReports {
+			m.Reporting.ShowSavedReports = false
+			m.setState(model.StateReporting)
+		} else {
+			m.Reporting.SaveNotification = ""
+			m.Reporting.SaveNotificationTime = time.Time{}
+			m.goBack()
+		}
+	case "q":
+		if m.Ui.State == model.StateViewingReport {
+			m.setState(model.StateReporting)
+			return m, nil
+		} else {
+			m.Monitor.ShouldQuit = true
+			return m, tea.Quit
+		}
+	case "ctrl+c":
 		m.Monitor.ShouldQuit = true
 		return m, tea.Quit
+	case "up", "k":
+		if m.Ui.State == model.StateViewingReport {
+			m.Ui.Viewport.ScrollUp(1)
+		} else if m.Reporting.ShowSavedReports {
+			if len(m.Reporting.SavedReports) > 0 {
+				m.Reporting.SelectedReport--
+				if m.Reporting.SelectedReport < 0 {
+					m.Reporting.SelectedReport = len(m.Reporting.SavedReports) - 1
+				}
+			}
+		}
+	case "down", "j":
+		if m.Ui.State == model.StateViewingReport {
+			m.Ui.Viewport.ScrollDown(1)
+		} else if m.Reporting.ShowSavedReports {
+			if len(m.Reporting.SavedReports) > 0 {
+				m.Reporting.SelectedReport++
+				if m.Reporting.SelectedReport >= len(m.Reporting.SavedReports) {
+					m.Reporting.SelectedReport = 0
+				}
+			}
+		}
+	case "pageup":
+		if m.Ui.State == model.StateViewingReport {
+			m.Ui.Viewport.PageUp()
+		}
+	case "pagedown":
+		if m.Ui.State == model.StateViewingReport {
+			m.Ui.Viewport.PageDown()
+		}
+	case "home":
+		if m.Ui.State == model.StateViewingReport {
+			m.Ui.Viewport.GotoTop()
+		}
+	case "end":
+		if m.Ui.State == model.StateViewingReport {
+			m.Ui.Viewport.GotoBottom()
+		}
+	case "g":
+		m.Reporting.IsGenerating = true
+		m.setState(model.StateGeneratingReport)
+		return m, tea.Tick(time.Millisecond*100, func(t time.Time) tea.Msg {
+			securityChecks := m.Diagnostic.SecurityChecks
+			report := m.Reporting.GenerateReport(m.Monitor, m.Diagnostic, securityChecks)
+			return model.ReportGenerationMsg{Report: report}
+		})
+	case "s":
+		if m.Reporting.CurrentReport != "" {
+			filepath, err := (&m.Reporting).SaveReport()
+			if err != nil {
+				m.Reporting.SaveNotification = fmt.Sprintf("❌ Error saving report: %v", err)
+			} else {
+				m.Reporting.SaveNotification = fmt.Sprintf("✅ Report saved successfully to: %s", filepath)
+			}
+			m.Reporting.SaveNotificationTime = time.Now()
+			m.setState(model.StateReporting)
+			return m, tea.Tick(time.Second*2, func(t time.Time) tea.Msg {
+				return model.ClearSaveNotificationMsg{}
+			})
+		}
+	case "l":
+		m.Reporting.RefreshSavedReports()
+		m.Reporting.SelectedReport = 0
+		m.Reporting.ShowSavedReports = true
+		m.setState(model.StateReporting)
+	case "enter":
+		if m.Reporting.ShowSavedReports && len(m.Reporting.SavedReports) > 0 && m.Reporting.SelectedReport >= 0 && m.Reporting.SelectedReport < len(m.Reporting.SavedReports) {
+			filename := m.Reporting.SavedReports[m.Reporting.SelectedReport]
+			content, err := m.Reporting.LoadReport(filename)
+			if err == nil {
+				m.Reporting.CurrentReport = content
+				m.Reporting.ShowSavedReports = false
+				m.Ui.Viewport.SetContent(content)
+				m.Ui.Viewport.YPosition = 0
+				m.setState(model.StateViewingReport)
+			}
+		}
+	case "d":
+		if m.Reporting.ShowSavedReports && len(m.Reporting.SavedReports) > 0 && m.Reporting.SelectedReport >= 0 && m.Reporting.SelectedReport < len(m.Reporting.SavedReports) {
+			filename := m.Reporting.SavedReports[m.Reporting.SelectedReport]
+			filepath := filepath.Join(m.Reporting.ReportDirectory, filename)
+			err := os.Remove(filepath)
+			if err == nil {
+				m.Reporting.RefreshSavedReports()
+				if m.Reporting.SelectedReport >= len(m.Reporting.SavedReports) {
+					m.Reporting.SelectedReport = len(m.Reporting.SavedReports) - 1
+				}
+			}
+		}
 	}
 	return m, nil
 }

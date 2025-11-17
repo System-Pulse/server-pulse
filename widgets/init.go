@@ -353,6 +353,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 		AsRoot:        isRoot,
 		SudoAvailable: sudoAvailable,
 		CanRunSudo:    canRunSudo,
+		Reporting:     model.NewReportModel(),
 		Monitor: model.MonitorModel{
 			ProcessTable:       t,
 			Container:          ct,

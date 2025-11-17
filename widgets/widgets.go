@@ -36,6 +36,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleWindowSize(msg)
 	case tea.KeyMsg:
 		return m.handleKeyMsg(msg)
+	case model.ReportGenerationMsg:
+		m.Reporting.CurrentReport = msg.Report
+		m.Reporting.IsGenerating = false
+		// Initialize viewport for the report
+		m.Ui.Viewport.SetContent(msg.Report)
+		m.Ui.Viewport.YPosition = 0
+		m.setState(model.StateViewingReport)
+		return m, nil
+	case model.ClearSaveNotificationMsg:
+		m.Reporting.HandleClearSaveNotification()
+		return m, nil
+
 	case tea.MouseMsg:
 		return m.handleMouseMsg(msg)
 	case info.SystemMsg, resource.CpuMsg, resource.MemoryMsg, resource.DiskMsg, resource.NetworkMsg, proc.ProcessMsg, performance.HealthMetricsMsg, performance.IOMetricsMsg, performance.CPUMetricsMsg, performance.MemoryMetricsMsg:

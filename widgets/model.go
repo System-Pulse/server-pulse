@@ -37,6 +37,7 @@ type Model struct {
 	AsRoot              bool
 	SudoAvailable       bool
 	CanRunSudo          bool
+	Reporting           model.ReportModel
 }
 
 type connectionStats struct {
@@ -50,6 +51,13 @@ func (m *Model) setState(newState model.AppState) {
 	if m.Ui.State != newState {
 		m.Ui.PreviousState = m.Ui.State
 		m.Ui.State = newState
+		m.HelpSystem.ResetHelp()
+
+		// Clear save notification when leaving reporting state
+		if m.Ui.State != model.StateReporting && m.Reporting.SaveNotification != "" {
+			m.Reporting.SaveNotification = ""
+			m.Reporting.SaveNotificationTime = time.Time{}
+		}
 	}
 
 	switch newState {
@@ -63,7 +71,7 @@ func (m *Model) setState(newState model.AppState) {
 		m.Ui.SelectedTab = 1
 	case model.StateNetwork:
 		m.Ui.SelectedTab = 2
-	case model.StateReporting:
+	case model.StateReporting, model.StateGeneratingReport, model.StateViewingReport, model.StateSavingReport:
 		m.Ui.SelectedTab = 3
 	}
 
@@ -84,6 +92,7 @@ func (m *Model) goBack() {
 		m.stopContainerStats()
 		m.setState(model.StateContainers)
 	case model.StateMonitor, model.StateDiagnostics, model.StateNetwork, model.StateReporting,
+		model.StateGeneratingReport, model.StateViewingReport, model.StateSavingReport,
 		model.StateSystem, model.StateProcess, model.StateContainers:
 		m.stopContainerStats()
 		m.setState(model.StateHome)

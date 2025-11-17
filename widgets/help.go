@@ -268,6 +268,29 @@ func (k ContainerMenuKeyMap) FullHelp() [][]key.Binding {
 	}
 }
 
+// ReportingKeyMap defines keybindings for reporting states
+type ReportingKeyMap struct {
+	BaseKeyMap
+	Generate key.Binding
+	Save     key.Binding
+	Load     key.Binding
+	Navigate key.Binding
+	Select   key.Binding
+	Delete   key.Binding
+}
+
+func (k ReportingKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{k.Help, k.Back, k.Quit}
+}
+
+func (k ReportingKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{k.Generate, k.Save, k.Load},
+		{k.Navigate, k.Select, k.Delete},
+		{k.Help, k.Back, k.Quit},
+	}
+}
+
 // HelpSystem manages the help system state
 type HelpSystem struct {
 	HelpModel help.Model
@@ -624,10 +647,32 @@ func (hs *HelpSystem) GetKeyMapForState(state model.AppState, diagnosticSelected
 		}
 
 	case model.StateReporting:
-		return BaseKeyMap{
-			Help: baseKeys.Help,
-			Quit: baseKeys.Quit,
-			Back: baseKeys.Back,
+		return ReportingKeyMap{
+			BaseKeyMap: baseKeys,
+			Generate: key.NewBinding(
+				key.WithKeys("g"),
+				key.WithHelp("g", "generate report"),
+			),
+			Save: key.NewBinding(
+				key.WithKeys("s"),
+				key.WithHelp("s", "save report"),
+			),
+			Load: key.NewBinding(
+				key.WithKeys("l"),
+				key.WithHelp("l", "load reports"),
+			),
+			Navigate: key.NewBinding(
+				key.WithKeys("up", "down", "k", "j"),
+				key.WithHelp("↑↓", "navigate"),
+			),
+			Select: key.NewBinding(
+				key.WithKeys("enter"),
+				key.WithHelp("enter", "select"),
+			),
+			Delete: key.NewBinding(
+				key.WithKeys("d"),
+				key.WithHelp("d", "delete"),
+			),
 		}
 	}
 
@@ -637,6 +682,11 @@ func (hs *HelpSystem) GetKeyMapForState(state model.AppState, diagnosticSelected
 // ToggleHelp toggles between short and full help view
 func (hs *HelpSystem) ToggleHelp() {
 	hs.ShowAll = !hs.ShowAll
+}
+
+// ResetHelp resets the help state to short view
+func (hs *HelpSystem) ResetHelp() {
+	hs.ShowAll = false
 }
 
 // View returns the help view for the current state
@@ -761,9 +811,10 @@ func (hs *HelpSystem) GetKeyMapForStateWithModel(state model.AppState, diagnosti
 
 		enterHelp := "activate tab"
 		// Show special help when on CPU or Memory tab
-		if m.Diagnostic.Performance.SelectedItem == model.CPU {
+		switch m.Diagnostic.Performance.SelectedItem {
+		case model.CPU:
 			enterHelp = "enter CPU sub-tabs"
-		} else if m.Diagnostic.Performance.SelectedItem == model.Memory {
+		case model.Memory:
 			enterHelp = "enter Memory sub-tabs"
 		}
 

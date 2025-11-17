@@ -38,7 +38,7 @@ func (m Model) renderMainContent() string {
 		currentView = m.renderFirewallDetails()
 	case model.StateAutoBanDetails:
 		currentView = m.renderAutoBanDetails()
-	case model.StateReporting:
+	case model.StateReporting, model.StateGeneratingReport, model.StateViewingReport, model.StateSavingReport:
 		currentView = m.renderReporting()
 	case model.StatePerformance:
 		currentView = m.renderPerformanceAnalysis()
