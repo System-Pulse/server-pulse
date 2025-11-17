@@ -526,7 +526,7 @@ func (rm *ReportModel) SaveReport() (string, error) {
 }
 
 func (rm *ReportModel) HandleClearSaveNotification() {
-	if rm.SaveNotification != "" && time.Since(rm.SaveNotificationTime) >= (2900*time.Millisecond) {
+	if rm.SaveNotification != "" && time.Since(rm.SaveNotificationTime) >= (1900*time.Millisecond) {
 		rm.SaveNotification = ""
 		rm.SaveNotificationTime = time.Time{}
 	}
