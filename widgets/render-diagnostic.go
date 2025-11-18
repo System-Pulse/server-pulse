@@ -506,11 +506,14 @@ func (m Model) renderDiagnosticLogs() string {
 
 func (m Model) renderPerformanceAnalysis() string {
 	activeTabStyle := lipgloss.NewStyle().Padding(0, 2).
-		Foreground(vars.ClearWhite).
-		Background(vars.PurpleCollor).
-		Bold(true)
+		Foreground(lipgloss.Color("240")).
+		Background(lipgloss.Color("236"))
 	if m.Diagnostic.Performance.SubTabNavigationActive {
-		activeTabStyle = activeTabStyle.Copy().Underline(true)
+		activeTabStyle = lipgloss.NewStyle().Padding(0, 2).
+			Foreground(vars.ClearWhite).
+			Background(vars.PurpleCollor).
+			Bold(true).
+			Underline(true)
 	}
 
 	navBar := renderNav(m.Diagnostic.Performance.Nav, model.ContainerTab(m.Diagnostic.Performance.SelectedItem), activeTabStyle)
@@ -565,11 +568,14 @@ func (m Model) renderCPUPerformance() string {
 	cpuTabs := []string{"CPU State Breakdown", "Per-Core Performance", "System Activity Metrics"}
 
 	activeTabStyle := lipgloss.NewStyle().Padding(0, 2).
-		Foreground(vars.ClearWhite).
-		Background(vars.PurpleCollor).
-		Bold(true)
+		Foreground(lipgloss.Color("240")).
+		Background(lipgloss.Color("236"))
 	if m.Diagnostic.Performance.CPUSubTabActive {
-		activeTabStyle = activeTabStyle.Copy().Underline(true)
+		activeTabStyle = lipgloss.NewStyle().Padding(0, 2).
+			Foreground(vars.ClearWhite).
+			Background(vars.PurpleCollor).
+			Bold(true).
+			Underline(true)
 	}
 
 	navBar := renderNav(cpuTabs, model.ContainerTab(m.Diagnostic.Performance.CPUSelectedTab), activeTabStyle)
@@ -610,11 +616,14 @@ func (m Model) renderMemoryPerformance() string {
 	memoryTabs := []string{"Overview", "Usage Breakdown", "Swap Analysis", "System Memory"}
 
 	activeTabStyle := lipgloss.NewStyle().Padding(0, 2).
-		Foreground(vars.ClearWhite).
-		Background(vars.PurpleCollor).
-		Bold(true)
+		Foreground(lipgloss.Color("240")).
+		Background(lipgloss.Color("236"))
 	if m.Diagnostic.Performance.MemorySubTabActive {
-		activeTabStyle = activeTabStyle.Copy().Underline(true)
+		activeTabStyle = lipgloss.NewStyle().Padding(0, 2).
+			Foreground(vars.ClearWhite).
+			Background(vars.PurpleCollor).
+			Bold(true).
+			Underline(true)
 	}
 
 	navBar := lipgloss.NewStyle().MarginTop(1).Render(
