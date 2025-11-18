@@ -26,7 +26,7 @@ func (m Model) renderReporting() string {
 		Foreground(lipgloss.Color("241")).
 		Italic(true)
 
-	content.WriteString(instructions.Render("Press 'g' to generate a new report, 's' to save current report, 'l' to load saved reports"))
+	content.WriteString(instructions.Render("Press 'g' to generate a new report, 'l' to load saved reports"))
 	content.WriteString("\n\n")
 
 	// Report status
@@ -77,7 +77,6 @@ func (m Model) renderReportMenu() string {
 		description string
 	}{
 		{"g", "Generate new system health report"},
-		{"s", "Save current report to file"},
 		{"l", "Load and view saved reports"},
 	}
 

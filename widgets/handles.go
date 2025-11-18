@@ -1848,6 +1848,7 @@ func (m Model) handleReportingKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "s":
 		if m.Reporting.CurrentReport != "" {
 			filepath, err := (&m.Reporting).SaveReport()
+			m.Reporting.CurrentReport = ""
 			if err != nil {
 				m.Reporting.SaveNotification = fmt.Sprintf("❌ Error saving report: %v", err)
 			} else {
