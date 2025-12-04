@@ -32,7 +32,7 @@ go.work.sum
 # .vscode/
 prompt.*
 server-*
-commits.txt
+commits.*
 get-commit.py
 TODO.md
 test-scroll.go

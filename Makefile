@@ -18,6 +18,13 @@ build-all:
 	GOOS=linux   GOARCH=ppc64le CGO_ENABLED=0 go build -tags release -ldflags $(LD_FLAGS) -o _build/server-pulse-$(VERSION)-linux-ppc64le
 	cd _build; sha256sum * > sha256sums.txt
 
+update-release:
+	for a in $$(gh release view v$(VERSION) --json assets --jq '.assets[].name'); do \
+		gh release delete-asset v$(VERSION) $$a; \
+	done
+
+	gh release upload v$(VERSION) _build/* --clobber
+	
 run-dev:
 	rm -f server-pulse.sock server-pulse
 	go build -ldflags $(LD_FLAGS) -o server-pulse
