@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/System-Pulse/server-pulse/system/app"
 	system "github.com/System-Pulse/server-pulse/system/app"
 	model "github.com/System-Pulse/server-pulse/widgets/model"
 	tea "github.com/charmbracelet/bubbletea"
@@ -142,14 +141,14 @@ func (m Model) handleLogsStreamMsg(msg system.ContainerLogsStreamMsg) (tea.Model
 	return m, m.readNextLogLine()
 }
 
-func (m *Model) handleRealTimeStats(containerID string, statsChan chan app.ContainerStatsMsg) {
+func (m *Model) handleRealTimeStats(containerID string, statsChan chan system.ContainerStatsMsg) {
 	for stats := range statsChan {
 		if m.Monitor.ContainerDetails == nil {
-			m.Monitor.ContainerDetails = &app.ContainerDetails{
-				Container: app.Container{
+			m.Monitor.ContainerDetails = &system.ContainerDetails{
+				Container: system.Container{
 					ID: containerID,
 				},
-				Stats: app.ContainerStats{
+				Stats: system.ContainerStats{
 					CPUPercent:     stats.CPUPercent,
 					PerCPUPercents: stats.PerCPUPercents,
 					MemoryPercent:  stats.MemPercent,
@@ -222,6 +221,32 @@ func calculateConnectivityContentLines(m Model) int {
 			}
 			tempContent.WriteString("\n")
 		}
+	}
+
+	// Speed test results
+	for _, result := range m.Network.SpeedTestResults {
+		tempContent.WriteString("Speed Test Results\n")
+		tempContent.WriteString(fmt.Sprintf("Server: %s\n", result.Server))
+		tempContent.WriteString(fmt.Sprintf("Test Duration: %v\n\n", result.TestDuration))
+
+		if result.PingResult != nil {
+			tempContent.WriteString("Latency (Ping):\n")
+			tempContent.WriteString(fmt.Sprintf("  Average: %.2f ms\n", float64(result.PingResult.Average.Microseconds())/1000))
+			tempContent.WriteString(fmt.Sprintf("  Min: %.2f ms, Max: %.2f ms\n",
+				float64(result.PingResult.Min.Microseconds())/1000,
+				float64(result.PingResult.Max.Microseconds())/1000))
+			tempContent.WriteString(fmt.Sprintf("  Samples: %d\n\n", result.PingResult.Samples))
+		}
+
+		tempContent.WriteString("Download Speed:\n")
+		tempContent.WriteString(fmt.Sprintf("  %.2f Mbps\n\n", result.DownloadMbps))
+
+		tempContent.WriteString("Upload Speed:\n")
+		tempContent.WriteString(fmt.Sprintf("  %.2f Mbps\n\n", result.UploadMbps))
+
+		// Summary box (estimate 3 lines for the box)
+		tempContent.WriteString("Summary\n")
+		tempContent.WriteString("\n\n")
 	}
 
 	fullContent := tempContent.String()

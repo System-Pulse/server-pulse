@@ -729,10 +729,22 @@ func (m Model) handleNetworkKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.Network.TracerouteInput.Focus()
 			return m, nil
 		}
+	case "s":
+		if m.Network.SelectedItem == model.NetworkTabConnectivity {
+			m.Network.SpeedTestLoading = true
+			m.resetSpinner()
+			spinnerCmd := m.Ui.Spinner.Tick
+			return m, tea.Batch(
+				network.SpeedTest(),
+				spinnerCmd,
+				func() tea.Msg { return model.ForceRefreshMsg{} },
+			)
+		}
 	case "c":
 		if m.Network.SelectedItem == model.NetworkTabConnectivity {
 			m.Network.PingResults = nil
 			m.Network.TracerouteResults = []network.TracerouteResult{}
+			m.Network.SpeedTestResults = []network.SpeedTestResult{}
 			m.Network.ConnectivityPage = 0
 			return m, nil
 		}
@@ -866,6 +878,7 @@ func (m Model) handleConnectivityInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 					func() tea.Msg { return model.ForceRefreshMsg{} },
 				)
 			}
+
 		case model.ConnectivityModeInstallPassword:
 			password := m.Network.TracerouteInput.Value()
 			target := m.Network.TracerouteInstallTarget
@@ -896,6 +909,7 @@ func (m Model) handleConnectivityInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Network.TracerouteInstallTarget = ""
 		m.Network.PingLoading = false
 		m.Network.TracerouteLoading = false
+		m.Network.SpeedTestLoading = false
 		return m, nil
 	default:
 		switch m.Network.ConnectivityMode {
@@ -2316,6 +2330,19 @@ func (m Model) handleNetworkMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Network.TracerouteResults = append(m.Network.TracerouteResults, network.TracerouteResult(msg))
 		m.Network.TracerouteLoading = false
 		m.Network.ConnectivityPage = 0
+		return m, nil
+	case network.SpeedTestMsg:
+		m.Network.SpeedTestResults = append(m.Network.SpeedTestResults, network.SpeedTestResult(msg))
+		m.Network.SpeedTestLoading = false
+		m.Network.ConnectivityPage = 0
+		return m, nil
+	case network.SpeedTestErrorMsg:
+		m.Network.SpeedTestLoading = false
+		m.LastOperationMsg = "Speed test failed: " + msg.Error
+		return m, clearOperationMessage()
+	case network.SpeedTestProgressMsg:
+		// Handle progress updates if needed
+		m.LastOperationMsg = fmt.Sprintf("Speed test: %s (%.0f%%)", msg.Message, msg.Progress*100)
 		return m, nil
 	case network.TracerouteInstallPromptMsg:
 		// Traceroute is not installed, show confirmation dialog

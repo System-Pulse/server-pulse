@@ -28,6 +28,8 @@ type NetworkModel struct {
 	AuthTimer               int
 	PingLoading             bool
 	TracerouteLoading       bool
+	SpeedTestLoading        bool
+	SpeedTestResults        []network.SpeedTestResult
 	ConnectivityPage        int
 	ConnectivityPerPage     int
 	TracerouteInstallTarget string
@@ -40,4 +42,5 @@ const (
 	ConnectivityModePing
 	ConnectivityModeTraceroute
 	ConnectivityModeInstallPassword
+	ConnectivityModeSpeedTest
 )

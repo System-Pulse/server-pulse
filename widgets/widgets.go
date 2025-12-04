@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/System-Pulse/server-pulse/system/app"
 	system "github.com/System-Pulse/server-pulse/system/app"
 	info "github.com/System-Pulse/server-pulse/system/informations"
 	"github.com/System-Pulse/server-pulse/system/logs"
@@ -26,7 +25,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd  tea.Cmd
 		cmds []tea.Cmd
 	)
-	if m.Network.PingLoading || m.Network.TracerouteLoading {
+	if m.Network.PingLoading || m.Network.TracerouteLoading || m.Network.SpeedTestLoading {
 		m.Ui.Spinner, cmd = m.Ui.Spinner.Update(msg)
 		cmds = append(cmds, cmd)
 	}
@@ -69,7 +68,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleAutoBanDisplayMsg(msg)
 	case logs.LogsMsg:
 		return m.handleLogsDisplayMsg(msg)
-	case network.ConnectionsMsg, network.RoutesMsg, network.DNSMsg, network.PingMsg, network.TracerouteMsg, network.TracerouteInstallPromptMsg, network.TracerouteInstallResultMsg:
+	case network.ConnectionsMsg, network.RoutesMsg, network.DNSMsg, network.PingMsg, network.TracerouteMsg, network.TracerouteInstallPromptMsg, network.TracerouteInstallResultMsg, network.SpeedTestMsg, network.SpeedTestErrorMsg, network.SpeedTestProgressMsg:
 		return m.handleNetworkMsgs(msg)
 	case system.ContainerLogsStreamMsg:
 		return m.handleLogsStreamMsg(msg)
@@ -193,7 +192,7 @@ func (m *Model) updateNetworkTable() tea.Cmd {
 	return nil
 }
 
-func (m *Model) updateContainerTable(containers []app.Container) tea.Cmd {
+func (m *Model) updateContainerTable(containers []system.Container) tea.Cmd {
 	var rows []table.Row
 	searchTerm := strings.ToLower(m.Ui.SearchInput.Value())
 

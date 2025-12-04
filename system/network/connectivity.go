@@ -314,3 +314,13 @@ func InstallTraceroute(target string, sudoPassword string) tea.Cmd {
 		}
 	}
 }
+
+// SpeedTest runs a complete network speed test
+func SpeedTest() tea.Cmd {
+	return RunSpeedTest()
+}
+
+// SpeedTestWithProgress runs a speed test with progress updates
+func SpeedTestWithProgress() tea.Cmd {
+	return RunSpeedTestWithProgress(nil)
+}

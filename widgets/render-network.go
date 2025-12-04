@@ -146,7 +146,7 @@ func (m Model) renderConnectivityAnalysis() string {
 
 	instructions := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("Press 'p' to ping, 't' to traceroute, 'c' to clear results")
+		Render("Press 'p' to ping, 't' to traceroute, 's' for speed test, 'c' to clear results")
 	content.WriteString(instructions + "\n\n")
 
 	// Input modes - always visible
@@ -170,6 +170,13 @@ func (m Model) renderConnectivityAnalysis() string {
 		loadingText := lipgloss.NewStyle().
 			Foreground(lipgloss.Color("214")).
 			Render(fmt.Sprintf("%s Running traceroute...", m.Ui.Spinner.View()))
+		content.WriteString(loadingText + "\n\n")
+	}
+
+	if m.Network.SpeedTestLoading {
+		loadingText := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214")).
+			Render(fmt.Sprintf("%s Running speed test...", m.Ui.Spinner.View()))
 		content.WriteString(loadingText + "\n\n")
 	}
 
@@ -244,6 +251,60 @@ func (m Model) renderConnectivityAnalysis() string {
 		}
 	}
 
+	// Speed test results
+	if len(m.Network.SpeedTestResults) > 0 {
+		for _, result := range m.Network.SpeedTestResults {
+			speedTestTitle := lipgloss.NewStyle().
+				Bold(true).
+				Underline(true).
+				Foreground(lipgloss.Color("200")).
+				Render("🚀 Speed Test Results")
+			resultsContent.WriteString(speedTestTitle + "\n")
+
+			resultsContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Render(fmt.Sprintf("Server: %s", result.Server)) + "\n")
+			resultsContent.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("39")).Render(fmt.Sprintf("Test Duration: %v", result.TestDuration)) + "\n\n")
+
+			if result.PingResult != nil {
+				pingSection := lipgloss.NewStyle().
+					Bold(true).
+					Foreground(lipgloss.Color("85")).
+					Render("📡 Latency (Ping):")
+				resultsContent.WriteString(pingSection + "\n")
+				resultsContent.WriteString(fmt.Sprintf("  Average: %.2f ms\n", float64(result.PingResult.Average.Microseconds())/1000))
+				resultsContent.WriteString(fmt.Sprintf("  Min: %.2f ms, Max: %.2f ms\n",
+					float64(result.PingResult.Min.Microseconds())/1000,
+					float64(result.PingResult.Max.Microseconds())/1000))
+				resultsContent.WriteString(fmt.Sprintf("  Samples: %d\n\n", result.PingResult.Samples))
+			}
+
+			downloadSection := lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("85")).
+				Render("⬇️  Download Speed:")
+			resultsContent.WriteString(downloadSection + "\t")
+			resultsContent.WriteString(fmt.Sprintf("  %.2f Mbps\n", result.DownloadMbps))
+
+			uploadSection := lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("85")).
+				Render("⬆️  Upload Speed:")
+			resultsContent.WriteString(uploadSection + "\t")
+			resultsContent.WriteString(fmt.Sprintf("  %.2f Mbps\n", result.UploadMbps))
+
+			// Summary box
+			summaryBox := lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("62")).
+				Padding(0, 1).
+				MarginTop(1).
+				Render(fmt.Sprintf("📊 Summary: %.2f ms latency | %.2f Mbps down | %.2f Mbps up",
+					float64(result.PingResult.Average.Microseconds())/1000,
+					result.DownloadMbps,
+					result.UploadMbps))
+			resultsContent.WriteString(summaryBox)
+		}
+	}
+
 	// Apply pagination only to results
 	resultsLines := strings.Split(resultsContent.String(), "\n")
 	totalResultsLines := len(resultsLines)
@@ -257,10 +318,7 @@ func (m Model) renderConnectivityAnalysis() string {
 	}
 
 	startIdx := m.Network.ConnectivityPage * m.Network.ConnectivityPerPage
-	endIdx := startIdx + m.Network.ConnectivityPerPage
-	if endIdx > totalResultsLines {
-		endIdx = totalResultsLines
-	}
+	endIdx := min(startIdx + m.Network.ConnectivityPerPage, totalResultsLines)
 	totalPages := (totalResultsLines + m.Network.ConnectivityPerPage - 1) / m.Network.ConnectivityPerPage
 
 	// Add paginated results to main content
