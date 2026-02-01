@@ -318,7 +318,7 @@ func (m Model) renderConnectivityAnalysis() string {
 	}
 
 	startIdx := m.Network.ConnectivityPage * m.Network.ConnectivityPerPage
-	endIdx := min(startIdx + m.Network.ConnectivityPerPage, totalResultsLines)
+	endIdx := min(startIdx+m.Network.ConnectivityPerPage, totalResultsLines)
 	totalPages := (totalResultsLines + m.Network.ConnectivityPerPage - 1) / m.Network.ConnectivityPerPage
 
 	// Add paginated results to main content
