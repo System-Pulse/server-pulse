@@ -68,16 +68,16 @@ TMP=$(mktemp -d "${TMPDIR:-/tmp}/server-pulse.XXXXX")
 cd "${TMP}" || exit
 
 output "Fetching latest release info"
-resp=$(curl -s https://api.github.com/repos/Betzalel75/server-pulse/releases/latest)
+resp=$(curl -s https://api.github.com/repos/System-Pulse/server-pulse/releases/latest)
 
 output "Fetching release checksums"
 checksum_url=$(extract_url sha256sums.txt "$resp")
 wget -q "$checksum_url" -O sha256sums.txt
 
 # skip if latest already installed
-cur_server-pulse=$(command -v server-pulse 2> /dev/null)
-if [[ -n "$cur_server-pulse" ]]; then
-  cur_sum=$(sha256sum "$cur_server-pulse" | sed 's/ .*//')
+cur_server_pulse=$(command -v server-pulse 2> /dev/null)
+if [[ -n "$cur_server_pulse" ]]; then
+  cur_sum=$(sha256sum "$cur_server_pulse" | sed 's/ .*//')
   (grep -q "$cur_sum" sha256sums.txt) && {
     output "server-pulse is already up-to-date"
     exit 0
