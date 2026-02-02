@@ -33,10 +33,7 @@ output "Checking for server-pulse installation..."
 if [ -f "$BIN_PATH" ]; then
     output "Found server-pulse at $BIN_PATH"
 
-    # Get version info before uninstalling
-    version=$("$BIN_PATH" -v 2>/dev/null || echo "unknown version")
-    
-    output "Removing server-pulse ($version)..."
+    output "Removing server-pulse..."
     if $sh_c "rm -f $BIN_PATH"; then
         output "server-pulse was successfully uninstalled"
     else
