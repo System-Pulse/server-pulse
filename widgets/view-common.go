@@ -234,14 +234,29 @@ func (m *Model) updateSecurityTable() tea.Cmd {
 
 func (m *Model) getSecurityStatusIcon(status string) string {
 	switch strings.ToLower(status) {
-	case "valid", "secure", "disabled", "ok":
-		return "✓" // Green checkmark
-	case "warning", "expiring":
-		return "⚠" // Warning triangle
-	case "invalid", "critical", "enabled", "error":
-		return "✗" // Red X
+	// Good states
+	case "valid", "secure", "ok",
+		"disabled",     // SSH root login / SSH password auth off = good
+		"active",       // Firewall active = good
+		"enabled",      // Password policy / Auto ban on = good
+		"up to date",   // System updates current
+		"not required": // No system restart needed
+		return "✓"
+	// Warning states
+	case "warning", "expiring",
+		"updates available",       // System updates pending
+		"enabled (key-only)",      // SSH root key-only access
+		"enabled (commands-only)": // SSH root commands-only access
+		return "⚠"
+	// Bad states
+	case "invalid", "critical", "error",
+		"inactive",                // Firewall inactive = bad
+		"high risk",               // Dangerous open ports
+		"required",                // System restart needed
+		"enabled (with password)": // SSH root with password = bad
+		return "✗"
 	default:
-		return "●" // Neutral dot
+		return "●"
 	}
 }
 
