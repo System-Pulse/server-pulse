@@ -54,7 +54,15 @@ func StopProcess(pid int) error {
 	if err := process.Signal(syscall.SIGTERM); err != nil {
 		return err
 	}
-	time.Sleep(5 * time.Second)
+
+	// Poll every 200ms for up to 5 seconds instead of blocking for 5s
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if !processExists(pid) {
+			return nil
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
 
 	if processExists(pid) {
 		return process.Kill()

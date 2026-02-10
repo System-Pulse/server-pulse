@@ -34,9 +34,13 @@ func InitialModel() Model {
 // InitialModelWithManager creates a model with an existing docker manager
 func InitialModelWithManager(apk *app.DockerManager) Model {
 
-	containers, err := apk.RefreshContainers()
-	if err != nil {
-		fmt.Printf("Erreur lors du chargement des conteneurs: %v\n", err)
+	var containers []app.Container
+	if apk != nil {
+		var err error
+		containers, err = apk.RefreshContainers()
+		if err != nil {
+			fmt.Printf("Erreur lors du chargement des conteneurs: %v\n", err)
+		}
 	}
 
 	columns := []table.Column{
@@ -425,7 +429,7 @@ func InitialModelWithManager(apk *app.DockerManager) Model {
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(
+	cmds := []tea.Cmd{
 		tick(),
 		info.UpdateSystemInfo(),
 		resource.UpdateCPUInfo(),
@@ -433,6 +437,9 @@ func (m Model) Init() tea.Cmd {
 		resource.UpdateDiskInfo(),
 		resource.UpdateNetworkInfo(),
 		proc.UpdateProcesses(),
-		m.Monitor.App.UpdateApp(),
-	)
+	}
+	if m.Monitor.App != nil {
+		cmds = append(cmds, m.Monitor.App.UpdateApp())
+	}
+	return tea.Batch(cmds...)
 }

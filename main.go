@@ -24,12 +24,12 @@ func main() {
 	}
 	defer panicExit()
 
-	// Initialize docker manager globally
+	// Initialize docker manager globally (non-fatal if Docker is unavailable)
 	var err error
 	dockerManager, err = app.NewDockerManager()
 	if err != nil {
-		fmt.Printf("Failed to initialize Docker manager: %v\n", err)
-		os.Exit(1)
+		// Docker is unavailable but the app can still run without container management
+		dockerManager = nil
 	}
 
 	for {
@@ -79,7 +79,7 @@ func runTUI() bool {
 
 	// Check if we need to execute a shell
 	if model, ok := finalModel.(widgets.Model); ok {
-		if shellRequest := model.GetPendingShellExec(); shellRequest != nil {
+		if shellRequest := model.GetPendingShellExec(); shellRequest != nil && dockerManager != nil {
 			time.Sleep(100 * time.Millisecond)
 
 			err := dockerManager.ExecInteractiveShellAlternative(shellRequest.ContainerID)

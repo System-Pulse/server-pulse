@@ -157,7 +157,7 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.LastOperationMsg = utils.FormatOperationMessage(opMsg.Operation, opMsg.Success, opMsg.Error)
 
 		var refreshCmd tea.Cmd
-		if opMsg.Success {
+		if opMsg.Success && m.Monitor.App != nil {
 			refreshCmd = m.Monitor.App.UpdateApp()
 		}
 		return m, tea.Batch(refreshCmd, clearOperationMessage())
@@ -2116,7 +2116,7 @@ func (m Model) handleSearchKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.Monitor.Container.Focus()
 		if m.Ui.SelectedMonitor == 1 {
 			tcmd = m.updateProcessTable()
-		} else {
+		} else if m.Monitor.App != nil {
 			tcmd = m.Monitor.App.UpdateApp()
 		}
 		return m, tcmd
@@ -2138,7 +2138,6 @@ func (m Model) handleTickMsg() (tea.Model, tea.Cmd) {
 		resource.UpdateDiskInfo(),
 		resource.UpdateNetworkInfo(),
 		proc.UpdateProcesses(),
-		m.Monitor.App.UpdateApp(),
 		// Refresh network connectivity data when in network view
 		func() tea.Cmd {
 			if m.Ui.State == model.StateNetwork {
@@ -2151,6 +2150,9 @@ func (m Model) handleTickMsg() (tea.Model, tea.Cmd) {
 			}
 			return nil
 		}(),
+	}
+	if m.Monitor.App != nil {
+		cmds = append(cmds, m.Monitor.App.UpdateApp())
 	}
 
 	if m.Diagnostic.AuthState == model.AuthSuccess && m.Diagnostic.AuthTimer > 0 {

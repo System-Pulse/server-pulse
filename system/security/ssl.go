@@ -45,6 +45,7 @@ func (sm *SecurityManager) checkSSLCertificate(domaine string) SecurityCheck {
 	port := "443"
 	conn, err := tls.Dial("tcp", domaine+":"+port, &tls.Config{
 		ServerName: domaine,
+		MinVersion: tls.VersionTLS12,
 	})
 	if err != nil {
 		return SecurityCheck{

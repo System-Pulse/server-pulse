@@ -3,6 +3,7 @@ package network
 import (
 	"bufio"
 	"fmt"
+	"net"
 	"os"
 	"strings"
 
@@ -21,17 +22,27 @@ func GetDNS() tea.Cmd {
 		var dnsServers []DNSInfo
 		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
-			line := scanner.Text()
-			if strings.HasPrefix(strings.TrimSpace(line), "nameserver") {
+			line := strings.TrimSpace(scanner.Text())
+			if strings.HasPrefix(line, "#") || line == "" {
+				continue
+			}
+			if strings.HasPrefix(line, "nameserver") {
 				fields := strings.Fields(line)
 				if len(fields) >= 2 {
-					dnsServers = append(dnsServers, DNSInfo{Server: fields[1]})
+					server := fields[1]
+					if net.ParseIP(server) != nil {
+						dnsServers = append(dnsServers, DNSInfo{Server: server})
+					}
 				}
 			}
 		}
 
 		if err := scanner.Err(); err != nil {
 			return utils.ErrMsg(fmt.Errorf("failed to read resolv.conf: %w", err))
+		}
+
+		if len(dnsServers) == 0 {
+			return DNSMsg([]DNSInfo{{Server: "No DNS servers found"}})
 		}
 
 		return DNSMsg(dnsServers)
