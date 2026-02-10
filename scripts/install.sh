@@ -91,6 +91,9 @@ wget -q --show-progress "$url"
 
 output "Installing to /usr/local/bin"
 chmod +x server-pulse-*
-$sh_c "mv server-pulse-* /usr/local/bin/server-pulse"
+$sh_c "mv server-pulse-* /usr/local/bin/sp"
 
 output "Installation complete!"
+echo ""
+echo "To start server-pulse, run:"
+echo "  sp"
