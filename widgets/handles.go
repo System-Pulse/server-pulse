@@ -167,6 +167,7 @@ func (m Model) handleContainerRelatedMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case system.ContainerStatsChanMsg:
 		statsMsg := system.ContainerStatsChanMsg(msg)
+		m.Monitor.StatsCancelFunc = statsMsg.CancelFunc
 		go m.handleRealTimeStats(statsMsg.ContainerID, statsMsg.StatsChan)
 		return m, nil
 	}

@@ -327,14 +327,15 @@ func (dm *DockerManager) forceTerminalResetSimple() {
 	fmt.Print("\033[2J\033[H")
 }*/
 
-func (dm *DockerManager) GetContainerStatsStream(containerID string) (chan ContainerStatsMsg, error) {
+func (dm *DockerManager) GetContainerStatsStream(containerID string) (chan ContainerStatsMsg, context.CancelFunc, error) {
 	statsChan := make(chan ContainerStatsMsg)
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 
 	response, err := dm.Cli.ContainerStats(ctx, containerID, true)
 	if err != nil {
+		cancel()
 		close(statsChan)
-		return nil, fmt.Errorf("failed to get container stats: %w", err)
+		return nil, nil, fmt.Errorf("failed to get container stats: %w", err)
 	}
 
 	go func() {
@@ -436,5 +437,5 @@ func (dm *DockerManager) GetContainerStatsStream(containerID string) (chan Conta
 		}
 	}()
 
-	return statsChan, nil
+	return statsChan, cancel, nil
 }

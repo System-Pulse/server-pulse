@@ -33,6 +33,7 @@ type MonitorModel struct {
 	ContainerLogsStreaming bool
 	ContainerLogsChan      chan string
 	LogsCancelFunc         context.CancelFunc
+	StatsCancelFunc        context.CancelFunc
 
 	ContainerLogs        string
 	ContainerLogsLoading bool

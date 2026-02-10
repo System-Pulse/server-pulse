@@ -89,23 +89,25 @@ func (m *Model) loadContainerDetails(containerID string) tea.Cmd {
 			return app.ContainerDetailsMsg(*details)
 		},
 		func() tea.Msg {
-			statsChan, err := m.Monitor.App.GetContainerStatsStream(containerID)
+			statsChan, cancel, err := m.Monitor.App.GetContainerStatsStream(containerID)
 			if err != nil {
 				return utils.ErrMsg(err)
 			}
 			return app.ContainerStatsChanMsg{
 				ContainerID: containerID,
 				StatsChan:   statsChan,
+				CancelFunc:  cancel,
 			}
 		},
 	)
 }
 
 func (m *Model) stopContainerStats() {
-	// Close any active stats channels
+	if m.Monitor.StatsCancelFunc != nil {
+		m.Monitor.StatsCancelFunc()
+		m.Monitor.StatsCancelFunc = nil
+	}
 	for containerID, containerHistory := range m.Monitor.ContainerHistories {
-		// For now, we'll just clear the history when stopping stats
-		// In a real implementation, we might want to close the channel
 		containerHistory.CpuHistory.Points = []model.DataPoint{}
 		containerHistory.MemoryHistory.Points = []model.DataPoint{}
 		containerHistory.NetworkRxHistory.Points = []model.DataPoint{}

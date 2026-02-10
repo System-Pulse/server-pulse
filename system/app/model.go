@@ -114,6 +114,7 @@ type ContainerStatusMsg struct {
 type ContainerStatsChanMsg struct {
 	ContainerID string
 	StatsChan   chan ContainerStatsMsg
+	CancelFunc  context.CancelFunc
 }
 
 type ExecShellMsg struct {
