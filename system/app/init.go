@@ -29,13 +29,15 @@ func NewDockerManager() (*DockerManager, error) {
 }
 
 func (dm *DockerManager) RefreshContainers() ([]Container, error) {
-	containers, err := dm.Cli.ContainerList(context.Background(), container.ListOptions{All: true})
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	containers, err := dm.Cli.ContainerList(ctx, container.ListOptions{All: true})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list containers: %w", err)
 	}
 
 	var result []Container
-	ctx := context.Background()
 
 	for _, cont := range containers {
 		containerJSON, err := dm.Cli.ContainerInspect(ctx, cont.ID)
@@ -106,7 +108,8 @@ func (dm *DockerManager) RefreshContainers() ([]Container, error) {
 }
 
 func (dm *DockerManager) GetContainerDetails(containerID string) (*ContainerDetails, error) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
 	containerJSON, err := dm.Cli.ContainerInspect(ctx, containerID)
 	if err != nil {

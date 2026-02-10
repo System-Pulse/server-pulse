@@ -179,36 +179,34 @@ func downloadWorker(ctx context.Context, client *http.Client, url string, bytesD
 
 		resp, err := client.Do(req)
 		if err != nil {
-			// Check if context was cancelled
 			if ctx.Err() != nil {
 				return
 			}
-			// Retry on error
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 
-		// Stream the response body to discard, counting bytes
-		for {
-			select {
-			case <-ctx.Done():
-				resp.Body.Close()
-				return
-			default:
-			}
+		func() {
+			defer resp.Body.Close()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 
-			n, err := resp.Body.Read(buffer)
-			if n > 0 {
-				atomic.AddInt64(bytesDownloaded, int64(n))
-				if progressChan != nil {
-					progressChan <- int64(n)
+				n, err := resp.Body.Read(buffer)
+				if n > 0 {
+					atomic.AddInt64(bytesDownloaded, int64(n))
+					if progressChan != nil {
+						progressChan <- int64(n)
+					}
+				}
+				if err != nil {
+					return
 				}
 			}
-			if err != nil {
-				break
-			}
-		}
-		resp.Body.Close()
+		}()
 	}
 }
 
@@ -362,9 +360,8 @@ func selectServer(client *http.Client, url string, maxRetries int) error {
 		req = req.WithContext(ctx)
 
 		resp, err := client.Do(req)
-		cancel()
-
 		if err != nil {
+			cancel()
 			if attempt < maxRetries {
 				time.Sleep(time.Duration(attempt) * time.Second)
 				continue
@@ -372,9 +369,9 @@ func selectServer(client *http.Client, url string, maxRetries int) error {
 			return fmt.Errorf("unable to contact server after %d attempts: %v", maxRetries, err)
 		}
 
-		// Discard response body
 		io.Copy(io.Discard, resp.Body)
 		resp.Body.Close()
+		cancel()
 
 		if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 			return nil

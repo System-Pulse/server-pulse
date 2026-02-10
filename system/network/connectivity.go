@@ -216,9 +216,9 @@ func InstallTraceroute(target string, sudoPassword string) tea.Cmd {
 				}
 			}
 
-			// Capture stdout and stderr to prevent blocking
 			stdout, err := cmd.StdoutPipe()
 			if err != nil {
+				stdin.Close()
 				return TracerouteInstallResultMsg{
 					Success: false,
 					Target:  target,
@@ -227,6 +227,7 @@ func InstallTraceroute(target string, sudoPassword string) tea.Cmd {
 			}
 			stderr, err := cmd.StderrPipe()
 			if err != nil {
+				stdin.Close()
 				return TracerouteInstallResultMsg{
 					Success: false,
 					Target:  target,

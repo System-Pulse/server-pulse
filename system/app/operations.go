@@ -288,7 +288,23 @@ func (dm *DockerManager) ToggleContainerPause(containerID string) error {
 	}
 }
 
+func isValidContainerID(id string) bool {
+	if len(id) < 1 || len(id) > 64 {
+		return false
+	}
+	for _, c := range id {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			return false
+		}
+	}
+	return true
+}
+
 func (dm *DockerManager) ExecInteractiveShellAlternative(containerID string) error {
+	if !isValidContainerID(containerID) {
+		return fmt.Errorf("invalid container ID: %s", containerID)
+	}
+
 	fmt.Print("\033[?1049l")
 	fmt.Print("\033[2J\033[H")
 
@@ -319,16 +335,8 @@ func (dm *DockerManager) forceTerminalResetSimple() {
 	fmt.Print("\033[2J\033[H") // Clear and home
 }
 
-/*func (dm *DockerManager) waitSimple() {
-	fmt.Print("Press Enter to return to Server-Pulse...")
-	cmd := exec.Command("bash", "-c", "read -r")
-	cmd.Stdin = os.Stdin
-	cmd.Run()
-	fmt.Print("\033[2J\033[H")
-}*/
-
 func (dm *DockerManager) GetContainerStatsStream(containerID string) (chan ContainerStatsMsg, context.CancelFunc, error) {
-	statsChan := make(chan ContainerStatsMsg)
+	statsChan := make(chan ContainerStatsMsg, 1)
 	ctx, cancel := context.WithCancel(context.Background())
 
 	response, err := dm.Cli.ContainerStats(ctx, containerID, true)
@@ -348,10 +356,16 @@ func (dm *DockerManager) GetContainerStatsStream(containerID string) (chan Conta
 		var lastPerCPUUsage []uint64
 
 		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
 			var stats StatsJSON
 			if err := decoder.Decode(&stats); err != nil {
-				if err == io.EOF {
-					break
+				if err == io.EOF || ctx.Err() != nil {
+					return
 				}
 				continue
 			}
@@ -418,7 +432,8 @@ func (dm *DockerManager) GetContainerStatsStream(containerID string) (chan Conta
 				}
 			}
 
-			statsChan <- ContainerStatsMsg{
+			select {
+			case statsChan <- ContainerStatsMsg{
 				ContainerID:    containerID,
 				CPUPercent:     cpuPercent,
 				PerCPUPercents: perCpuPercents,
@@ -428,12 +443,19 @@ func (dm *DockerManager) GetContainerStatsStream(containerID string) (chan Conta
 				NetRX:          networkRx,
 				NetTX:          networkTx,
 				DiskUsage:      blockRead + blockWrite,
+			}:
+			case <-ctx.Done():
+				return
 			}
 
 			lastCPUStats = &stats.CPUStats
 			lastSystemCPUUsage = stats.CPUStats.SystemUsage
 
-			time.Sleep(2 * time.Second)
+			select {
+			case <-time.After(2 * time.Second):
+			case <-ctx.Done():
+				return
+			}
 		}
 	}()
 
