@@ -38,11 +38,13 @@ func (dm *DockerManager) RefreshContainers() ([]Container, error) {
 	}
 
 	var result []Container
+	var skipped int
 
 	for _, cont := range containers {
 		containerJSON, err := dm.Cli.ContainerInspect(ctx, cont.ID)
 		if err != nil {
-			continue // Skip this container if inspection fails
+			skipped++
+			continue
 		}
 
 		projectName := cont.Labels["com.docker.compose.project"]
@@ -102,6 +104,10 @@ func (dm *DockerManager) RefreshContainers() ([]Container, error) {
 			Health:    health,
 		}
 		result = append(result, c)
+	}
+
+	if skipped > 0 {
+		return result, fmt.Errorf("%d container(s) could not be inspected", skipped)
 	}
 
 	return result, nil

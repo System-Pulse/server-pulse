@@ -2,13 +2,27 @@ package network
 
 import (
 	"fmt"
+	"net"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
+
+var validHostname = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9\-\.]*[a-zA-Z0-9])?$`)
+
+func isValidTarget(target string) bool {
+	if len(target) == 0 || len(target) > 253 {
+		return false
+	}
+	if net.ParseIP(target) != nil {
+		return true
+	}
+	return validHostname.MatchString(target)
+}
 
 type PingResult struct {
 	Target     string
@@ -48,6 +62,16 @@ type TracerouteInstallResultMsg struct {
 
 func Ping(target string, count int) tea.Cmd {
 	return func() tea.Msg {
+		if !isValidTarget(target) {
+			return PingMsg(PingResult{
+				Target:  target,
+				Success: false,
+				Error:   "Invalid target: must be a valid hostname or IP address",
+			})
+		}
+		if count < 1 || count > 100 {
+			count = 3
+		}
 		cmd := exec.Command("ping", "-c", strconv.Itoa(count), "-W", "5", target)
 		output, err := cmd.CombinedOutput()
 
@@ -99,7 +123,12 @@ func parseSystemPingOutput(target, output string) PingMsg {
 
 func Traceroute(target string) tea.Cmd {
 	return func() tea.Msg {
-		// Check if traceroute is installed
+		if !isValidTarget(target) {
+			return TracerouteMsg(TracerouteResult{
+				Target: target,
+				Error:  "Invalid target: must be a valid hostname or IP address",
+			})
+		}
 		checkCmd := exec.Command("which", "traceroute")
 		if err := checkCmd.Run(); err != nil {
 			return TracerouteInstallPromptMsg{Target: target}
