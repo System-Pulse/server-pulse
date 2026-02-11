@@ -145,7 +145,7 @@ func Traceroute(target string) tea.Cmd {
 
 				// Parse latencies
 				for j := 2; j < len(fields); j++ {
-					if before, ok :=strings.CutSuffix(fields[j], "ms"); ok  {
+					if before, ok := strings.CutSuffix(fields[j], "ms"); ok {
 						latencyStr := before
 						if parsed, err := time.ParseDuration(latencyStr + "ms"); err == nil {
 							switch j - 2 {
