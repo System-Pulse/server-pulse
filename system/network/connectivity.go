@@ -24,42 +24,6 @@ func isValidTarget(target string) bool {
 	return validHostname.MatchString(target)
 }
 
-type PingResult struct {
-	Target     string
-	Success    bool
-	Latency    time.Duration
-	PacketLoss float64
-	Error      string
-}
-
-type TracerouteResult struct {
-	Target string
-	Hops   []TracerouteHop
-	Error  string
-}
-
-type TracerouteHop struct {
-	HopNumber int
-	IP        string
-	Hostname  string
-	Latency1  time.Duration
-	Latency2  time.Duration
-	Latency3  time.Duration
-}
-
-type PingMsg PingResult
-type TracerouteMsg TracerouteResult
-type TracerouteInstallPromptMsg struct {
-	Target string
-}
-
-type TracerouteInstallResultMsg struct {
-	Success         bool
-	Target          string
-	Error           string
-	PasswordInvalid bool
-}
-
 func Ping(target string, count int) tea.Cmd {
 	return func() tea.Msg {
 		if !isValidTarget(target) {
@@ -181,8 +145,8 @@ func Traceroute(target string) tea.Cmd {
 
 				// Parse latencies
 				for j := 2; j < len(fields); j++ {
-					if strings.HasSuffix(fields[j], "ms") {
-						latencyStr := strings.TrimSuffix(fields[j], "ms")
+					if before, ok :=strings.CutSuffix(fields[j], "ms"); ok  {
+						latencyStr := before
 						if parsed, err := time.ParseDuration(latencyStr + "ms"); err == nil {
 							switch j - 2 {
 							case 0:
