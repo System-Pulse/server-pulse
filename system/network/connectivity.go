@@ -2,7 +2,9 @@ package network
 
 import (
 	"fmt"
+	"net"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -10,44 +12,30 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type PingResult struct {
-	Target     string
-	Success    bool
-	Latency    time.Duration
-	PacketLoss float64
-	Error      string
-}
+var validHostname = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9\-\.]*[a-zA-Z0-9])?$`)
 
-type TracerouteResult struct {
-	Target string
-	Hops   []TracerouteHop
-	Error  string
-}
-
-type TracerouteHop struct {
-	HopNumber int
-	IP        string
-	Hostname  string
-	Latency1  time.Duration
-	Latency2  time.Duration
-	Latency3  time.Duration
-}
-
-type PingMsg PingResult
-type TracerouteMsg TracerouteResult
-type TracerouteInstallPromptMsg struct {
-	Target string
-}
-
-type TracerouteInstallResultMsg struct {
-	Success         bool
-	Target          string
-	Error           string
-	PasswordInvalid bool
+func isValidTarget(target string) bool {
+	if len(target) == 0 || len(target) > 253 {
+		return false
+	}
+	if net.ParseIP(target) != nil {
+		return true
+	}
+	return validHostname.MatchString(target)
 }
 
 func Ping(target string, count int) tea.Cmd {
 	return func() tea.Msg {
+		if !isValidTarget(target) {
+			return PingMsg(PingResult{
+				Target:  target,
+				Success: false,
+				Error:   "Invalid target: must be a valid hostname or IP address",
+			})
+		}
+		if count < 1 || count > 100 {
+			count = 3
+		}
 		cmd := exec.Command("ping", "-c", strconv.Itoa(count), "-W", "5", target)
 		output, err := cmd.CombinedOutput()
 
@@ -99,7 +87,12 @@ func parseSystemPingOutput(target, output string) PingMsg {
 
 func Traceroute(target string) tea.Cmd {
 	return func() tea.Msg {
-		// Check if traceroute is installed
+		if !isValidTarget(target) {
+			return TracerouteMsg(TracerouteResult{
+				Target: target,
+				Error:  "Invalid target: must be a valid hostname or IP address",
+			})
+		}
 		checkCmd := exec.Command("which", "traceroute")
 		if err := checkCmd.Run(); err != nil {
 			return TracerouteInstallPromptMsg{Target: target}
@@ -152,8 +145,8 @@ func Traceroute(target string) tea.Cmd {
 
 				// Parse latencies
 				for j := 2; j < len(fields); j++ {
-					if strings.HasSuffix(fields[j], "ms") {
-						latencyStr := strings.TrimSuffix(fields[j], "ms")
+					if before, ok := strings.CutSuffix(fields[j], "ms"); ok {
+						latencyStr := before
 						if parsed, err := time.ParseDuration(latencyStr + "ms"); err == nil {
 							switch j - 2 {
 							case 0:

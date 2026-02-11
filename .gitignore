@@ -32,6 +32,7 @@ go.work.sum
 # .vscode/
 prompt.*
 server-*
+sp
 commits.*
 get-commit.py
 TODO.md
