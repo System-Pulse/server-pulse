@@ -2,6 +2,7 @@ package widgets
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	system "github.com/System-Pulse/server-pulse/system/app"
@@ -136,6 +137,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
+}
+
+func (m *Model) applySortPreference() {
+	switch m.Monitor.ProcessSort {
+	case model.ProcessSortByMem:
+		sort.Slice(m.Monitor.Processes, func(i, j int) bool { return m.Monitor.Processes[i].Mem > m.Monitor.Processes[j].Mem })
+	default:
+		sort.Slice(m.Monitor.Processes, func(i, j int) bool { return m.Monitor.Processes[i].CPU > m.Monitor.Processes[j].CPU })
+	}
 }
 
 func (m *Model) updateProcessTable() tea.Cmd {

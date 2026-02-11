@@ -34,10 +34,10 @@ func UpdateProcesses() tea.Cmd {
 			})
 		}
 
+		// Sort by CPU to keep the most active processes when truncating
 		sort.Slice(processList, func(i, j int) bool {
 			return processList[i].CPU > processList[j].CPU
 		})
-
 		if len(processList) > 50 {
 			processList = processList[:50]
 		}

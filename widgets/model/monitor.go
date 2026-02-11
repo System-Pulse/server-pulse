@@ -19,12 +19,20 @@ type ContainerLogsPagination struct {
 	Lines       []string
 }
 
+type ProcessSortField int
+
+const (
+	ProcessSortByCPU ProcessSortField = iota
+	ProcessSortByMem
+)
+
 type MonitorModel struct {
 	System                  info.SystemInfo
 	Cpu                     resource.CPUInfo
 	Memory                  resource.MemoryInfo
 	Disks                   []resource.DiskInfo
 	Processes               []proc.ProcessInfo
+	ProcessSort             ProcessSortField
 	App                     *app.DockerManager
 	PendingShellExec        *ShellExecRequest
 	ShouldQuit              bool

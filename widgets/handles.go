@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -63,6 +62,7 @@ func (m Model) handleResourceAndProcessMsgs(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.updateNetworkTable())
 	case proc.ProcessMsg:
 		m.Monitor.Processes = []proc.ProcessInfo(msg)
+		m.applySortPreference()
 		return m, m.updateProcessTable()
 	case performance.HealthMetricsMsg:
 		if msg.Metrics != nil {
@@ -383,10 +383,12 @@ func (m Model) handleProcessKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "down", "j":
 		m.Monitor.ProcessTable.MoveDown(1)
 	case "s":
-		sort.Slice(m.Monitor.Processes, func(i, j int) bool { return m.Monitor.Processes[i].CPU > m.Monitor.Processes[j].CPU })
+		m.Monitor.ProcessSort = model.ProcessSortByCPU
+		m.applySortPreference()
 		return m, m.updateProcessTable()
 	case "m":
-		sort.Slice(m.Monitor.Processes, func(i, j int) bool { return m.Monitor.Processes[i].Mem > m.Monitor.Processes[j].Mem })
+		m.Monitor.ProcessSort = model.ProcessSortByMem
+		m.applySortPreference()
 		return m, m.updateProcessTable()
 	case "k": // stop process
 		if len(m.Monitor.ProcessTable.SelectedRow()) > 0 {
